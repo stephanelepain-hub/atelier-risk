@@ -63,9 +63,25 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 - All study text is HTML-escaped. Uploads are JSON only, capped at 5 MB, and checked before they are stored.
 - The server log never records query strings, so one-time login links do not end up in it.
 
+## Code layout
+
+| Module | Role |
+|---|---|
+| `app/serve.py` | entry point |
+| `app/atelier_app/config.py` | settings and their defaults (environment, then the user's home) |
+| `app/atelier_app/engine.py` | the only module that calls the engine |
+| `app/atelier_app/calibrations.py` | calibration lookup |
+| `app/atelier_app/storage.py` | study files |
+| `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
+| `app/atelier_app/app.py`, `views.py`, `web.py`, `server.py` | routes and handlers, HTML, HTTP plumbing, the server |
+| `app/static/` | the CSS and JS files the pages load |
+| `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`) and `e2e.py` (end-to-end run) |
+
 ## Limits of this iteration
 
-- One user. No HTTPS: it relies on staying on the loopback address.
+- Atelier is a single-user local app today. Sessions carry a user name and handlers get their study store
+  through one function (`App.store_for`), so several users can be added later without changing URLs.
+- No HTTPS: it relies on staying on the loopback address.
 - Workshops 2 to 5 cannot be edited in the app yet. Edit the JSON and import it, or wait for iteration 2.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
 - No document upload and no drafting by a model yet.
