@@ -590,7 +590,7 @@ def grid_table(cal, rows, key_l, key_level, title, sid):
 <div class="axis-x">Likelihood</div></figure>"""
 
 
-def grids_block(cal, rows, summary, sid):
+def grids_block(cal, rows, summary, sid, inline_maps=False):
     """The engine's register on two grids side by side: now, and at target (risks with a target likelihood)."""
     cls = level_classes(cal)
 
@@ -603,13 +603,20 @@ def grids_block(cal, rows, summary, sid):
     without = [r.get("id") for r in rows if not r.get("likelihood_target")]
     grids = grid_table(cal, rows, "likelihood", "level", "Now", sid)
     grids += grid_table(cal, with_target, "likelihood_target", "level_target", "At target", sid)
+    grids = f'<div class="grids">{grids}</div>'
+    if inline_maps:
+        maps = "".join(f'<figure><figcaption>Map: {esc(title)}</figcaption>'
+                       f'{engine.risk_map(rows, cal, stage, title)}</figure>'
+                       for stage, title in (("now", "Now"), ("target", "At target")))
+        grids = (f'<div class="engine-maps">{maps}</div>'
+                 f'<details class="tabular-maps"><summary>Tabular risk grids</summary>{grids}</details>')
     note = (f'<p class="hint">No target likelihood yet for {esc(", ".join(str(x) for x in without))}, so '
             f'{"it is" if len(without) == 1 else "they are"} not on the target grid.</p>') if without else ""
     legend = "".join(f'<li>{lvl(l["name"])} {esc(l.get("acceptability", ""))}</li>'
                      for l in sorted(cal["levels"], key=lambda l: -l["rank"]))
     return f"""<p class="hint">Levels, acceptability and counts are the engine's register for calibration {esc(cal["id"])}.</p>
 <p>Now: {counts(summary.get("now", {}))}. At target: {counts(summary.get("target", {}))}.</p>
-<div class="grids">{grids}</div>{note}
+{grids}{note}
 <ul class="legend">{legend}</ul>"""
 
 
@@ -642,7 +649,7 @@ def register_page(sid, st, chk, rows, summary, session):
              '<div class="scroll"><table class="list register"><thead><tr>'
              + "".join(f"<th>{esc(t)}</th>" for _, t, _ in cols) + f'</tr></thead><tbody>{"".join(trs)}</tbody></table></div>{note}')
     content = f"""<section class="card"><h2>Risk grid, now and at target</h2>
-{grids_block(cal, rows, summary, sid)}</section>
+{grids_block(cal, rows, summary, sid, inline_maps=True)}</section>
 <section class="card"><h2>Risk register <span class="count">{len(rows)}</span></h2>
 {table}</section>"""
     return study_shell(sid, st, chk, "register", content, session)

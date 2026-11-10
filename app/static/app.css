@@ -94,6 +94,14 @@ p.ok { color: var(--ok); }
   .checks-panel { position: static; max-height: none; order: -1; }
 }
 
+/* Engine SVG maps stay side by side; the expandable tables remain available below. */
+.engine-maps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.engine-maps figure { margin: 0; min-width: 0; }
+.engine-maps figcaption { font-weight: 700; }
+.engine-maps svg { display: block; width: 100%; height: auto; }
+.tabular-maps { margin-top: 1rem; }
+.draft-progress { color: var(--accent); font-weight: 600; }
+
 /* risk grid */
 .grids { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 figure.grid-wrap { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas:

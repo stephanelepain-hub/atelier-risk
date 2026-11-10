@@ -603,7 +603,9 @@ def main():
             report["screenshots"] = []
             std = ((1400, 1000), (900, 1300))
             tall = ((1400, 1700), (900, 2600))
-            plan = [("documents-panel", f"/s/{gsid}/docs", std),
+            plan = [("register-maps", f"/s/{sid}/register", ((1400, 1500), (900, 1900))),
+                    ("synthetic-register-maps", f"/s/{psid}/register", ((1400, 1500), (900, 1900))),
+                    ("documents-panel", f"/s/{gsid}/docs", std),
                     ("w2-drafting", f"/s/{gsid}/w2", tall),
                     ("w3-drafting", f"/s/{gsid}/w3", tall),
                     ("w4-drafting", f"/s/{gsid}/w4", tall),

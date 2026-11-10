@@ -1,6 +1,7 @@
 """The only place the app talks to the engine. Levels, checks and registers all come from here."""
 import copy
 import os
+import re
 import tempfile
 
 from . import ENGINE_DIR  # noqa: F401  (puts the engine on sys.path)
@@ -74,6 +75,20 @@ def register(st, cal):
     """Engine risk register and per-level counts. Call only for a study without errors (as the CLI does)."""
     rows = study_mod.register(st, cal)
     return rows, study_mod.summary(rows, cal)
+
+
+def risk_map(rows, cal, stage, title):
+    """Inline SVG from the engine; orientation belongs to the calibration.
+
+    Treat colours as data, not SVG markup: the engine currently interpolates them into attributes.
+    Match the CSS fallback for malformed colours without changing any level or the original calibration.
+    """
+    from atelier_engine import maps
+    safe = copy.deepcopy(cal)
+    for level in safe["levels"]:
+        if not re.fullmatch(r"[0-9A-Fa-f]{6}", str(level.get("colour") or "")):
+            level["colour"] = "BBBBBB"
+    return maps.svg(rows, safe, stage=stage, title=title, orientation=cal.get("map_orientation"))
 
 
 def level(cal, severity, likelihood):
