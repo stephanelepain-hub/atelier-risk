@@ -1,4 +1,4 @@
-# Web app (`app/`, iteration 2)
+# Web app (`app/`, iteration 3)
 
 A local, single-user web interface over the engine. It runs on your own machine and listens on the loopback
 address only. Levels, checks, registers and the Excel export all come from the engine. The app never computes
@@ -10,7 +10,8 @@ or sets a level itself.
 python3 app/serve.py
 ```
 
-Python 3.12 or later, standard library only. The Excel export needs openpyxl, like the engine's.
+Python 3.12 or later, standard library only. The Excel export needs openpyxl, like the engine's. Without
+openpyxl the app still runs: the Excel download answers "needs openpyxl" (HTTP 501) and everything else works.
 The server prints its address (`http://127.0.0.1:8770/`) and a one-time login link. Open the link in your browser.
 
 Options: `--port`, `--data-dir`, `--private-dir`. `python3 app/serve.py --help` lists them.
@@ -31,7 +32,9 @@ Options: `--port`, `--data-dir`, `--private-dir`. `python3 app/serve.py --help` 
 | `studies/<id>.json` | one study per file, in the engine's `atelier-study` format; the engine CLI reads it as is |
 | `studies/<id>.json.bak` | the previous version, rewritten on every save |
 | `studies/trash/` | deleted studies (delete moves the file here, it does not erase it) |
+| `drafts/<id>.json` | pending draft items of a study (see Drafting), never inside the study file |
 | `private/` | private calibrations, passed to the engine as `ATELIER_PRIVATE_DIR` (mode 0700) |
+| `drafting.json` | drafting settings (optional; absent means drafting is off); override with `ATELIER_DRAFTING` |
 | `token` | the login token (mode 0600) |
 
 Saves are atomic: the app writes a temporary file in the same directory, then renames it over the old one.
@@ -65,6 +68,48 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
   target, side by side, each risk in its cell, coloured with the calibration's level colours. A study with
   errors gets no register, as with the engine CLI.
 - Downloads: the study JSON, and the engine's Excel export.
+- A refused form comes back with what you typed. The message (the app's, or the engine's refusal of a value
+  outside 1-4) sits next to the field it is about, and the study file is not changed.
+
+## Calibrations, public and private
+
+- The calibration picker of a new study lists every calibration the engine knows: the public ones of the
+  repository and the private ones of `ATELIER_PRIVATE_DIR`, each with a `public` or `private` badge, its name
+  and its number of risk levels. A calibration the engine refuses to load is listed, disabled, with the reason.
+- The study list, the study header and the overview show which calibration a study uses, and the overview says
+  whether the study is private.
+- Grid, legend, counts and colours follow the levels the calibration declares (3 for `anssi-v1.5`, 4 or more
+  for a calibration that declares them). Colours come from the calibration file.
+- A study's calibration is never switched in place: that would change every level without notice. The overview
+  offers "Duplicate with calibration X" for each other calibration; the engine then checks the copy against X.
+- A study is private when its calibration is private, when you mark it confidential (overview), or when its
+  calibration is not available. The copy of a private study is marked confidential, so duplicating it on a public
+  calibration does not make it public.
+
+## Drafting (workshop 1)
+
+Rule of trust: the model drafts, the engine computes and checks, you validate. A draft never sets a level.
+
+- W1 has a "Draft from text" box. Paste text (document upload comes later); the model proposes business values
+  and feared events. They are listed, marked `draft`, outside the study. Each one has its own form: edit it and
+  accept it into the study, or reject it. A drafted feared event has no severity: you pick it in its form. Any
+  severity, likelihood, level or id in the model's answer is dropped before you see it.
+- Drafting is off unless `drafting.json` in the data directory says otherwise:
+
+  ```json
+  {"backend": "openai-compatible", "base_url": "http://127.0.0.1:8081/v1", "model": "<model name>",
+   "key_file": "~/.config/atelier/model.key"}
+  ```
+
+  `backend` is `off` (default) or `openai-compatible` (the app POSTs to `<base_url>/chat/completions`).
+  `key_file` is optional. It names a file holding the API key on one line, mode 0600 (`chmod 600`); a file
+  readable by others is refused. The key is sent only in the `Authorization` header. It is never logged, stored
+  or shown. Keep the key file outside the repository.
+- Route policy, enforced in code before anything is sent: a private study may only use an endpoint whose host is
+  `127.0.0.1`, `localhost` or `::1` and resolves to loopback addresses only, for example an `ssh -L` forward to
+  a model on your own network. Public studies may use any configured endpoint. A refused draft says why and sends
+  nothing. Requests ignore proxy settings and do not follow redirects, so a local endpoint cannot pass a private
+  request on.
 
 ## Security model
 
@@ -86,13 +131,14 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 | `app/serve.py` | entry point |
 | `app/atelier_app/config.py` | settings and their defaults (environment, then the user's home) |
 | `app/atelier_app/engine.py` | the only module that calls the engine |
-| `app/atelier_app/calibrations.py` | calibration lookup |
+| `app/atelier_app/calibrations.py` | calibration lookup, the picker's catalogue, whether a study is private |
+| `app/atelier_app/drafting.py` | the drafting adapter (`draft(task, context)`), its backends and the route policy |
 | `app/atelier_app/storage.py` | study files |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
 | `app/atelier_app/editors.py` | workshop 2 to 5 forms: fields, link checks, ids |
 | `app/atelier_app/app.py`, `views.py`, `views_ws.py`, `web.py`, `server.py` | routes and handlers, HTML (workshop 2 to 5 editors in `views_ws.py`), HTTP plumbing, the server |
 | `app/static/` | the CSS and JS files the pages load |
-| `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`) and `e2e.py` (end-to-end run) |
+| `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`), `no_openpyxl.py` (the same tests as if openpyxl were missing: the Excel tests skip), `stub_model.py` (a local stand-in for an OpenAI-compatible API) and `e2e.py` (end-to-end run) |
 
 ## Limits of this iteration
 
@@ -104,4 +150,7 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
   function changes.
 - No relevance aid for risk origins and no stakeholder threat level: the engine does not compute them yet.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
-- No document upload and no drafting by a model yet.
+- Drafting covers workshop 1 only (business values and feared events from pasted text). No document upload yet
+  (PDF and DOCX come later). The tests use a local stub; no real model was called while building it.
+- No review mode yet (importing an existing analysis for review comes with the engine's importer).
+- Drafts are kept per study, in a file beside the studies; two tabs drafting at once both add their items.
