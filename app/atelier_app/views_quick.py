@@ -480,8 +480,8 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
     cap = f'<p class="hint">{esc(tr(lang, "conf_cap", n=engine.NO_DOCUMENT_CEILING))}</p>' if not facts["document_provided"] else ""
     maps = ""
     if reg_rows:
-        maps = (f'<div class="maps"><figure><figcaption>{esc(tr(lang, "map_now"))}</figcaption>{engine.risk_map(reg_rows, cal, "now", tr(lang, "map_now"))}</figure>'
-                f'<figure><figcaption>{esc(tr(lang, "map_after"))}</figcaption>{engine.risk_map(reg_rows, cal, "target", tr(lang, "map_after"))}</figure></div>')
+        maps = (f'<div class="maps"><figure><figcaption>{esc(tr(lang, "map_now"))}</figcaption>{engine.risk_map(reg_rows, cal, "now", tr(lang, "map_now"), plain=True)}</figure>'
+                f'<figure><figcaption>{esc(tr(lang, "map_after"))}</figcaption>{engine.risk_map(reg_rows, cal, "target", tr(lang, "map_after"), plain=True)}</figure></div>')
         legend = "".join(
             f'<tr><th scope="row">{esc(r["id"])}</th><td>{esc(_pick(r["def"]["title"], lang))}</td>'
             f'<td>{_level_chip(cal, r["level"], cls)}</td><td>{_level_chip(cal, r["level_target"], cls)}</td></tr>' for r in rows)

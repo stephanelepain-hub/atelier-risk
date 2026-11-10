@@ -175,6 +175,8 @@ class WalkTest(Base):
         self.assertIn("Step 4 of 4", t)
         self.assertEqual(t.count(engine.HONESTY["en"]), 1)
         self.assertEqual(t.count("<svg"), 2)                                   # before and after maps
+        self.assertNotIn("EBIOS", t)                                          # method names stay in expert mode
+        self.assertNotIn("EBIOS", self.page(f"/quick/{sid}/now"))
         self.assertIn("Now</figcaption>", t)
         self.assertIn("After your extra measures</figcaption>", t)
         self.assertIn("Your top actions", t)
