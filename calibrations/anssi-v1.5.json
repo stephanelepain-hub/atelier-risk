@@ -3,7 +3,7 @@
   "name": "EBIOS Risk Manager v1.5 (ANSSI, September 2024) - published scales",
   "source": "ANSSI-PA-048, guide EBIOS Risk Manager v1.5: severity scale p.26 (G1-G4, example), likelihood scale p.66 (V1-V4, example), acceptance classes p.74, risk grid p.75 (worked example, the only grid the guide publishes)",
   "licence": "Licence Ouverte / Open Licence (Etalab V1)",
-  "verified": "2026-11-10: grid read cell by cell from the p.75 figure; colours matched to the p.74 legend (teal Faible, orange Moyen, red Eleve)",
+  "verified": "2026-11-10: grid read cell by cell from the p.75 figure; colours matched to the p.74 legend (teal Faible, orange Moyen, red Élevé); labels and texts with the guide's accents and apostrophes (U+2019)",
   "severity": [
     {"n": 1, "code": "G1", "label": "Mineure"},
     {"n": 2, "code": "G2", "label": "Significative"},
@@ -13,18 +13,18 @@
   "likelihood": [
     {"n": 1, "code": "V1", "label": "Peu vraisemblable"},
     {"n": 2, "code": "V2", "label": "Vraisemblable"},
-    {"n": 3, "code": "V3", "label": "Tres vraisemblable"},
+    {"n": 3, "code": "V3", "label": "Très vraisemblable"},
     {"n": 4, "code": "V4", "label": "Quasi certain"}
   ],
   "levels": [
-    {"name": "Faible", "rank": 1, "colour": "4FC3B5", "acceptability": "Acceptable en l'etat", "action": "Aucune action n'est a entreprendre"},
-    {"name": "Moyen", "rank": 2, "colour": "FFC57A", "acceptability": "Tolerable sous controle", "action": "Un suivi en termes de gestion du risque est a mener et des actions sont a mettre en place dans le cadre d'une amelioration continue sur le moyen et long terme"},
-    {"name": "Eleve", "rank": 3, "colour": "F07178", "acceptability": "Inacceptable", "action": "Des mesures de reduction du risque doivent imperativement etre prises a court terme. Dans le cas contraire, tout ou partie de l'activite sera refuse"}
+    {"name": "Faible", "rank": 1, "colour": "4FC3B5", "acceptability": "Acceptable en l’état", "action": "Aucune action n’est à entreprendre"},
+    {"name": "Moyen", "rank": 2, "colour": "FFC57A", "acceptability": "Tolérable sous contrôle", "action": "Un suivi en termes de gestion du risque est à mener et des actions sont à mettre en place dans le cadre d’une amélioration continue sur le moyen et long terme"},
+    {"name": "Élevé", "rank": 3, "colour": "F07178", "acceptability": "Inacceptable", "action": "Des mesures de réduction du risque doivent impérativement être prises à court terme. Dans le cas contraire, tout ou partie de l’activité sera refusé"}
   ],
   "grid_by_severity": {
-    "4": ["Moyen", "Moyen", "Eleve", "Eleve"],
-    "3": ["Faible", "Moyen", "Eleve", "Eleve"],
-    "2": ["Faible", "Faible", "Moyen", "Eleve"],
+    "4": ["Moyen", "Moyen", "Élevé", "Élevé"],
+    "3": ["Faible", "Moyen", "Élevé", "Élevé"],
+    "2": ["Faible", "Faible", "Moyen", "Élevé"],
     "1": ["Faible", "Faible", "Moyen", "Moyen"]
   }
 }

@@ -19,9 +19,9 @@ EXAMPLE = json.loads((ROOT / "examples" / "anssi-guide-vaccine-example.json").re
 class AnssiCalibration(unittest.TestCase):
     """The grid must reproduce the guide's own figure (EBIOS RM v1.5 p.75), cell by cell."""
 
-    # Transcribed independently from the p.75 figure: teal = Faible, orange = Moyen, red = Eleve (legend p.74).
+    # Transcribed independently from the p.75 figure: teal = Faible, orange = Moyen, red = Élevé (legend p.74).
     FIGURE_P75 = {4: "MMEE", 3: "FMEE", 2: "FFME", 1: "FFMM"}
-    NAMES = {"F": "Faible", "M": "Moyen", "E": "Eleve"}
+    NAMES = {"F": "Faible", "M": "Moyen", "E": "Élevé"}
 
     def setUp(self):
         self.cal = calibration.load("anssi-v1.5")
@@ -34,11 +34,16 @@ class AnssiCalibration(unittest.TestCase):
     def test_guide_example_risks(self):
         # p.75: R1 G3V3 red, R2 G3V2 orange, R3 G3V4 red, R4 G4V2 orange, R5 G4V1 orange
         rows = {r["id"]: r["level"] for r in study.register(EXAMPLE, self.cal)}
-        self.assertEqual(rows, {"R1": "Eleve", "R2": "Moyen", "R3": "Eleve", "R4": "Moyen", "R5": "Moyen"})
+        self.assertEqual(rows, {"R1": "Élevé", "R2": "Moyen", "R3": "Élevé", "R4": "Moyen", "R5": "Moyen"})
 
     def test_acceptability_classes(self):
-        self.assertEqual([calibration.level_info(self.cal, n)["acceptability"] for n in ("Faible", "Moyen", "Eleve")],
-                         ["Acceptable en l'etat", "Tolerable sous controle", "Inacceptable"])
+        self.assertEqual([calibration.level_info(self.cal, n)["acceptability"] for n in ("Faible", "Moyen", "Élevé")],
+                         ["Acceptable en l’état", "Tolérable sous contrôle", "Inacceptable"])
+
+    def test_labels_keep_guide_spelling(self):
+        # The guide prints these with accents; ASCII-folded labels reached the UI once.
+        self.assertEqual(self.cal["likelihood"][2]["label"], "Très vraisemblable")
+        self.assertEqual([lv["name"] for lv in self.cal["levels"]], ["Faible", "Moyen", "Élevé"])
 
 
 class CalibrationChecks(unittest.TestCase):
@@ -52,7 +57,7 @@ class CalibrationChecks(unittest.TestCase):
 
     def test_non_monotonic_grid_rejected(self):
         bad = copy.deepcopy(self.cal)
-        bad["grid_by_severity"]["3"] = ["Eleve", "Moyen", "Eleve", "Eleve"]
+        bad["grid_by_severity"]["3"] = ["Élevé", "Moyen", "Élevé", "Élevé"]
         with self.assertRaises(calibration.CalibrationError):
             calibration.check(bad)
 
@@ -123,7 +128,7 @@ class Cli(unittest.TestCase):
     def test_register(self):
         code, r = self.run_cli("register", str(ROOT / "examples" / "anssi-guide-vaccine-example.json"))
         self.assertEqual(code, 0)
-        self.assertEqual(r["summary"]["now"], {"Eleve": 2, "Moyen": 3})
+        self.assertEqual(r["summary"]["now"], {"Élevé": 2, "Moyen": 3})
 
     def test_bad_input_exit_1(self):
         code, r = self.run_cli("level", "--cal", "anssi-v1.5", "--severity", "5", "--likelihood", "1")
