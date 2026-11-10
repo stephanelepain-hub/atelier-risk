@@ -7,6 +7,8 @@
   python3 -m atelier_engine validate study.json [--cal ID]           # calibration defaults to study.calibration
   python3 -m atelier_engine register study.json [--cal ID]
   python3 -m atelier_engine export   study.json out.xlsx [--cal ID]
+  python3 -m atelier_engine layouts
+  python3 -m atelier_engine import   filled.xlsx --cal ID [--layout ID] [--out study.json]
 
 Extra commands are added by a private plugin, if ATELIER_PRIVATE_DIR/plugins holds one (see docs/plugins.md).
 """
@@ -17,6 +19,7 @@ import pathlib
 import sys
 
 from . import calibration, study as study_mod
+from .importer import SpreadsheetError
 
 
 def out(obj, code=0):
@@ -51,6 +54,9 @@ def main(argv=None):
     for name in ("validate", "register"):
         p = sp.add_parser(name); p.add_argument("file"); p.add_argument("--cal")
     p = sp.add_parser("export"); p.add_argument("file"); p.add_argument("out"); p.add_argument("--cal")
+    sp.add_parser("layouts")
+    p = sp.add_parser("import"); p.add_argument("file"); p.add_argument("--cal", required=True)
+    p.add_argument("--layout"); p.add_argument("--out")
     plugin = _plugin()
     if plugin:
         plugin.register(sp)
@@ -58,6 +64,23 @@ def main(argv=None):
     try:
         if a.cmd == "calibrations":
             return out(calibration.available())
+        if a.cmd == "layouts":
+            from . import importer
+            return out(importer.layouts())
+        if a.cmd == "import":
+            from . import importer
+            cal = calibration.load(a.cal)
+            res = importer.read_xlsx(a.file, cal, a.layout)
+            res["check"] = study_mod.validate(res["study"], cal)
+            ok = not res["report"]["errors"] and not res["check"]["errors"]
+            if ok:
+                rows = study_mod.register(res["study"], cal)
+                res["summary"] = study_mod.summary(rows, cal)
+            if a.out:
+                pathlib.Path(a.out).write_text(json.dumps(res["study"], ensure_ascii=False, indent=1), encoding="utf-8")
+                res["written"] = a.out
+                res.pop("study")
+            return out(res, 0 if ok else 1)
         if plugin and a.cmd in getattr(plugin, "COMMANDS", ()):
             obj, code = plugin.run(a)
             return out(obj, code)
@@ -90,7 +113,7 @@ def main(argv=None):
         if a.cmd == "export":
             from . import export
             return out({"written": export.to_xlsx(st, cal, a.out), "calibration": cal["id"], "warnings": check["warnings"]})
-    except (calibration.CalibrationError, KeyError, TypeError, ValueError, FileNotFoundError, RuntimeError) as e:
+    except (calibration.CalibrationError, SpreadsheetError, KeyError, TypeError, ValueError, FileNotFoundError, RuntimeError) as e:
         return out({"error": f"{type(e).__name__}: {e}"}, 1)
 
 

@@ -1,0 +1,33 @@
+{
+  "id": "risk-register",
+  "name": "Plain risk register: one row per risk, severity and likelihood in columns; optional measures sheet",
+  "risks": {
+    "sheet": ["Risks", "Risk register", "Register", "Risques", "Registre des risques"],
+    "required": ["id", "severity", "likelihood"],
+    "columns": {
+      "id": ["Risk ID", "ID", "Ref", "Reference", "Identifiant", "Risque ID"],
+      "label": ["Risk", "Description", "Risk description", "Label", "Libelle", "Intitule", "Risque"],
+      "criterion": ["Criterion", "Security criterion", "Critere"],
+      "severity": ["Severity", "Gravity", "Impact", "Gravite"],
+      "likelihood": ["Likelihood", "Current likelihood", "Vraisemblance", "Vraisemblance actuelle"],
+      "likelihood_target": ["Target likelihood", "Residual likelihood", "Vraisemblance cible", "Vraisemblance residuelle"],
+      "level_now": ["Risk level", "Level", "Current level", "Niveau de risque", "Niveau"],
+      "level_target": ["Target level", "Residual level", "Niveau cible", "Niveau residuel"],
+      "treatment": ["Treatment", "Traitement"],
+      "owner": ["Owner", "Risk owner", "Proprietaire", "Responsable"],
+      "measures": ["Measures", "Measure IDs", "Mitigations", "Mitigation IDs", "Mesures"]
+    }
+  },
+  "measures": {
+    "sheet": ["Measures", "Mitigations", "Treatment plan", "Mesures", "Plan de traitement"],
+    "columns": {
+      "id": ["Measure ID", "Mitigation ID", "ID", "Ref", "Mesure ID"],
+      "label": ["Measure", "Mitigation", "Description", "Mesure", "Libelle"],
+      "status": ["Status", "Statut", "Etat"],
+      "owner": ["Owner", "Responsable", "Porteur"],
+      "due": ["Due", "Due date", "Deadline", "Echeance"],
+      "details": ["Details", "Comment", "Commentaire"]
+    }
+  },
+  "criterion_codes": {"C": "confidentiality", "I": "integrity", "A": "availability", "D": "availability", "T": "traceability"}
+}

@@ -1,0 +1,34 @@
+{
+  "id": "register-with-maps",
+  "name": "Risk register whose levels are shown as text or colour, with risk maps (initial / current / target) giving severity and likelihood",
+  "risks": {
+    "sheet": ["Risks", "Risk register", "Register", "Risques"],
+    "required": ["id"],
+    "columns": {
+      "id": ["Risk ID", "ID", "Ref", "Identifiant"],
+      "label": ["Risk", "Description", "Risk description", "Label", "Libelle", "Risque"],
+      "criterion": ["Criterion", "Security criterion", "Critere"],
+      "level_initial": ["Initial level", "Initial risk", "Gross risk", "Niveau initial", "Risque brut"],
+      "level_now": ["Current level", "Current risk", "Risk level", "Niveau actuel", "Risque actuel"],
+      "level_target": ["Target level", "Targeted risk", "Residual risk", "Niveau cible", "Risque residuel"],
+      "measures": ["Measures", "Measure ID", "Mitigations", "Mitigation ID", "Mesures"],
+      "owner": ["Owner", "Risk owner", "Proprietaire"]
+    }
+  },
+  "measures": {
+    "sheet": ["Measures", "Mitigations", "Treatment plan", "Mesures"],
+    "columns": {
+      "id": ["Measure ID", "Mitigation ID", "ID", "Ref"],
+      "label": ["Measure", "Mitigation", "Description", "Mesure"],
+      "status": ["Status", "Statut", "Etat"],
+      "owner": ["Owner", "Responsable"],
+      "due": ["Due", "Due date", "Echeance"]
+    }
+  },
+  "pictures": [
+    {"sheet": ["Risk maps", "Risk map", "Risks picture", "Cartographie"], "title_contains": ["initial", "raw", "gross", "brut"], "stage": "initial"},
+    {"sheet": ["Risk maps", "Risk map", "Risks picture", "Cartographie"], "title_contains": ["current", "actuel"], "stage": "now"},
+    {"sheet": ["Risk maps", "Risk map", "Risks picture", "Cartographie"], "title_contains": ["target", "residual", "cible", "residuel"], "stage": "target"}
+  ],
+  "criterion_codes": {"C": "confidentiality", "I": "integrity", "A": "availability", "D": "availability", "T": "traceability"}
+}

@@ -19,6 +19,9 @@ Status: early (v0.1). The engine works. The web app is being built.
   scenario. High-severity feared events left out of every scenario are flagged as blind spots.
 - **Risk register.** Level now and at target, acceptability, linked measures, and counts per level.
 - **Excel export.** A risk register with coloured levels, plus one sheet per workshop object.
+- **Spreadsheet import (review).** Reads an existing risk analysis from an .xlsx file (register, measures, risk
+  maps; levels as text or only as colours), recomputes the levels and lists what does not hold together. See
+  `docs/import.md`.
 
 ## Quick start
 
@@ -30,24 +33,26 @@ python3 -m atelier_engine validate ../examples/anssi-guide-vaccine-example.json
 python3 -m atelier_engine register ../examples/anssi-guide-vaccine-example.json
 pip install openpyxl   # only for the Excel export
 python3 -m atelier_engine export ../examples/anssi-guide-vaccine-example.json risks.xlsx
+python3 -m atelier_engine import filled.xlsx --cal anssi-v1.5   # review an existing analysis
 python3 -m unittest    # tests
 ```
 
-Python 3.8 or later. The standard library is enough, except for the Excel export, which needs openpyxl.
+Python 3.8 or later. The standard library is enough, except for the Excel export and import, which need openpyxl.
 
 ## Layout
 
 | Path | Content |
 |---|---|
-| `engine/atelier_engine/` | calibrations, study checks, risk register, export, CLI |
+| `engine/atelier_engine/` | calibrations, study checks, risk register, export, spreadsheet import, CLI |
+| `layouts/` | public spreadsheet layouts for the import (JSON) |
 | `calibrations/` | public calibrations (JSON) |
 | `examples/` | the worked example of the ANSSI guide, as a study file |
-| `docs/` | study format, calibration format, private extensions, repository rules (`docs/rules.md`) |
+| `docs/` | study format, import, calibration format, private extensions, repository rules (`docs/rules.md`) |
 | `app/` | web app (in progress) |
 
 ## Your own scales and extensions
 
-Set `ATELIER_PRIVATE_DIR` to a directory outside the repository. Calibration files placed there are picked up,
+Set `ATELIER_PRIVATE_DIR` to a directory outside the repository. Calibration files placed there, and layouts in its `layouts/` folder, are picked up,
 and a name clash resolves to your copy. An optional `plugins/atelier_private` package in that directory can add
 CLI commands (see `docs/plugins.md`). Nothing in that directory is ever committed.
 
