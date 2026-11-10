@@ -1,4 +1,4 @@
-# Web app (`app/`, iteration 4)
+# Web app (`app/`, iteration 5)
 
 A local, single-user web interface over the engine. It runs on your own machine and listens on the loopback
 address only. Levels, checks, registers and the Excel export all come from the engine. The app never computes
@@ -21,8 +21,9 @@ process the launcher started (it checks the process runs this checkout's `serve.
 
 In the foreground, without the launcher: `python3 app/serve.py`.
 
-Python 3.12 or later, standard library only. The Excel export needs openpyxl, like the engine's. Without
-openpyxl the app still runs: the Excel download answers "needs openpyxl" (HTTP 501) and everything else works.
+Python 3.12 or later, standard-library server. Study Excel export and review workbook import/export need
+openpyxl, like the engine. Without it the app still runs: study Excel download answers "needs openpyxl"
+(HTTP 501), review import reports the missing dependency, and other study features work.
 The server prints its address (`http://127.0.0.1:8770/`) and a one-time login link. Open the link in your browser.
 
 Options: `--port`, `--data-dir`, `--private-dir`, `--url-file`. `python3 app/serve.py --help` lists them.
@@ -81,6 +82,7 @@ WantedBy=default.target
 | `drafts/<id>.json` | pending draft items of a study (see Drafting), never inside the study file |
 | `documents/<id>/` | a study's source documents (mode 0700): the file as uploaded, its extracted text, its metadata (each 0600) |
 | `private/` | private calibrations, passed to the engine as `ATELIER_PRIVATE_DIR` (mode 0700) |
+| `reviews/<id>/` | review upload and atomic state snapshot; private directory (0700), files (0600) |
 | `settings.json` | drafting route and limits (mode 0600; absent means drafting is off); override with `ATELIER_SETTINGS`. The iteration 3 `drafting.json` is still read when there is no `settings.json` |
 | `drafting-log.jsonl` | one line per drafting request (mode 0600), without any document text |
 | `server.log`, `run/` | the launcher's server log and pid file |
@@ -230,8 +232,8 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
 - Static files come from a fixed list; there is no directory listing. Study ids are generated slugs checked
   against a fixed pattern before any path is built.
 - All study, document and draft text is HTML-escaped. Study imports are JSON only, capped at 5 MB. Document
-  uploads are capped at 20 MB (the only route with a larger body cap), typed by extension, and the uploaded file
-  name is only displayed, never used in a path (document ids are generated).
+  uploads are capped at 20 MB, typed by extension, and the uploaded file name is only displayed, never used in
+  a path (document ids are generated). Review workbook uploads also have a 20 MB cap and a bounded multipart envelope.
 - The server log never records query strings, so one-time login links do not end up in it.
 
 ## Review mode
@@ -279,6 +281,7 @@ file in that directory and delete it after the download is prepared. Two tabs ed
 | `app/atelier_app/calibrations.py` | calibration lookup, the picker's catalogue, whether a study is private |
 | `app/atelier_app/drafting.py` | the drafting adapter (`draft(task, context)`): routes and their policy, schemas, answer parsing, chunks, rate limit, request log |
 | `app/atelier_app/storage.py` | study files |
+| `app/atelier_app/reviews.py`, `review_store.py`, `views_review.py` | review handlers, private snapshots/uploads and review pages |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
 | `app/atelier_app/editors.py` | workshop 2 to 5 forms: fields, link checks, ids |
 | `app/atelier_app/app.py`, `views.py`, `views_ws.py`, `web.py`, `server.py` | routes and handlers, HTML (workshop 2 to 5 editors in `views_ws.py`), HTTP plumbing, the server |
