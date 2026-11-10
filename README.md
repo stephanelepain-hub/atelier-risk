@@ -42,7 +42,7 @@ Python 3.8 or later. The standard library is enough, except for the Excel export
 | `engine/atelier_engine/` | calibrations, study checks, risk register, export, CLI |
 | `calibrations/` | public calibrations (JSON) |
 | `examples/` | the worked example of the ANSSI guide, as a study file |
-| `docs/` | study format, calibration format, private extensions |
+| `docs/` | study format, calibration format, private extensions, repository rules (`docs/rules.md`) |
 | `app/` | web app (in progress) |
 
 ## Your own scales and extensions
