@@ -37,13 +37,14 @@ def listing(rows, cats, layouts, session, error=""):
     return page('Reviews', body, session)
 
 
-def shell(rid, state, body, session, title):
+def shell(rid, state, body, session, title, can_rate=True):
     meta = state['study']['study']
     private, why = calibrations.study_privacy(state['study'])
+    rating_link = f'<a href="/r/{rid}/ratings">Rate criteria</a>' if can_rate else ''
     intro = (f'<p><a href="/reviews">Reviews</a></p><h1>{esc(meta.get("name") or "Review")}</h1>'
              f'<p>{esc(meta.get("calibration"))}{views.cal_badge(calibrations.kind(meta.get("calibration")))}'
              + (f' · Confidential: {esc(why)}. Local review only.' if private else ' · Local review only.') + '</p>'
-             f'<nav class="tabs"><a href="/r/{rid}">Import report</a><a href="/r/{rid}/ratings">Rate criteria</a>'
+             f'<nav class="tabs"><a href="/r/{rid}">Import report</a>{rating_link}'
              f'<a href="/r/{rid}/result">Result &amp; export</a></nav>')
     return page(title, intro + body, session, cal_id=meta.get('calibration'))
 
@@ -69,7 +70,7 @@ def import_page(rid, state, result, cal, session, plugin):
         body += f'<p><a class="button" href="/r/{rid}/ratings">Rate criteria</a></p>' if plugin else no_plugin()
     body += (f'<form action="/r/{rid}/delete" method="post">{csrf_input(session)}'
              '<p>Delete removes this review and its uploaded workbook permanently.</p><button class="danger">Delete review</button></form>')
-    return shell(rid, state, body, session, 'Import report')
+    return shell(rid, state, body, session, 'Import report', can_rate=bool(plugin) and not report.get('errors'))
 
 
 def no_plugin():
@@ -159,4 +160,4 @@ def result_page(rid, state, result, cal, session, plugin):
     if plugin:
         body += f'<a class="button" href="/r/{rid}/export.xlsx">Download review Excel</a>'
     body += '</p>'
-    return shell(rid, state, body, session, 'Review result')
+    return shell(rid, state, body, session, 'Review result', can_rate=bool(plugin))

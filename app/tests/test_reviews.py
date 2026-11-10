@@ -219,6 +219,7 @@ class Reviews(unittest.TestCase):
         self.assertIn(b'Risk map: now', r.body)
         self.assertNotIn(b'Score:', r.body)
         self.assertNotIn(b'Download review Excel', r.body)
+        self.assertNotIn(b'/ratings">Rate criteria', r.body)
         self.assertEqual(self.c.get(self.base + '/ratings').status, 409)
         self.assertEqual(self.c.get(self.base + '/export.xlsx').status, 409)
         self.assertEqual(self.c.get(self.base + '/export.json').status, 200)
