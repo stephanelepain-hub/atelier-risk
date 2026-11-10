@@ -44,7 +44,7 @@ class Reviews(unittest.TestCase):
         r = self.c.get(self.base)
         self.assertEqual(r.status, 200, r.body)
         for text in ('synthetic-register', 'risks_columns', 'pictures', 'stages', 'Import errors (0)', 'Risk register',
-                     'Risk map: now', 'Risk map: target', 'Risk map: initial', '&lt;script&gt;'):
+                     'Risk map: now', 'Risk map: target', 'Risk map: initial', '&lt;script&gt;', '<strong>9</strong> columns'):
             self.assertIn(text, r.body.decode())
         self.assertNotIn('<script>alert', r.body.decode())
         self.assertIn("form-action 'self'", r.get('Content-Security-Policy'))

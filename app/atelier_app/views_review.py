@@ -56,7 +56,8 @@ def import_page(rid, state, result, cal, session, plugin):
     body = ('<h2>Import report</h2><section class="card"><h3>Layout detected: '
             + esc(report.get('layout')) + '</h3><div class="import-counts">')
     for label, value in (('risks', read.get('risks')), ('measures', read.get('measures')),
-                         ('stages', len(read.get('stages', []))), ('pictures', len(pictures))):
+                         ('stages', len(read.get('stages', []))), ('columns', len(read.get('risks_columns', []))),
+                         ('pictures', len(pictures))):
         body += f'<p><strong>{esc(value)}</strong> {esc(label)}</p>'
     body += ('</div><details><summary>Columns, stages and picture details</summary>'
              + details(read) + '</details></section>')
