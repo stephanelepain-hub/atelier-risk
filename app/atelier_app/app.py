@@ -9,7 +9,9 @@ import threading
 import traceback
 import urllib.parse
 
-from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, editors, engine, views, views_ws
+import datetime
+
+from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, drafting, editors, engine, views, views_ws
 from .storage import NotFound, Store
 from .web import HTTPError, Request, Response, Router, redirect
 
@@ -32,8 +34,10 @@ SECURITY_HEADERS = [
 NEXT_RE = re.compile(r"/[A-Za-z0-9/_.\-]*")
 
 
-class FormError(Exception):
-    pass
+FormError = editors.FormError  # carries the form field it is about
+W1_TEXT = {"business_values": ["label", "nature", "owner"], "supporting_assets": ["label"],
+           "feared_events": ["business_value", "label", "criterion", "severity"],
+           "baseline": ["reference", "status", "gap"]}
 
 
 def allowed_hosts_for(port, extra=()):
@@ -45,7 +49,8 @@ def _no_constants(x):
 
 
 class App:
-    def __init__(self, data_dir, private_dir=None, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD):
+    def __init__(self, data_dir, private_dir=None, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD,
+                 drafting_settings=None):
         self.data_dir = pathlib.Path(data_dir)
         self.store = Store(self.data_dir)
         self.private_dir = pathlib.Path(private_dir) if private_dir else config.default_private_dir(self.data_dir)
@@ -62,6 +67,8 @@ class App:
         self.extra_hosts = tuple(extra_hosts)
         self.set_port(port)
         self.edit_lock = threading.Lock()
+        self.drafter = drafting.Drafter(drafting_settings if drafting_settings is not None
+                                        else config.drafting_settings(self.data_dir))
         self.router = self._routes()
 
     def store_for(self, session):
@@ -90,6 +97,7 @@ class App:
         r.add("GET", rf"/s/{SID}", self.overview)
         r.add("POST", rf"/s/{SID}/rename", self.rename)
         r.add("POST", rf"/s/{SID}/duplicate", self.duplicate)
+        r.add("POST", rf"/s/{SID}/confidential", self.set_confidential)
         r.add("GET", rf"/s/{SID}/delete", self.delete_confirm)
         r.add("POST", rf"/s/{SID}/delete", self.delete)
         r.add("GET", rf"/s/{SID}/w1", self.w1)
@@ -103,6 +111,10 @@ class App:
         r.add("GET", rf"/s/{SID}/register", self.register)
         r.add("GET", rf"/s/{SID}/export\.json", self.export_json)
         r.add("GET", rf"/s/{SID}/export\.xlsx", self.export_xlsx)
+        r.add("POST", rf"/s/{SID}/draft", self.draft)
+        r.add("POST", rf"/s/{SID}/draft/clear", self.draft_clear)
+        r.add("POST", rf"/s/{SID}/draft/(D[0-9]{{1,6}})/accept", self.draft_accept)
+        r.add("POST", rf"/s/{SID}/draft/(D[0-9]{{1,6}})/reject", self.draft_reject)
         r.add("POST", rf"/s/{SID}/w1/{W1SLUG}/add", self.w1_add)
         r.add("GET", rf"/s/{SID}/w1/{W1SLUG}/([^/]+)", self.w1_edit_form)
         r.add("POST", rf"/s/{SID}/w1/{W1SLUG}/([^/]+)/delete", self.w1_delete)
@@ -210,7 +222,7 @@ class App:
             raise HTTPError(404, "unknown calibration")
         try:
             cal = calibrations.load(cal_id)
-        except calibrations.CalibrationError as e:
+        except (calibrations.CalibrationError, ValueError, OSError) as e:
             raise HTTPError(404, str(e))
         return Response(views.cal_css(cal), 200, "text/css; charset=utf-8")
 
@@ -222,7 +234,7 @@ class App:
             chk = engine.check(st) if st is not None else {"errors": ["file unreadable"], "warnings": [],
                                                             "calibration": "?", "cal": None}
             rows.append((sid, st, mtime, chk))
-        return Response(views.study_list(rows, calibrations.available(), req.session, req.arg("f")))
+        return Response(views.study_list(rows, calibrations.catalogue(), req.session, req.arg("f")))
 
     def new_study(self, req):
         name = req.field("name").strip()
@@ -231,6 +243,10 @@ class App:
         cal = req.field("calibration") or calibrations.DEFAULT
         if cal not in calibrations.available():
             raise HTTPError(400, "unknown calibration")
+        try:
+            calibrations.load(cal)
+        except (calibrations.CalibrationError, ValueError, OSError) as e:
+            raise HTTPError(400, f"the engine refuses that calibration: {e}")
         st = {"format": "atelier-study", "version": "0.1",
               "study": {"name": name, "scope": req.field("scope").strip()[:4000], "calibration": cal}}
         for k in engine.COLLECTIONS:
@@ -278,7 +294,8 @@ class App:
 
     def overview(self, req, sid):
         st = self._load(req, sid)
-        return Response(views.overview(sid, st, engine.check(st), self.store_for(req.session).mtime(sid), req.session, req.arg("f")))
+        return Response(views.overview(sid, st, engine.check(st), self.store_for(req.session).mtime(sid), req.session,
+                                       req.arg("f"), calibrations.catalogue()))
 
     def rename(self, req, sid):
         name = req.field("name").strip()
@@ -294,12 +311,50 @@ class App:
         return redirect(f"/s/{sid}?f=renamed")
 
     def duplicate(self, req, sid):
+        """Copy a study, optionally with another calibration (the only way to change a study's calibration).
+
+        The copy of a private study stays private: it is marked confidential, so a copy on a public calibration
+        cannot be sent to a remote drafting endpoint.
+        """
         st = self._load(req, sid)
         meta = st.get("study") if isinstance(st.get("study"), dict) else {}
-        meta["name"] = (meta.get("name") or "study") + " (copy)"
+        was_private, _ = calibrations.study_privacy(st)
+        new_cal = req.field("calibration")
+        if new_cal:
+            if not calibrations.exists(new_cal):
+                raise HTTPError(400, "unknown calibration")
+            try:
+                calibrations.load(new_cal)
+            except (calibrations.CalibrationError, ValueError, OSError) as e:
+                raise HTTPError(400, f"the engine refuses that calibration: {e}")
+        old_cal = calibrations.of_study(st)
+        if new_cal and new_cal != old_cal:
+            meta["calibration"] = new_cal
+            meta["name"] = (meta.get("name") or "study") + f" (copy, calibration {new_cal})"
+        else:
+            meta["name"] = (meta.get("name") or "study") + " (copy)"
+        if was_private:
+            meta["confidential"] = True
         st["study"] = meta
-        self.store_for(req.session).create(st)
+        new_sid = self.store_for(req.session).create(st)
+        if new_cal and new_cal != old_cal:
+            return redirect(f"/s/{new_sid}?f=duplicated-cal")
         return redirect("/?f=duplicated")
+
+    def set_confidential(self, req, sid):
+        v = req.field("confidential")
+        if v not in ("yes", "no"):
+            raise HTTPError(400, "confidential must be yes or no")
+        with self.edit_lock:
+            st = self._load(req, sid)
+            meta = st.get("study") if isinstance(st.get("study"), dict) else {}
+            if v == "yes":
+                meta["confidential"] = True
+            else:
+                meta.pop("confidential", None)
+            st["study"] = meta
+            self.store_for(req.session).save(sid, st)
+        return redirect(f"/s/{sid}?f={'confidential' if v == 'yes' else 'not-confidential'}#privacy")
 
     def delete_confirm(self, req, sid):
         return Response(views.confirm_delete(sid, self._load(req, sid), req.session))
@@ -308,9 +363,18 @@ class App:
         self.store_for(req.session).delete(sid)
         return redirect("/?f=removed")
 
+    def _draft_ctx(self, req, sid, st, state=None):
+        private, why = calibrations.study_privacy(st)
+        return {"info": self.drafter.describe(private), "private": private, "why": why,
+                "drafts": self.store_for(req.session).load_drafts(sid), "state": state}
+
+    def _w1_page(self, req, sid, st, chk=None, flash="", form_error=None, draft_state=None, status=200):
+        chk = chk or engine.check(st)
+        return Response(views.w1_page(sid, st, chk, req.session, flash, form_error, req.arg("hl") or None,
+                                      self._draft_ctx(req, sid, st, draft_state)), status)
+
     def w1(self, req, sid):
-        st = self._load(req, sid)
-        return Response(views.w1_page(sid, st, engine.check(st), req.session, req.arg("f"), hl=req.arg("hl") or None))
+        return self._w1_page(req, sid, self._load(req, sid), flash=req.arg("f"))
 
     def _ws_page(self, req, sid, st, n, flash="", form_error=None, status=200):
         chk = engine.check(st)
@@ -354,6 +418,8 @@ class App:
         chk = engine.check(st)
         if chk["errors"] or not chk["cal"]:
             raise HTTPError(409, "the engine exports only a study without errors; fix the errors listed in the checks")
+        if not engine.have_xlsx():
+            raise HTTPError(501, "the Excel export needs openpyxl, which is not installed here; the JSON export works")
         data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir)
         return Response(data, 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "xlsx")}"')])
@@ -367,7 +433,7 @@ class App:
         def text(name, required=False, limit=500):
             v = req.field(name).strip()
             if required and not v:
-                raise FormError(f"{name} is required")
+                raise FormError(f"{name} is required", name)
             out[name] = v[:limit] if v else None
 
         bv_ids = {b.get("id") for b in st.get("business_values") or [] if isinstance(b, dict)}
@@ -375,7 +441,7 @@ class App:
             text("label", True)
             nat = req.field("nature")
             if nat and nat not in views.NATURES:
-                raise FormError("nature must be process or information")
+                raise FormError("nature must be process or information", "nature")
             out["nature"] = nat or None
             text("owner", limit=200)
         elif key == "supporting_assets":
@@ -383,30 +449,45 @@ class App:
             picked = list(dict.fromkeys(req.fields("business_values")))
             bad = [x for x in picked if x not in bv_ids]
             if bad:
-                raise FormError("pick business values from the list")
+                raise FormError("pick business values from the list", "business_values")
             out["business_values"] = picked
         elif key == "feared_events":
             bv = req.field("business_value")
             if bv not in bv_ids:
-                raise FormError("pick the business value from the list")
+                raise FormError("pick the business value from the list", "business_value")
             out["business_value"] = bv
             text("label", True)
             text("criterion", limit=100)
             try:
                 sev = int(req.field("severity"))
             except ValueError:
-                raise FormError("pick a severity")
+                raise FormError("pick a severity", "severity")
             if sev not in [x["n"] for x in (cal or {}).get("severity", [])]:
-                raise FormError("pick a severity from the calibration's scale")
+                raise FormError("pick a severity from the calibration's scale", "severity")
             out["severity"] = sev
         elif key == "baseline":
             text("reference", True)
             stt = req.field("status")
             if stt and stt not in views.BASELINE_STATUS:
-                raise FormError("unknown status")
+                raise FormError("unknown status", "status")
             out["status"] = stt or None
             text("gap", limit=1000)
         return out
+
+    @staticmethod
+    def _w1_echo(key, req, el=None):
+        """What the user typed in a W1 form, element-shaped, to show a refused form again. Never stored."""
+        e = {"id": el.get("id")} if el else {}
+        for name in W1_TEXT[key]:
+            e[name] = req.field(name)
+        if key == "supporting_assets":
+            e["business_values"] = req.fields("business_values")
+        return e
+
+    @staticmethod
+    def _refusal(e):
+        """(message above the form, {field: message}) for a FormError."""
+        return ("", {e.field: str(e)}) if e.field else (str(e), {})
 
     @staticmethod
     def _next_id(st, prefix):
@@ -441,7 +522,8 @@ class App:
             try:
                 fields = self._w1_fields(key, req, st, chk.get("cal"))
             except FormError as e:
-                return Response(views.w1_page(sid, st, chk, req.session, form_error=(key, str(e))), 400)
+                msg, errs = self._refusal(e)
+                return self._w1_page(req, sid, st, chk, form_error=(key, msg, errs, self._w1_echo(key, req)), status=400)
             el = self._apply({"id": self._next_id(st, views.W1_PREFIX[key])}, fields)
             if not isinstance(st.get(key), list):
                 st[key] = []
@@ -469,7 +551,9 @@ class App:
             try:
                 fields = self._w1_fields(key, req, st, chk.get("cal"))
             except FormError as e:
-                return Response(views.w1_edit(sid, st, chk, key, el, req.session, str(e)), 400)
+                msg, errs = self._refusal(e)
+                return Response(views.w1_edit(sid, st, chk, key, el, req.session, msg, errs,
+                                              self._w1_echo(key, req, el)), 400)
             self._apply(el, fields)
             self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/w1?f=saved&hl={urllib.parse.quote(eid, safe='')}#{views.anchor(eid)}")
@@ -500,15 +584,17 @@ class App:
             before = engine.check(st)
             el = None if eid is None else self._find(st, key, eid)
 
-            def refuse(msg):
+            def refuse(msg, errs):
+                """Show the form again with what was typed and each message next to its field; store nothing."""
+                sticky = editors.echo(slug, req, el)
                 if el is None:
-                    return self._ws_page(req, sid, st, ws, form_error=(slug, msg), status=400)
-                return Response(views_ws.edit_page(sid, st, before, slug, el, req.session, msg), 400)
+                    return self._ws_page(req, sid, st, ws, form_error=(slug, msg, errs, sticky), status=400)
+                return Response(views_ws.edit_page(sid, st, before, slug, el, req.session, msg, errs, sticky), 400)
             try:
                 fields = editors.parse(slug, req, st, el)
                 paths = editors.parse_paths(req, st, el) if slug == "ss" else None
             except editors.FormError as e:
-                return refuse(str(e))
+                return refuse(*self._refusal(e))
             cand = copy.deepcopy(st)
             if not isinstance(cand.get(key), list):
                 cand[key] = []
@@ -532,7 +618,10 @@ class App:
                 engine.take_severities(cand, before["cal"], only=target["id"])
             refused = editors.scale_refusals(before, engine.check(cand), target["id"])
             if refused:
-                return refuse("The engine refused the value: " + "; ".join(refused))
+                by_field = editors.refusal_fields(slug, refused)
+                rest = [m for m in refused if m not in by_field.values()]
+                errs = {k: "The engine refused the value: " + m for k, m in by_field.items()}
+                return refuse("The engine refused the value: " + "; ".join(rest) if rest else "", errs)
             self.store_for(req.session).save(sid, cand)
         flag = "added" if el is None else "saved"
         return redirect(f"/s/{sid}/w{ws}?f={flag}&hl={urllib.parse.quote(target['id'], safe='')}"
@@ -571,3 +660,88 @@ class App:
             if changed:
                 self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/{back}?f={'synced' if changed else 'unchanged'}")
+
+    # ---------- drafting (workshop 1) ----------
+
+    def draft(self, req, sid):
+        """Ask the drafting adapter for proposals. They go to the study's draft file, not into the study."""
+        st = self._load(req, sid)
+        private, _ = calibrations.study_privacy(st)
+        text = req.field("text")
+        try:
+            out = self.drafter.draft("w1-values-events", {"text": text, "private": private})
+        except drafting.RouteRefused as e:
+            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=403)
+        except drafting.EndpointError as e:
+            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=502)
+        except drafting.DraftError as e:
+            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=400)
+        if not out["items"]:
+            return self._w1_page(req, sid, st, draft_state={
+                "error": "The model answered, but no business value or feared event could be read from its answer.",
+                "text": text[:drafting.MAX_TEXT]}, status=502)
+        with self.edit_lock:
+            store = self.store_for(req.session)
+            d = store.load_drafts(sid)
+            d.pop("unreadable", None)
+            n = int(d.get("next") or 1)
+            b = len(d["batches"]) + 1
+            d["batches"].append({"id": f"B{b}", "at": datetime.datetime.now().isoformat(timespec="seconds"),
+                                 "model": out["model"], "route": out["route"], "text": out["text"]})
+            for it in out["items"]:
+                d["items"].append(dict(it, id=f"D{n}", batch=f"B{b}", status="draft"))
+                n += 1
+            d["next"] = n
+            store.save_drafts(sid, d)
+        return redirect(f"/s/{sid}/w1?f=drafted#draft")
+
+    def draft_accept(self, req, sid, did):
+        """Turn one draft item into a study element with the values the user confirmed in its form.
+
+        The form goes through the same checks as the W1 add form; the severity is the user's pick (the draft item
+        has none, and nothing from the draft is used without passing through that form).
+        """
+        with self.edit_lock:
+            store = self.store_for(req.session)
+            st = self._load(req, sid)
+            d = store.load_drafts(sid)
+            it = next((x for x in d["items"] if isinstance(x, dict) and x.get("id") == did), None)
+            if it is None:
+                raise HTTPError(404, "no such draft item (already accepted or rejected?)")
+            key = {"business_value": "business_values", "feared_event": "feared_events"}.get(it.get("kind"))
+            if key is None:
+                raise HTTPError(400, "unknown draft item kind")
+            chk = engine.check(st)
+            try:
+                fields = self._w1_fields(key, req, st, chk.get("cal"))
+            except FormError as e:
+                msg, errs = self._refusal(e)
+                return self._w1_page(req, sid, st, chk, draft_state={"item": did, "msg": msg, "errs": errs,
+                                                                     "sticky": self._w1_echo(key, req)}, status=400)
+            el = self._apply({"id": self._next_id(st, views.W1_PREFIX[key])}, fields)
+            if not isinstance(st.get(key), list):
+                st[key] = []
+            st[key].append(el)
+            store.save(sid, st)
+            d["items"] = [x for x in d["items"] if x is not it]
+            store.save_drafts(sid, d)
+        return redirect(f"/s/{sid}/w1?f=draft-accepted&hl={urllib.parse.quote(el['id'], safe='')}#{views.anchor(el['id'])}")
+
+    def draft_reject(self, req, sid, did):
+        with self.edit_lock:
+            store = self.store_for(req.session)
+            self._load(req, sid)
+            d = store.load_drafts(sid)
+            keep = [x for x in d["items"] if not (isinstance(x, dict) and x.get("id") == did)]
+            if len(keep) == len(d["items"]):
+                raise HTTPError(404, "no such draft item (already accepted or rejected?)")
+            d["items"] = keep
+            store.save_drafts(sid, d)
+        return redirect(f"/s/{sid}/w1?f=draft-rejected#draft")
+
+    def draft_clear(self, req, sid):
+        with self.edit_lock:
+            store = self.store_for(req.session)
+            self._load(req, sid)
+            store.save_drafts(sid, {"items": [], "batches": []})
+        return redirect(f"/s/{sid}/w1?f=drafts-cleared#draft")

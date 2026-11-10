@@ -42,6 +42,13 @@ FLASH = {
     "example": "The guide example was loaded as a new study.",
     "renamed": "Saved.",
     "duplicated": "Duplicate created.",
+    "duplicated-cal": "This is the duplicate with the other calibration. The engine checked it against that calibration.",
+    "confidential": "Marked confidential: drafting may only use an endpoint on this machine.",
+    "not-confidential": "The confidential mark is removed. A private calibration still keeps the study private.",
+    "drafted": "Draft received. Nothing is in the study until you accept an item; you pick every severity.",
+    "draft-accepted": "Accepted into the study. The checks below were recomputed by the engine.",
+    "draft-rejected": "Draft item rejected.",
+    "drafts-cleared": "All draft items rejected.",
     "removed": "Study moved to the trash folder.",
     "synced": "Severities taken from the engine. The checks below were recomputed.",
     "unchanged": "The engine's severities were already stored; nothing changed.",
@@ -79,6 +86,28 @@ def scale_text(cal, axis, n, long=True):
         if x.get("n") == n:
             return esc(f"{x.get('code', n)} {x.get('label', '')}" if long else x.get("code", n))
     return esc(n)
+
+
+def cal_badge(kind, public=True):
+    if kind == "private":
+        return ' <span class="badge private" title="loaded from the private directory, not from the repository">private</span>'
+    if kind == "public":
+        return ' <span class="badge public">public</span>' if public else ""
+    return ' <span class="badge bad">not available</span>'
+
+
+def cal_picker(cats, current=None, name="calibration"):
+    """Radio list of every calibration (public and private), with its kind, name and number of levels."""
+    current = current or calibrations.DEFAULT
+    rows = []
+    for cal_id, kind, info in cats:
+        dis = " disabled" if info["error"] else ""
+        chk = " checked" if cal_id == current and not dis else ""
+        detail = (f'cannot be loaded: {esc(info["error"])}' if info["error"] else
+                  f'{esc(info["name"])} &middot; {info["levels"]} risk level{"s" if info["levels"] != 1 else ""}')
+        rows.append(f'<label class="cal-opt"><input type="radio" name="{name}" value="{esc(cal_id)}"{chk}{dis} required>'
+                    f'<span class="cal-id">{esc(cal_id)}{cal_badge(kind)}</span><small>{detail}</small></label>')
+    return f'<fieldset class="cal-pick"><legend>Calibration</legend>{"".join(rows)}</fieldset>'
 
 
 def csrf_input(session):
@@ -146,7 +175,9 @@ def login_page(pre, message=""):
 
 # ---------- study list ----------
 
-def study_list(rows, cals, session, flash=""):
+def study_list(rows, cats, session, flash=""):
+    """cats: calibrations.catalogue()."""
+    kinds = {c: k for c, k, _ in cats}
     trs = []
     for sid, st, mtime, chk in rows:
         meta = (st or {}).get("study") if isinstance(st, dict) else None
@@ -154,7 +185,7 @@ def study_list(rows, cals, session, flash=""):
         name = meta.get("name") or "(no name)"
         trs.append(f"""<tr>
 <td><a href="/s/{sid}">{esc(name)}</a></td>
-<td>{esc(chk["calibration"])}</td>
+<td>{esc(chk["calibration"])}{cal_badge(kinds.get(chk["calibration"]), public=False)}</td>
 <td class="nowrap">{when(mtime)}</td>
 <td>{badge(chk)}</td>
 <td class="actions"><a href="/s/{sid}">Open</a>
@@ -164,8 +195,6 @@ def study_list(rows, cals, session, flash=""):
     table = ("<p class=\"empty\">No study yet. Create one, import a study file or load the guide example.</p>" if not trs else
              "<table class=\"list\"><thead><tr><th>Name</th><th>Calibration</th><th>Last modified</th><th>Checks</th>"
              "<th>Actions</th></tr></thead><tbody>" + "".join(trs) + "</tbody></table>")
-    opts = "".join(f'<option value="{esc(c)}"{" selected" if c == calibrations.DEFAULT else ""}>{esc(c)} ({esc(k)})</option>'
-                   for c, k in sorted(cals.items()))
     body = f"""<h1>Studies</h1>
 {table}
 <div class="cards">
@@ -174,7 +203,7 @@ def study_list(rows, cals, session, flash=""):
 <form method="post" action="/new">{csrf_input(session)}
 <label>Name <input name="name" required maxlength="200"></label>
 <label>Scope <textarea name="scope" rows="3" maxlength="4000"></textarea></label>
-<label>Calibration <select name="calibration">{opts}</select></label>
+{cal_picker(cats)}
 <button>Create</button>
 </form>
 </section>
@@ -289,15 +318,33 @@ def study_shell(sid, st, chk, active, content, session, flash=""):
     cur = ' class="active" aria-current="page"'
     nav = "".join(f'<a href="{href}"{cur if key == active else ""}>{esc(label)}</a>' for key, label, href in tabs)
     body = f"""<div class="study-head"><h1>{esc(meta.get("name") or "(no name)")}</h1>
-<span class="cal">calibration {esc(chk["calibration"])}</span></div>
+<span class="cal">calibration {esc(chk["calibration"])}{cal_badge(calibrations.kind(chk["calibration"]), public=False)}</span></div>
 <nav class="tabs">{nav}</nav>
 <div class="study-body"><div class="study-main">{content}</div>{checks_panel(sid, chk, element_index(st))}</div>"""
     return page(meta.get("name") or "Study", body, session, cal_id=chk["calibration"] if chk.get("cal") else None,
                 flash=flash)
 
 
-def overview(sid, st, chk, mtime, session, flash=""):
+def overview(sid, st, chk, mtime, session, flash="", cats=()):
     meta = st.get("study") if isinstance(st.get("study"), dict) else {}
+    private, why = calibrations.study_privacy(st)
+    kind = calibrations.kind(chk["calibration"])
+    nlev = len(chk["cal"]["levels"]) if chk.get("cal") else None
+    conf = meta.get("confidential") is True
+    privacy = (f'<span class="badge private">private</span> {esc(why)}' if private else
+               f'<span class="badge public">not private</span> {esc(why)}')
+    others = [(c, k, i) for c, k, i in cats if c != chk["calibration"] and not i["error"]]
+    dup_cal = "".join(
+        f'<form method="post" action="/s/{sid}/duplicate" class="inline">{csrf_input(session)}'
+        f'<input type="hidden" name="calibration" value="{esc(c)}">'
+        f'<button>Duplicate with calibration {esc(c)}</button>{cal_badge(k)}</form>' for c, k, _ in others)
+    dup_cal = (f'<h3>Use another calibration</h3><p class="hint">The calibration of a study is not changed in place: that '
+               f'would change every level without notice. Duplicate the study with the other calibration instead; the '
+               f'engine then checks the copy against it.{" The copy of a private study is marked confidential." if private else ""}'
+               f'</p><div class="dup-cal">{dup_cal}</div>') if others else ""
+    conf_form = (f'<form method="post" action="/s/{sid}/confidential" class="inline">{csrf_input(session)}'
+                 f'<input type="hidden" name="confidential" value="{"no" if conf else "yes"}">'
+                 f'<button class="link">{"Remove the confidential mark" if conf else "Mark this study confidential"}</button></form>')
     counts = "".join(f"<tr><td>W{WORKSHOP_OF[k]}</td><td>{esc(TITLES[k])}</td><td>{len(st.get(k) or [])}</td></tr>"
                      for k in engine.COLLECTIONS)
     prog = progress(st, chk, element_index(st))
@@ -316,11 +363,12 @@ def overview(sid, st, chk, mtime, session, flash=""):
              f'{other}<p class="hint">Errors and warnings are the engine\'s checks, counted by the workshop of the '
              f'element they name.</p></section>')
     extra = "".join(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in meta.items()
-                    if k not in ("name", "scope", "calibration"))
+                    if k not in ("name", "scope", "calibration", "confidential"))
     content = f"""{strip}<section class="card">
 <h2>Study</h2>
 <table class="kv"><tr><th>Scope</th><td class="pre">{esc(meta.get("scope", ""))}</td></tr>
-<tr><th>Calibration</th><td>{esc(chk["calibration"])}</td></tr>
+<tr><th>Calibration</th><td>{esc(chk["calibration"])}{cal_badge(kind)}{f" &middot; {nlev} risk levels" if nlev else ""}</td></tr>
+<tr><th>Privacy</th><td id="privacy">{privacy} {conf_form}</td></tr>
 <tr><th>Last modified</th><td>{when(mtime)}</td></tr>{extra}</table>
 <form method="post" action="/s/{sid}/rename">{csrf_input(session)}
 <label>Name <input name="name" value="{esc(meta.get("name", ""))}" required maxlength="200"></label>
@@ -337,6 +385,7 @@ def overview(sid, st, chk, mtime, session, flash=""):
 <a class="button" href="/s/{sid}/export.xlsx">Download Excel (engine export)</a></p>
 <form method="post" action="/s/{sid}/duplicate" class="inline">{csrf_input(session)}<button>Duplicate</button></form>
 <a class="button danger" href="/s/{sid}/delete">Delete</a>
+{dup_cal}
 </section>"""
     return study_shell(sid, st, chk, "overview", content, session, flash)
 
@@ -393,50 +442,83 @@ BASELINE_STATUS = ["applied", "partial", "not applied"]
 CRITERIA = ["confidentiality", "integrity", "availability"]
 
 
-def _select(name, options, current, required=False, blank="(none)"):
-    opts = [] if required else [f'<option value="">{esc(blank)}</option>']
+def _select(name, options, current, required=False, blank="(none)", pick=None, unknown="not in the list"):
+    """A <select>. `pick` adds an empty first option even when required, so the user must choose (no default).
+
+    A current value that is not one of the options (a refused or imported value) stays visible and selected,
+    marked as such, instead of silently falling back to the first option.
+    """
+    cur = "" if current is None else str(current)
+    if pick is not None:
+        opts = [f'<option value="">{esc(pick)}</option>']
+    else:
+        opts = [] if required else [f'<option value="">{esc(blank)}</option>']
+    values = set()
     for value, label in options:
-        sel = " selected" if str(value) == str(current if current is not None else "") else ""
+        values.add(str(value))
+        sel = " selected" if str(value) == cur else ""
         opts.append(f'<option value="{esc(value)}"{sel}>{esc(label)}</option>')
+    if cur and cur not in values:
+        opts.append(f'<option value="{esc(cur)}" selected>{esc(cur)} ({esc(unknown)})</option>')
     req = " required" if required else ""
     return f'<select name="{name}"{req}>{"".join(opts)}</select>'
 
 
-def w1_form_fields(key, el, st, cal):
+def ferr(errs, name):
+    """The message about one field, shown next to it (inside its label)."""
+    m = (errs or {}).get(name)
+    return f'<span class="field-error" role="alert">{esc(m)}</span>' if m else ""
+
+
+def form_note(message, errs):
+    """The line above a refused form. Messages that name a field are shown next to that field instead."""
+    if not message and not errs:
+        return ""
+    if errs and not message:
+        return ('<p class="error" role="alert">Not saved. What you typed is kept below; the message is next to '
+                'the field.</p>')
+    return f'<p class="error" role="alert">{"Not saved. " if errs else ""}{esc(message)}</p>'
+
+
+def w1_form_fields(key, el, st, cal, errs=None):
     el = el or {}
     bvs = [(b["id"], f'{b["id"]} {b.get("label", "")}') for b in st.get("business_values") or []
            if isinstance(b, dict) and b.get("id")]
     if key == "business_values":
-        return f"""<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500"></label>
-<label>Nature {_select("nature", [(n, n) for n in NATURES], el.get("nature"))}</label>
-<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200"></label>"""
+        return f"""<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
+<label>Nature {_select("nature", [(n, n) for n in NATURES], el.get("nature"))}{ferr(errs, "nature")}</label>
+<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200">{ferr(errs, "owner")}</label>"""
     if key == "supporting_assets":
         cur = set(el.get("business_values") or [])
         boxes = "".join(f'<label class="check"><input type="checkbox" name="business_values" value="{esc(i)}"'
                         f'{" checked" if i in cur else ""}> {esc(lab)}</label>' for i, lab in bvs)
         boxes = boxes or '<span class="hint">Add a business value first.</span>'
-        return f"""<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500"></label>
-<fieldset><legend>Business values it supports</legend>{boxes}</fieldset>"""
+        return f"""<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
+<fieldset><legend>Business values it supports</legend>{ferr(errs, "business_values")}{boxes}</fieldset>"""
     if key == "feared_events":
         sev = [(x["n"], f'{x.get("code", x["n"])} {x.get("label", "")}') for x in (cal or {}).get("severity", [])]
         crit = "".join(f'<option value="{esc(c)}">' for c in CRITERIA)
-        return f"""<label>Business value {_select("business_value", bvs, el.get("business_value"), required=True)}</label>
-<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500"></label>
-<label>Criterion <input name="criterion" list="criteria" value="{esc(el.get("criterion", ""))}" maxlength="100"></label>
+        return f"""<label>Business value {_select("business_value", bvs, el.get("business_value"), required=True)}{ferr(errs, "business_value")}</label>
+<label>Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
+<label>Criterion <input name="criterion" list="criteria" value="{esc(el.get("criterion", ""))}" maxlength="100">{ferr(errs, "criterion")}</label>
 <datalist id="criteria">{crit}</datalist>
-<label>Severity {_select("severity", sev, el.get("severity"), required=True)}</label>"""
+<label>Severity {_select("severity", sev, el.get("severity"), required=True, unknown="not in the scale")}{ferr(errs, "severity")}</label>"""
     if key == "baseline":
-        return f"""<label>Reference <input name="reference" value="{esc(el.get("reference", ""))}" required maxlength="500"></label>
-<label>Status {_select("status", [(s, s) for s in BASELINE_STATUS], el.get("status"))}</label>
-<label>Gap <input name="gap" value="{esc(el.get("gap", ""))}" maxlength="1000"></label>"""
+        return f"""<label>Reference <input name="reference" value="{esc(el.get("reference", ""))}" required maxlength="500">{ferr(errs, "reference")}</label>
+<label>Status {_select("status", [(s, s) for s in BASELINE_STATUS], el.get("status"))}{ferr(errs, "status")}</label>
+<label>Gap <input name="gap" value="{esc(el.get("gap", ""))}" maxlength="1000">{ferr(errs, "gap")}</label>"""
     raise KeyError(key)
 
 
-def w1_page(sid, st, chk, session, flash="", form_error=None, hl=None):
+def w1_page(sid, st, chk, session, flash="", form_error=None, hl=None, draft_ctx=None):
+    """Workshop 1. form_error = (collection, message, {field: message}, submitted values) after a refusal.
+    draft_ctx: the drafting status, the pending draft items and the state of the last draft action."""
     idx = element_index(st)
     cal = chk.get("cal")
     rev = {v: k for k, v in W1.items()}
     parts = [f"<h2 class=\"ws\">{esc(WORKSHOPS[1][0])}</h2>"]
+    if draft_ctx is not None:
+        parts.append(draft_panel(sid, st, cal, session, draft_ctx))
     for key in WORKSHOPS[1][1]:
         slug = rev[key]
 
@@ -446,28 +528,117 @@ def w1_page(sid, st, chk, session, flash="", form_error=None, hl=None):
                     f'<form method="post" action="/s/{sid}/w1/{slug}/{q(eid)}/delete" class="inline">{csrf_input(session)}'
                     f'<button class="link danger" data-confirm="Delete {esc(eid)}? Links to it will show up in the checks.">'
                     f'Delete</button></form>')
-        err = ""
+        err, errs, sticky = "", None, None
         if form_error and form_error[0] == key:
-            err = f'<p class="error">{esc(form_error[1])}</p>'
+            _, msg, errs, sticky = form_error
+            err = form_note(msg, errs)
         disabled = key in ("feared_events",) and not (st.get("business_values") or [])
         add = ('<p class="hint">Add a business value first.</p>' if disabled else
                f"""<details class="add"{" open" if err or not (st.get(key) or []) else ""}><summary>Add {esc(TITLES[key].lower().rstrip("s"))}</summary>
 <form method="post" action="/s/{sid}/w1/{slug}/add" class="grid-form">{csrf_input(session)}
-{w1_form_fields(key, None, st, cal)}<button>Add</button></form></details>""")
+{w1_form_fields(key, sticky, st, cal, errs)}<button>Add</button></form></details>""")
         parts.append(f'<section class="card" id="sec-{slug}"><h2>{esc(TITLES[key])} '
                      f'<span class="count">{len(st.get(key) or [])}</span></h2>{err}'
                      f'{read_table(sid, st, key, cal, idx, actions, hl)}{add}</section>')
     return study_shell(sid, st, chk, "w1", "".join(parts), session, flash)
 
 
-def w1_edit(sid, st, chk, key, el, session, error=""):
+def w1_edit(sid, st, chk, key, el, session, error="", errs=None, sticky=None):
+    """Edit page. After a refusal, `sticky` holds what was typed and `errs` the message per field."""
     slug = {v: k for k, v in W1.items()}[key]
-    err = f'<p class="error">{esc(error)}</p>' if error else ""
+    err = form_note(error, errs)
     content = f"""<section class="card"><h2>Edit {esc(TITLES[key].lower().rstrip("s"))} {esc(el.get("id"))}</h2>{err}
 <form method="post" action="/s/{sid}/w1/{slug}/{q(el.get("id"))}" class="grid-form">{csrf_input(session)}
-{w1_form_fields(key, el, st, chk.get("cal"))}
+{w1_form_fields(key, sticky if sticky is not None else el, st, chk.get("cal"), errs)}
 <button>Save</button> <a href="/s/{sid}/w1#{anchor(el.get("id"))}">Cancel</a></form></section>"""
     return study_shell(sid, st, chk, "w1", content, session)
+
+
+# ---------- drafting (workshop 1) ----------
+
+def draft_panel(sid, st, cal, session, ctx):
+    """The "Draft from text" box and the pending draft items. A draft item is not in the study: it becomes an
+    element only when the user accepts it, and the user picks every severity (the draft has none)."""
+    info, state = ctx["info"], ctx.get("state") or {}
+    drafts = ctx.get("drafts") or {"items": [], "batches": []}
+    if info["backend"] == "off":
+        status = ("Drafting is off" + (f" ({esc(info['problem'])})" if info.get("problem") else "") +
+                  ". Nothing is sent anywhere. docs/app.md says how to set up an endpoint.")
+    else:
+        where = {"local": "on this machine", "remote": "not on this machine"}.get(info["route"], "refused for this study")
+        status = (f'Drafting with model <b>{esc(info["model"])}</b> at <b>{esc(info["host"])}</b> ({where}), '
+                  f'through an OpenAI-compatible API.')
+    priv = (f'<p class="hint"><span class="badge private">private</span> This study is private ({esc(ctx["why"])}): '
+            'drafting may only use an endpoint on this machine.</p>' if ctx["private"] else
+            '<p class="hint">This study is not private: any configured endpoint may be used.</p>')
+    refused = f'<p class="error" role="alert">{esc(info["refused"])}</p>' if info.get("refused") else ""
+    err = f'<p class="error" role="alert">{esc(state["error"])}</p>' if state.get("error") else ""
+    form = f"""<form method="post" action="/s/{sid}/draft" class="draft-form">{csrf_input(session)}
+<label class="wide">Text to draft from (paste; at most 20000 characters)
+<textarea name="text" rows="6" maxlength="20000" required>{esc(state.get("text", ""))}</textarea></label>
+<button>Draft business values and feared events</button></form>"""
+    items = [x for x in drafts.get("items") or [] if isinstance(x, dict)]
+    bvs = [(b["id"], f'{b["id"]} {b.get("label", "")}') for b in st.get("business_values") or []
+           if isinstance(b, dict) and b.get("id")]
+    by_label = {str(b.get("label", "")).strip().lower(): b["id"] for b in st.get("business_values") or []
+                if isinstance(b, dict) and b.get("id")}
+    sev = [(x["n"], f'{x.get("code", x["n"])} {x.get("label", "")}') for x in (cal or {}).get("severity", [])]
+    rows_bv, rows_fe = [], []
+    for it in items:
+        did = it.get("id")
+        mine = state.get("item") == did
+        errs = state.get("errs") if mine else None
+        typed = state.get("sticky") if mine else None
+        cur = typed if typed is not None else it
+        note = form_note(state.get("msg", ""), errs) if mine else ""
+        reject = (f'<form method="post" action="/s/{sid}/draft/{q(did)}/reject" class="inline">{csrf_input(session)}'
+                  f'<button class="link danger">Reject</button></form>')
+        # Reject inside the accept form (same CSRF field), so both buttons sit on one row
+        reject_btn = (f'<button class="link danger" formaction="/s/{sid}/draft/{q(did)}/reject" formnovalidate>'
+                      f'Reject</button>')
+        head = f'<span class="badge draft">draft</span> <b>{esc(did)}</b>'
+        if it.get("kind") == "business_value":
+            fields = f"""<label>Label <input name="label" value="{esc(cur.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
+<label>Nature {_select("nature", [(n, n) for n in NATURES], cur.get("nature"))}{ferr(errs, "nature")}</label>
+<label>Owner <input name="owner" value="{esc(cur.get("owner", ""))}" maxlength="200">{ferr(errs, "owner")}</label>"""
+            rows_bv.append(f"""<li class="draft-item" id="draft-{q(did)}">{head}{note}
+<form method="post" action="/s/{sid}/draft/{q(did)}/accept" class="grid-form">{csrf_input(session)}{fields}
+<div class="form-actions"><button>Accept as a business value</button> {reject_btn}</div></form></li>""")
+        elif it.get("kind") == "feared_event":
+            proposed = it.get("business_value_label")
+            pre = cur.get("business_value") if typed is not None else by_label.get(str(proposed or "").strip().lower())
+            about = (f'<p class="hint">The draft puts it on the business value "{esc(proposed)}".</p>' if proposed else "")
+            if not bvs:
+                rows_fe.append(f'<li class="draft-item" id="draft-{q(did)}">{head} {esc(it.get("label"))}{about}'
+                               '<p class="hint">Accept or add a business value first.</p>' + reject + "</li>")
+                continue
+            fields = f"""<label>Business value {_select("business_value", bvs, pre, required=True, pick="(pick a business value)")}{ferr(errs, "business_value")}</label>
+<label class="wide">Label <input name="label" value="{esc(cur.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
+<label>Criterion <input name="criterion" list="criteria" value="{esc(cur.get("criterion", ""))}" maxlength="100">{ferr(errs, "criterion")}</label>
+<label>Severity (you pick it) {_select("severity", sev, cur.get("severity") if typed is not None else None, required=True, pick="(pick a severity)", unknown="not in the scale")}{ferr(errs, "severity")}</label>"""
+            rows_fe.append(f"""<li class="draft-item" id="draft-{q(did)}">{head}{about}{note}
+<form method="post" action="/s/{sid}/draft/{q(did)}/accept" class="grid-form">{csrf_input(session)}{fields}
+<div class="form-actions"><button>Accept as a feared event</button> {reject_btn}</div></form></li>""")
+    lists = ""
+    if rows_bv:
+        lists += f'<h3>Proposed business values <span class="count">{len(rows_bv)}</span></h3><ul class="drafts">{"".join(rows_bv)}</ul>'
+    if rows_fe:
+        lists += f'<h3>Proposed feared events <span class="count">{len(rows_fe)}</span></h3><ul class="drafts">{"".join(rows_fe)}</ul>'
+    if items:
+        b = (drafts.get("batches") or [{}])[-1]
+        src = (f'<p class="hint">Last draft: model {esc(b.get("model") or "?")}, route {esc(b.get("route") or "?")}, '
+               f'{esc(b.get("at") or "")}. A draft never sets a severity or a level: you pick the severity, the '
+               f'engine computes the rest.</p>')
+        raw = (f'<details class="raw"><summary>Model answer as received</summary><pre>{esc(b.get("text", ""))}</pre>'
+               f'</details>' if b.get("text") else "")
+        clear = (f'<form method="post" action="/s/{sid}/draft/clear" class="inline">{csrf_input(session)}'
+                 f'<button class="link danger">Reject all draft items</button></form>')
+        lists = src + lists + raw + clear
+    elif drafts.get("unreadable"):
+        lists = '<p class="error">The draft file of this study cannot be read.</p>'
+    open_ = " open" if items or state else ""
+    return f"""<section class="card draft-panel" id="draft"><details{open_}><summary><h2>Draft from text</h2></summary>
+<p class="hint">{status}</p>{priv}{refused}{err}{form}{lists}</details></section>"""
 
 
 # ---------- register and grid ----------

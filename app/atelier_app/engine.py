@@ -84,6 +84,15 @@ def level_info(cal, name):
     return calibration.level_info(cal, name)
 
 
+def have_xlsx():
+    """True when openpyxl, which the engine's Excel export needs, can be imported."""
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def to_xlsx_bytes(st, cal, tmp_dir):
     """Run the engine's Excel export into a private temp file and return the bytes."""
     from atelier_engine import export

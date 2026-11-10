@@ -31,7 +31,11 @@ INT_RE = re.compile(r"[+-]?[0-9]{1,6}")
 
 
 class FormError(Exception):
-    pass
+    """A value the app cannot store. `field` names the form field it is about (None: the form as a whole)."""
+
+    def __init__(self, message, field=None):
+        super().__init__(message)
+        self.field = field
 
 
 def items(st, key):
@@ -126,7 +130,7 @@ class Form:
     def text(self, name, required=False, limit=500, label=None):
         v = self.req.field(name).strip()
         if required and not v:
-            raise FormError(f"{label or name} is required")
+            raise FormError(f"{label or name} is required", name)
         return v[:limit] if v else None
 
     def scale(self, name, required=False, label=None):
@@ -134,37 +138,37 @@ class Form:
         v = self.req.field(name).strip()
         if not v:
             if required:
-                raise FormError(f"pick a {label or name}")
+                raise FormError(f"pick a {label or name}", name)
             return None
         if not INT_RE.fullmatch(v):
-            raise FormError(f"{label or name} must be a whole number")
+            raise FormError(f"{label or name} must be a whole number", name)
         return int(v)
 
     def choice(self, name, options, required=False, label=None):
         v = self.req.field(name)
         if not v:
             if required:
-                raise FormError(f"pick a {label or name}")
+                raise FormError(f"pick a {label or name}", name)
             return None
         if v not in options:
-            raise FormError(f"{label or name} must be one of: {', '.join(options)}")
+            raise FormError(f"{label or name} must be one of: {', '.join(options)}", name)
         return v
 
     def ref(self, name, key, required=False, label=None):
         v = self.req.field(name)
         if not v:
             if required:
-                raise FormError(f"pick the {label or name} from the list")
+                raise FormError(f"pick the {label or name} from the list", name)
             return None
         if v not in ids(self.st, key):
-            raise FormError(f"{label or name}: pick an existing id from the list")
+            raise FormError(f"{label or name}: pick an existing id from the list", name)
         return v
 
     def refs(self, name, key, label=None):
         picked = list(dict.fromkeys(self.req.fields(name)))
         valid = set(ids(self.st, key))
         if any(x not in valid for x in picked):
-            raise FormError(f"{label or name}: pick existing ids from the list")
+            raise FormError(f"{label or name}: pick existing ids from the list", name)
         return picked
 
     def date(self, name, label=None):
@@ -174,9 +178,9 @@ class Form:
         try:
             datetime.date.fromisoformat(v)
         except ValueError:
-            raise FormError(f"{label or name} must be a date (YYYY-MM-DD)")
+            raise FormError(f"{label or name} must be a date (YYYY-MM-DD)", name)
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
-            raise FormError(f"{label or name} must be a date (YYYY-MM-DD)")
+            raise FormError(f"{label or name} must be a date (YYYY-MM-DD)", name)
         return v
 
 
@@ -201,19 +205,19 @@ def parse(slug, req, st, el=None):
         out["risk_origin"] = f.ref("risk_origin", "risk_origins", True, "risk origin")
         fes = f.refs("feared_events", "feared_events", "feared events")
         if not fes:
-            raise FormError("pick at least one feared event: the scenario's severity comes from them")
+            raise FormError("pick at least one feared event: the scenario's severity comes from them", "feared_events")
         out["feared_events"] = fes
     elif slug == "os":
         t = os_targets(st).get(req.field("target"))
         if not t:
-            raise FormError("pick a strategic scenario path from the list")
+            raise FormError("pick a strategic scenario path from the list", "target")
         out["strategic_scenario"], out["path"] = t[0], t[1]
         out["likelihood"] = f.scale("likelihood", True)
         out["description"] = f.text("description", limit=4000)
     elif slug == "rk":
         t = risk_targets(st).get(req.field("scenario"))
         if not t:
-            raise FormError("pick the strategic or operational scenario from the list")
+            raise FormError("pick the strategic or operational scenario from the list", "scenario")
         out["strategic_scenario"] = t[1] if t[0] == "strategic_scenario" else None
         out["operational_scenario"] = t[1] if t[0] == "operational_scenario" else None
         out["label"] = f.text("label", True, limit=1000)
@@ -238,7 +242,7 @@ def parse_paths(req, st, el):
     by_id = {p.get("id"): p for p in old}
     pids, labels, shs = req.fields("path_id"), req.fields("path_label"), req.fields("path_stakeholder")
     if not (len(pids) == len(labels) == len(shs)):
-        raise FormError("the path rows of the form are incomplete; reload the page")
+        raise FormError("the path rows of the form are incomplete; reload the page", "paths")
     remove = set(req.fields("path_remove"))
     valid_sh = set(ids(st, "stakeholders"))
     used = {}
@@ -248,17 +252,17 @@ def parse_paths(req, st, el):
     out, seen = [], set()
     for pid, lab, sh in zip(pids, labels, shs):
         if pid not in by_id or pid in seen:
-            raise FormError("unknown path in the form; reload the page")
+            raise FormError("unknown path in the form; reload the page", "paths")
         seen.add(pid)
         if pid in remove:
             if used.get(pid):
                 raise FormError(f"{pid} is used by {', '.join(used[pid])}; link those operational scenarios to "
-                                "another path first")
+                                "another path first", "paths")
             continue
         if sh and sh not in valid_sh:
-            raise FormError(f"{pid}: pick the stakeholder from the list")
+            raise FormError(f"{pid}: pick the stakeholder from the list", "paths")
         if not lab.strip():
-            raise FormError(f"{pid}: the path needs a label (or tick remove)")
+            raise FormError(f"{pid}: the path needs a label (or tick remove)", "paths")
         p = copy.deepcopy(by_id[pid])
         p["label"] = lab.strip()[:1000]
         if sh:
@@ -272,10 +276,10 @@ def parse_paths(req, st, el):
     new_lab = req.field("new_path_label").strip()
     new_sh = req.field("new_path_stakeholder")
     if new_sh and not new_lab:
-        raise FormError("the new path needs a label")
+        raise FormError("the new path needs a label", "paths")
     if new_lab:
         if new_sh and new_sh not in valid_sh:
-            raise FormError("new path: pick the stakeholder from the list")
+            raise FormError("new path: pick the stakeholder from the list", "paths")
         p = {"id": None, "label": new_lab[:1000]}
         if new_sh:
             p["stakeholder"] = new_sh
@@ -290,6 +294,66 @@ def apply(el, fields):
         else:
             el[k] = v
     return el
+
+
+# The form fields each editor sends back, so a refused form can be shown again with what was typed.
+TEXT_FIELDS = {
+    "ro": ["origin", "objective", *RO_SCALES, "decision"],
+    "sh": ["name", "category", *SH_SCALES],
+    "ss": ["risk_origin"],
+    "os": ["likelihood", "description"],
+    "rk": ["label", "likelihood", "likelihood_target", "treatment", "owner"],
+    "ms": ["label", "owner", "due", "status"],
+}
+LIST_FIELDS = {"ro": ["feared_events"], "ss": ["feared_events"], "ms": ["risks"]}
+# How the engine names a field in its messages, when that differs from the form field.
+ENGINE_NAMES = {"target likelihood": "likelihood_target"}
+
+
+def echo(slug, req, el=None):
+    """The submitted form as an element-shaped dict, for showing a refused form again with the user's input.
+
+    Nothing here is stored. Values stay as typed (strings); the form renderer marks a value that is not one of
+    its options. Ids and severities still come from the stored element.
+    """
+    e = {"id": el.get("id")} if el else {}
+    for k in TEXT_FIELDS[slug]:
+        e[k] = req.field(k)
+    for k in LIST_FIELDS.get(slug, []):
+        e[k] = req.fields(k)
+    if slug == "sh":
+        e["critical"] = req.field("critical") == "yes"
+    elif slug == "os":
+        e["_target"] = req.field("target")
+    elif slug == "rk":
+        e["_scenario"] = req.field("scenario")
+    elif slug == "ss":
+        known = {p.get("id"): p for p in (el or {}).get("paths") or [] if isinstance(p, dict)}
+        rows = zip(req.fields("path_id"), req.fields("path_label"), req.fields("path_stakeholder"))
+        e["paths"] = [{"id": pid, "label": lab, "stakeholder": sh} for pid, lab, sh in rows if pid in known]
+        e["_remove"] = set(req.fields("path_remove"))
+        e["_new_label"] = req.field("new_path_label")
+        e["_new_sh"] = req.field("new_path_stakeholder")
+    return e
+
+
+def refusal_fields(slug, messages):
+    """{form field: engine message} for the engine refusals that name one field of this editor's form."""
+    names = set(TEXT_FIELDS[slug])
+    out = {}
+    for m in messages:
+        rest = m.split(": ", 1)[1] if ": " in m else m
+        hit = None
+        for word, field in sorted(ENGINE_NAMES.items(), key=lambda x: -len(x[0])):
+            if rest.startswith(word + " ") and field in names:
+                hit = field
+                break
+        if hit is None:
+            first = rest.split(" ", 1)[0]
+            hit = first if first in names else None
+        if hit is not None:
+            out.setdefault(hit, m)
+    return out
 
 
 def scale_refusals(before, after, eid):

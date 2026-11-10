@@ -58,7 +58,8 @@ class Store:
         self.root = pathlib.Path(root)
         self.dir = self.root / "studies"
         self.trash = self.dir / "trash"
-        for d in (self.root, self.dir, self.trash):
+        self.drafts = self.root / "drafts"  # proposals of the drafting adapter, kept out of the study files
+        for d in (self.root, self.dir, self.trash, self.drafts):
             d.mkdir(parents=True, exist_ok=True, mode=0o700)
             os.chmod(d, 0o700)
         self.lock = threading.Lock()
@@ -120,6 +121,35 @@ class Store:
         self.save(sid, study)
         return sid
 
+    def load_drafts(self, sid):
+        """The study's pending draft items: {"items": [...], "batches": [...]}. Empty when there is none."""
+        p = self._path(sid)
+        f = self.drafts / p.name
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {"items": [], "batches": []}
+        except (OSError, ValueError):
+            return {"items": [], "batches": [], "unreadable": True}
+        if not isinstance(d, dict) or not isinstance(d.get("items"), list):
+            return {"items": [], "batches": [], "unreadable": True}
+        d.setdefault("batches", [])
+        return d
+
+    def save_drafts(self, sid, drafts):
+        p = self._path(sid)
+        if not p.exists():
+            raise NotFound(sid)
+        f = self.drafts / p.name
+        with self.lock:
+            if not drafts.get("items"):
+                try:
+                    f.unlink()
+                except FileNotFoundError:
+                    pass
+                return
+            atomic_write(f, (json.dumps(drafts, ensure_ascii=False, indent=1) + "\n").encode("utf-8"))
+
     def delete(self, sid):
         """Move the study (and its .bak) to studies/trash/; nothing is unlinked."""
         p = self._path(sid)
@@ -131,3 +161,6 @@ class Store:
             bak = p.with_name(p.name + ".bak")
             if bak.exists():
                 shutil.move(str(bak), str(self.trash / f"{sid}.{stamp}.json.bak"))
+            dr = self.drafts / p.name
+            if dr.exists():
+                shutil.move(str(dr), str(self.trash / f"{sid}.{stamp}.drafts.json"))

@@ -5,7 +5,8 @@ Severities of strategic scenarios and risks, and every level, are the engine's (
 engine.register, engine.level); this module only displays them.
 """
 from . import editors, engine
-from .views import (TITLES, WORKSHOPS, anchor, csrf_input, esc, grids_block, q, scale_text, study_shell, _select)
+from .views import (TITLES, WORKSHOPS, anchor, csrf_input, esc, ferr, form_note, grids_block, q, scale_text, study_shell,
+                    _select)
 
 SINGULAR = {"risk_origins": "risk origin", "stakeholders": "stakeholder", "strategic_scenarios": "strategic scenario",
             "operational_scenarios": "operational scenario", "risks": "risk", "measures": "measure"}
@@ -168,6 +169,8 @@ def _grouped(name, targets, current, required=True, blank="(pick one)"):
         inner = "".join(f'<option value="{esc(v)}"{" selected" if v == current else ""}>{esc(lab)}</option>'
                         for v, lab in vals)
         opts.append(f'<optgroup label="{esc(g)}">{inner}</optgroup>')
+    if current and current not in targets:
+        opts.append(f'<option value="{esc(current)}" selected>{esc(current)} (not in the list)</option>')
     return f'<select name="{name}"{" required" if required else ""}>{"".join(opts)}</select>'
 
 
@@ -175,29 +178,37 @@ def _cal_scale(cal, axis):
     return [(x["n"], f'{x.get("code", x["n"])} {x.get("label", "")}') for x in (cal or {}).get(axis, [])]
 
 
-def form_fields(slug, el, st, chk):
+def form_fields(slug, el, st, chk, errs=None):
+    """The fields of one editor form. `el` is the stored element, or after a refusal what the user typed
+    (editors.echo); `errs` holds the message about each field, shown next to it."""
     el = el or {}
     cal = chk.get("cal")
     fes = [(i, f'{i} {(editors.find(st, "feared_events", i) or {}).get("label", "")}') for i in editors.ids(st, "feared_events")]
+
+    def e(name):
+        return ferr(errs, name)
     if slug == "ro":
-        scales = "".join(f'<label>{k.capitalize()} {_select(k, SCALE_OPTS, el.get(k))}</label>' for k in editors.RO_SCALES)
-        return f"""<label>Risk origin <input name="origin" value="{esc(el.get("origin", ""))}" required maxlength="500"></label>
-<label>Target objective <input name="objective" value="{esc(el.get("objective", ""))}" maxlength="1000"></label>
+        scales = "".join(f'<label>{k.capitalize()} {_select(k, SCALE_OPTS, el.get(k), unknown="not in the scale")}{e(k)}</label>'
+                         for k in editors.RO_SCALES)
+        return f"""<label>Risk origin <input name="origin" value="{esc(el.get("origin", ""))}" required maxlength="500">{e("origin")}</label>
+<label>Target objective <input name="objective" value="{esc(el.get("objective", ""))}" maxlength="1000">{e("objective")}</label>
 {scales}
-<label>Decision {_select("decision", [(d, d) for d in editors.DECISIONS], el.get("decision"), required=True)}</label>
-<fieldset><legend>Feared events it aims at</legend>{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>"""
+<label>Decision {_select("decision", [(d, d) for d in editors.DECISIONS], el.get("decision"), required=True)}{e("decision")}</label>
+<fieldset><legend>Feared events it aims at</legend>{e("feared_events")}{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>"""
     if slug == "sh":
         cats = sorted({str(x.get("category")) for x in editors.items(st, "stakeholders") if x.get("category")})
         dl = "".join(f'<option value="{esc(c)}">' for c in cats)
-        scales = "".join(f'<label>{k.capitalize()} {_select(k, SCALE_OPTS, el.get(k))}</label>' for k in editors.SH_SCALES)
-        return f"""<label>Name <input name="name" value="{esc(el.get("name", ""))}" required maxlength="300"></label>
-<label>Category <input name="category" list="sh-categories" value="{esc(el.get("category", ""))}" maxlength="100"></label>
+        scales = "".join(f'<label>{k.capitalize()} {_select(k, SCALE_OPTS, el.get(k), unknown="not in the scale")}{e(k)}</label>'
+                         for k in editors.SH_SCALES)
+        return f"""<label>Name <input name="name" value="{esc(el.get("name", ""))}" required maxlength="300">{e("name")}</label>
+<label>Category <input name="category" list="sh-categories" value="{esc(el.get("category", ""))}" maxlength="100">{e("category")}</label>
 <datalist id="sh-categories">{dl}</datalist>
 {scales}
 <label class="check"><input type="checkbox" name="critical" value="yes"{" checked" if el.get("critical") is True else ""}> Critical stakeholder</label>"""
     if slug == "ss":
         ros = [(i, f'{i} {(editors.find(st, "risk_origins", i) or {}).get("origin", "")}') for i in editors.ids(st, "risk_origins")]
         shs = [(i, f'{i} {(editors.find(st, "stakeholders", i) or {}).get("name", "")}') for i in editors.ids(st, "stakeholders")]
+        remove = el.get("_remove") or set()
         rows = []
         for p in el.get("paths") or []:
             if not isinstance(p, dict):
@@ -206,40 +217,44 @@ def form_fields(slug, el, st, chk):
             rows.append(f"""<tr><td><input type="hidden" name="path_id" value="{esc(pid)}"><b>{esc(pid)}</b></td>
 <td><input name="path_label" value="{esc(p.get("label", ""))}" maxlength="1000" aria-label="label of {esc(pid)}"></td>
 <td>{_select("path_stakeholder", shs, p.get("stakeholder"), blank="(direct, no stakeholder)")}</td>
-<td><label class="check"><input type="checkbox" name="path_remove" value="{esc(pid)}"> remove</label></td></tr>""")
-        rows.append(f"""<tr><td><i>new</i></td><td><input name="new_path_label" maxlength="1000" placeholder="label of a new path" aria-label="label of a new path"></td>
-<td>{_select("new_path_stakeholder", shs, None, blank="(direct, no stakeholder)")}</td><td></td></tr>""")
+<td><label class="check"><input type="checkbox" name="path_remove" value="{esc(pid)}"{" checked" if pid in remove else ""}> remove</label></td></tr>""")
+        rows.append(f"""<tr><td><i>new</i></td><td><input name="new_path_label" value="{esc(el.get("_new_label", ""))}" maxlength="1000" placeholder="label of a new path" aria-label="label of a new path"></td>
+<td>{_select("new_path_stakeholder", shs, el.get("_new_sh"), blank="(direct, no stakeholder)")}</td><td></td></tr>""")
         sev = ""
         if el.get("id"):
-            sev = f'<p class="derived">Severity: {severity_cell(st, chk, "strategic_scenarios", el)}</p>'
-        return f"""<label>Risk origin {_select("risk_origin", ros, el.get("risk_origin"), required=True)}</label>
-<fieldset><legend>Feared events it leads to</legend>{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>
+            stored = editors.find(st, "strategic_scenarios", el["id"]) or el
+            sev = f'<p class="derived">Severity: {severity_cell(st, chk, "strategic_scenarios", stored)}</p>'
+        return f"""<label>Risk origin {_select("risk_origin", ros, el.get("risk_origin"), required=True)}{e("risk_origin")}</label>
+<fieldset><legend>Feared events it leads to</legend>{e("feared_events")}{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>
 <p class="hint wide">Severity is not typed here: the engine takes it from the feared events (guide p.49) when you save.</p>{sev}
-<fieldset><legend>Attack paths</legend><div class="scroll"><table class="paths-form"><thead><tr><th>Id</th><th>Label</th><th>Stakeholder</th><th></th></tr></thead>
+<fieldset><legend>Attack paths</legend>{e("paths")}<div class="scroll"><table class="paths-form"><thead><tr><th>Id</th><th>Label</th><th>Stakeholder</th><th></th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table></div></fieldset>"""
     if slug == "os":
-        return f"""<label>Strategic scenario path {_grouped("target", editors.os_targets(st), editors.os_target_value(el))}</label>
-<label>Likelihood {_select("likelihood", _cal_scale(cal, "likelihood"), el.get("likelihood"), required=True)}</label>
-<label class="wide">Description <textarea name="description" rows="3" maxlength="4000">{esc(el.get("description", ""))}</textarea></label>"""
+        target = el["_target"] if "_target" in el else editors.os_target_value(el)
+        return f"""<label>Strategic scenario path {_grouped("target", editors.os_targets(st), target)}{e("target")}</label>
+<label>Likelihood {_select("likelihood", _cal_scale(cal, "likelihood"), el.get("likelihood"), required=True, unknown="not in the scale")}{e("likelihood")}</label>
+<label class="wide">Description <textarea name="description" rows="3" maxlength="4000">{esc(el.get("description", ""))}</textarea>{e("description")}</label>"""
     if slug == "rk":
         lk = _cal_scale(cal, "likelihood")
+        scen = el["_scenario"] if "_scenario" in el else editors.risk_target_value(el)
         sev = ""
         if el.get("id"):
-            sev = f'<p class="derived">Severity: {severity_cell(st, chk, "risks", el)}</p>'
-        return f"""<label>Scenario {_grouped("scenario", editors.risk_targets(st), editors.risk_target_value(el))}</label>
-<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000"></label>
-<label>Likelihood now {_select("likelihood", lk, el.get("likelihood"), required=True)}</label>
-<label>Target likelihood {_select("likelihood_target", lk, el.get("likelihood_target"), blank="(no target)")}</label>
-<label>Treatment {_select("treatment", [(t, t) for t in editors.TREATMENTS], el.get("treatment"))}</label>
-<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200"></label>
+            stored = editors.find(st, "risks", el["id"]) or el
+            sev = f'<p class="derived">Severity: {severity_cell(st, chk, "risks", stored)}</p>'
+        return f"""<label>Scenario {_grouped("scenario", editors.risk_targets(st), scen)}{e("scenario")}</label>
+<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000">{e("label")}</label>
+<label>Likelihood now {_select("likelihood", lk, el.get("likelihood"), required=True, unknown="not in the scale")}{e("likelihood")}</label>
+<label>Target likelihood {_select("likelihood_target", lk, el.get("likelihood_target"), blank="(no target)", unknown="not in the scale")}{e("likelihood_target")}</label>
+<label>Treatment {_select("treatment", [(t, t) for t in editors.TREATMENTS], el.get("treatment"))}{e("treatment")}</label>
+<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200">{e("owner")}</label>
 <p class="hint wide">Severity is not typed here: the engine takes it from the scenario (guide p.62, p.65) when you save.</p>{sev}"""
     if slug == "ms":
         rks = [(i, f'{i} {(editors.find(st, "risks", i) or {}).get("label", "")}') for i in editors.ids(st, "risks")]
-        return f"""<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000"></label>
-<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200"></label>
-<label>Due date <input type="date" name="due" value="{esc(el.get("due", ""))}"></label>
-<label>Status {_select("status", [(s, s) for s in editors.MEASURE_STATUS], el.get("status"), required=True)}</label>
-<fieldset><legend>Risks it treats</legend>{_boxes("risks", rks, el.get("risks"), "No risk yet.")}</fieldset>"""
+        return f"""<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000">{e("label")}</label>
+<label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200">{e("owner")}</label>
+<label>Due date <input type="date" name="due" value="{esc(el.get("due", ""))}">{e("due")}</label>
+<label>Status {_select("status", [(s, s) for s in editors.MEASURE_STATUS], el.get("status"), required=True)}{e("status")}</label>
+<fieldset><legend>Risks it treats</legend>{e("risks")}{_boxes("risks", rks, el.get("risks"), "No risk yet.")}</fieldset>"""
     raise KeyError(slug)
 
 
@@ -263,12 +278,15 @@ def workshop_page(sid, st, chk, n, session, flash="", hl=None, form_error=None, 
     parts = [f'<h2 class="ws">{esc(title)}</h2>']
     for key in keys:
         slug = editors.SLUG_OF[key]
-        err = f'<p class="error">{esc(form_error[1])}</p>' if form_error and form_error[0] == slug else ""
+        err, errs, sticky = "", None, None
+        if form_error and form_error[0] == slug:
+            _, msg, errs, sticky = form_error
+            err = form_note(msg, errs)
         need = _needs(slug, st)
         add = (f'<p class="hint">{esc(need)}</p>' if need else
                f"""<details class="add"{" open" if err or not editors.items(st, key) else ""}><summary>Add {esc(SINGULAR[key])}</summary>
 <form method="post" action="/s/{sid}/w{n}/{slug}/add" class="grid-form">{csrf_input(session)}
-{form_fields(slug, None, st, chk)}<button>Add</button></form></details>""")
+{form_fields(slug, sticky, st, chk, errs)}<button>Add</button></form></details>""")
         sync = ""
         if key in engine.DERIVED_SEVERITY and any(engine.severity_errors(chk, x.get("id")) for x in editors.items(st, key)):
             sync = (f'<form method="post" action="/s/{sid}/severities" class="sync">{csrf_input(session)}'
@@ -292,11 +310,12 @@ def grid_section(sid, chk, register):
             f'{grids_block(chk["cal"], rows, summary, sid)}</section>')
 
 
-def edit_page(sid, st, chk, slug, el, session, error=""):
+def edit_page(sid, st, chk, slug, el, session, error="", errs=None, sticky=None):
+    """Edit page. After a refusal, `sticky` holds what was typed (editors.echo) and `errs` the message per field."""
     key, n, _ = editors.SPECS[slug]
-    err = f'<p class="error">{esc(error)}</p>' if error else ""
+    err = form_note(error, errs)
     content = f"""<section class="card"><h2>Edit {esc(SINGULAR[key])} {esc(el.get("id"))}</h2>{err}
 <form method="post" action="/s/{sid}/w{n}/{slug}/{q(el.get("id"))}" class="grid-form">{csrf_input(session)}
-{form_fields(slug, el, st, chk)}
+{form_fields(slug, sticky if sticky is not None else el, st, chk, errs)}
 <div class="form-actions"><button>Save</button> <a href="/s/{sid}/w{n}?hl={q(el.get("id"))}#{anchor(el.get("id"))}">Cancel</a></div></form></section>"""
     return study_shell(sid, st, chk, f"w{n}", content, session)
