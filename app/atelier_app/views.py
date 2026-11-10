@@ -132,15 +132,32 @@ def badge(chk):
     return '<span class="badge ok">valid</span>'
 
 
-def page(title, body, session=None, cal_id=None, flash=""):
+NAV = {"en": {"home": "Home", "list": "Studies", "reviews": "Reviews", "settings": "Settings", "logout": "Log out",
+              "sub": "Risk analysis, step by step", "skip": "Skip to the content"},
+       "fr": {"home": "Accueil", "list": "Études", "reviews": "Revues", "settings": "Réglages", "logout": "Se déconnecter",
+              "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu"}}
+
+
+def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=None):
+    """The shared page shell. `lang` ("en" or "fr") sets the language of the shell and of <html lang>; `lang_path`
+    (a local path) adds the EN / FR switch, which links to that path with ?lang=."""
+    n = NAV.get(lang, NAV["en"])
     cal_css = f'<link rel="stylesheet" href="/cal/{q(cal_id)}.css">' if cal_id else ""
     logout = ""
     if session:
         logout = (f'<form method="post" action="/logout" class="inline">{csrf_input(session)}'
-                  '<button class="link">Log out</button></form>')
+                  f'<button class="link">{esc(n["logout"])}</button></form>')
+    switch = ""
+    if lang_path:
+        on = ' aria-current="true" class="on"'
+        switch = '<span class="lang" role="group" aria-label="Language">' + "".join(
+            f'<a href="{esc(lang_path)}?lang={code}" lang="{code}" hreflang="{code}"{on if code == lang else ""}>'
+            f'{code.upper()}</a>' for code in ("en", "fr")) + "</span>"
     note = f'<p class="flash" role="status">{esc(FLASH[flash])}</p>' if flash in FLASH else ""
+    links = (f'<a href="/">{esc(n["home"])}</a><a href="/studies">{esc(n["list"])}</a>'
+             f'<a href="/reviews">{esc(n["reviews"])}</a><a href="/settings">{esc(n["settings"])}</a>' if session else "")
     return f"""<!doctype html>
-<html lang="en">
+<html lang="{esc(lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -150,9 +167,10 @@ def page(title, body, session=None, cal_id=None, flash=""):
 <script src="/static/app.js" defer></script>
 </head>
 <body>
-<header class="top"><a class="brand" href="/">Atelier</a><span class="sub">EBIOS Risk Manager workbench</span>
-<nav><a href="/">Studies</a>{'<a href="/reviews">Reviews</a><a href="/settings">Settings</a>' if session else ""}{logout}</nav></header>
-<main>
+<a class="skip" href="#main">{esc(n["skip"])}</a>
+<header class="top"><a class="brand" href="/">Atelier</a><span class="sub">{esc(n["sub"])}</span>
+<nav>{links}{switch}{logout}</nav></header>
+<main id="main">
 {note}
 {body}
 </main>
@@ -323,6 +341,8 @@ def study_shell(sid, st, chk, active, content, session, flash=""):
     tabs = [("overview", "Overview", f"/s/{sid}"), ("documents", "Documents", f"/s/{sid}/docs")] + [
         (f"w{n}", f"W{n}", f"/s/{sid}/w{n}") for n in WORKSHOPS] + [
         ("register", "Register and grid", f"/s/{sid}/register")]
+    if isinstance(st.get("quick"), dict):
+        tabs.append(("quick", "Quick path results", f"/quick/{sid}/results"))
     cur = ' class="active" aria-current="page"'
     nav = "".join(f'<a href="{href}"{cur if key == active else ""}>{esc(label)}</a>' for key, label, href in tabs)
     body = f"""<div class="study-head"><h1>{esc(meta.get("name") or "(no name)")}</h1>

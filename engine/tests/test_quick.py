@@ -179,6 +179,13 @@ class BuildStudy(unittest.TestCase):
         self.assertEqual(r[ids[2]]["severity_reason"], "we have a paper fallback")
         self.assertIn("severity_proposed", r[ids[2]])
 
+    def test_slot_source(self):
+        self.assertEqual(quick.slot_source({"answer": "dont_know"}), "default")
+        self.assertEqual(quick.slot_source({"value": "x"}), "answer")
+        self.assertEqual(quick.slot_source({"value": "x", "dont_know": True}), "default")
+        self.assertEqual(quick.slot_source({"value": "x", "source": "document"}), "document")
+        self.assertEqual(quick.slot_source({}), "default")
+
     def test_unknown_profile_answers_give_default_sources(self):
         q = answers(profile(downtime={"dont_know": True}, sensitivity={}))
         st = quick.build_study(q, CAL)

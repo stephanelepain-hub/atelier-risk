@@ -10,7 +10,7 @@ import tempfile
 import zipfile
 
 from . import ENGINE_DIR  # noqa: F401  (puts the engine on sys.path)
-from atelier_engine import calibration, importer as importer_mod, study as study_mod  # noqa: E402
+from atelier_engine import calibration, importer as importer_mod, quick as quick_mod, study as study_mod  # noqa: E402
 
 COLLECTIONS = list(study_mod.COLLECTIONS)
 DECISIONS = frozenset(study_mod.DECISIONS)
@@ -114,13 +114,13 @@ def have_xlsx():
     return True
 
 
-def to_xlsx_bytes(st, cal, tmp_dir):
+def to_xlsx_bytes(st, cal, tmp_dir, notice=None, extra_sheets=None):
     """Run the engine's Excel export into a private temp file and return the bytes."""
     from atelier_engine import export
     fd, path = tempfile.mkstemp(dir=tmp_dir, prefix=".export-", suffix=".xlsx")
     os.close(fd)
     try:
-        export.to_xlsx(st, cal, path)
+        export.to_xlsx(st, cal, path, notice=notice, extra_sheets=extra_sheets)
         with open(path, "rb") as f:
             return f.read()
     finally:
@@ -232,3 +232,69 @@ def take_severities(st, cal, only=None):
                 changed.append((x.get("id"), x.get("severity"), v))
                 x["severity"] = v
     return changed
+
+
+# ---------- quick path (the engine's quick module; levels, confidence and the honesty statement come from there) ----------
+
+QuickError = quick_mod.QuickError
+HONESTY = quick_mod.HONESTY
+DOWNTIME_KEYS = list(quick_mod.DOWNTIME)
+SENSITIVITY_KEYS = list(quick_mod.SENSITIVITY)
+LIKELIHOOD_KEYS = {"deliberate": list(quick_mod.LIKELIHOOD_DELIBERATE), "accidental": list(quick_mod.LIKELIHOOD_ACCIDENTAL)}
+SEVERITY_WORDS = quick_mod.SEVERITY_WORDS
+MAX_VALUES = quick_mod.MAX_VALUES
+DOCUMENT_KINDS = quick_mod.DOCUMENT_KINDS
+NO_DOCUMENT_CEILING = quick_mod.NO_DOCUMENT_CEILING
+
+
+def quick_catalogue():
+    return quick_mod.load_catalogue()
+
+
+def quick_suggest(profile, cat):
+    return quick_mod.suggest(profile, cat)
+
+
+def quick_assess(quick, cat):
+    return quick_mod.assess(quick, cat)
+
+
+def quick_compute(quick, cal, cat):
+    return quick_mod.compute(quick, cal, cat)
+
+
+def quick_build(quick, cal, cat):
+    return quick_mod.build_study(quick, cal, cat)
+
+
+def quick_confidence(quick, cat):
+    return quick_mod.confidence(quick, cat)
+
+
+def quick_band(value):
+    return quick_mod.confidence_band(value)
+
+
+def quick_facts(quick, cal, cat):
+    return quick_mod.facts(quick, cal, cat)
+
+
+def quick_assumptions(quick, cal, cat):
+    return quick_mod.assumptions(quick, cal, cat)
+
+
+def quick_actions(quick, cal, cat, n=5):
+    return quick_mod.top_actions(quick, cal, n, cat)
+
+
+def quick_notice(quick, cal, cat):
+    return quick_mod.xlsx_notice(quick, cal, cat)
+
+
+def quick_sheets(quick, cal, cat):
+    return quick_mod.xlsx_sheets(quick, cal, cat)
+
+
+def quick_proposed_severity(rdef, profile):
+    return quick_mod.propose_severity(rdef, profile)
+

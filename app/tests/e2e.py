@@ -152,7 +152,7 @@ def main():
         st, h, body = call("POST", "/login", {"pre": pre, "token": token})
         step("login with the token", st == 303 and any(c.name == "atelier_session" for c in jar), str(st))
 
-        st, h, body = call("GET", "/")
+        st, h, body = call("GET", "/studies")
         page = body.decode()
         step("study list renders", st == 200 and "<h1>Studies</h1>" in page, str(st))
         csrf = CSRF_RE.search(page).group(1)
@@ -328,7 +328,7 @@ def main():
 
         # ---------- a study on an invented private calibration (4 levels), W1 to the register ----------
         SY = helpers.SYNTH_ID
-        st, h, body = call("GET", "/")
+        st, h, body = call("GET", "/studies")
         pick = body.decode().split('<fieldset class="cal-pick">', 1)[1].split("</fieldset>", 1)[0]
         step("picker lists public and private calibrations, private badge, 4 levels",
              'value="anssi-v1.5"' in pick and f'value="{SY}"' in pick and '<span class="badge private"' in pick
@@ -612,7 +612,7 @@ def main():
                     ("w5-drafting", f"/s/{gsid}/w5", tall),
                     ("settings-route", "/settings", ((1400, 1300), (900, 1900)))]
             if a.it3_shots:
-                plan += [("calibration-picker", "/", std),
+                plan += [("calibration-picker", "/studies", std),
                          ("drafting-panel", f"/s/{dsid}/w1", ((1400, 1600), (900, 2400))),
                          ("private-overview", f"/s/{psid}", ((1400, 1800), (900, 2700))),
                          ("private-grid-4-levels", f"/s/{psid}/register", ((1400, 1200), (900, 1800))),

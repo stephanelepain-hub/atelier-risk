@@ -46,7 +46,7 @@ class StudyFlowTest(unittest.TestCase):
         st = self.app.store.load(sid)
         self.assertEqual(st["format"], "atelier-study")
         self.assertEqual(st["study"], {"name": "Pilot", "scope": "One site", "calibration": "anssi-v1.5"})
-        t = self.page("/")
+        t = self.page("/studies")
         self.assertIn("Pilot", t)
         self.assertIn("anssi-v1.5", t)
         self.assertIn('badge ok">valid', t)
@@ -64,7 +64,7 @@ class StudyFlowTest(unittest.TestCase):
         self.assertEqual(r.status, 400)
 
     def test_calibration_picker_lists_engine_calibrations(self):
-        t = self.page("/")
+        t = self.page("/studies")
         for cal in engine.calibrations():
             self.assertIn(f'<input type="radio" name="calibration" value="{cal}"', t)
 
@@ -112,7 +112,7 @@ class StudyFlowTest(unittest.TestCase):
         self.assertEqual(loc.get("Location"), f"/s/{sid}/w1?hl=FE1#el-FE1")
         self.assertIn('<tr id="el-FE1" class="hl">', self.page(loc.get("Location")))
         self.assertIn('id="el-FE1"', t)
-        self.assertIn("badge bad", self.page("/"))
+        self.assertIn("badge bad", self.page("/studies"))
         self.assertIn("only for a study without errors", self.page(f"/s/{sid}/register"))
         self.assertEqual(self.c.get(f"/s/{sid}/export.xlsx").status, 409)
 
@@ -200,7 +200,7 @@ class StudyFlowTest(unittest.TestCase):
         st = self.app.store.load(sid)
         self.assertEqual(st["business_values"][0]["label"], XSS)
         escaped = "&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;img src=x onerror=alert(2)&gt;"
-        for path in ("/", f"/s/{sid}", p, f"{p}/fe/FE1", f"{p}/bv/BV1", f"/s/{sid}/register", f"/s/{sid}/delete"):
+        for path in ("/studies", f"/s/{sid}", p, f"{p}/fe/FE1", f"{p}/bv/BV1", f"/s/{sid}/register", f"/s/{sid}/delete"):
             t = self.page(path)
             self.assertNotIn("<script>alert", t, path)
             self.assertNotIn("<img src=x", t, path)

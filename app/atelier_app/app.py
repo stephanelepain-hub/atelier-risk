@@ -13,6 +13,7 @@ import datetime
 
 from . import (REPO_DIR, STATIC_DIR, auth, calibrations, config, documents, drafting, drafts, editors, engine, views,
                views_draft, views_ws)
+from .quick_routes import QuickRoutes
 from .storage import NotFound, Store
 from .review_store import ReviewStore
 from .reviews import MAX_BODY as REVIEW_BODY, ReviewRoutes
@@ -22,6 +23,7 @@ MAX_UPLOAD = config.MAX_UPLOAD
 EXAMPLE = REPO_DIR / "examples" / "anssi-guide-vaccine-example.json"
 SID = r"(s-[0-9]{8}-[0-9a-f]{8})"
 DOCS_RE = re.compile(r"/s/s-[0-9]{8}-[0-9a-f]{8}/docs")
+QUICK_UPLOAD_RE = re.compile(r"/quick/(?:new|s-[0-9]{8}-[0-9a-f]{8}/about)")
 W1SLUG = r"(bv|sa|fe|bl)"
 STATIC = {"app.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8"}
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; "
@@ -60,7 +62,7 @@ def _no_constants(x):
     raise ValueError(f"{x} is not valid JSON")
 
 
-class App(ReviewRoutes):
+class App(ReviewRoutes, QuickRoutes):
     def __init__(self, data_dir, private_dir=None, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD,
                  drafting_settings=None):
         self.data_dir = pathlib.Path(data_dir)
@@ -95,7 +97,7 @@ class App(ReviewRoutes):
         """Request body cap: 20 MB (plus the multipart envelope) for a document upload, else max_upload."""
         if path == '/reviews':
             return REVIEW_BODY
-        if DOCS_RE.fullmatch(path or ""):
+        if DOCS_RE.fullmatch(path or "") or QUICK_UPLOAD_RE.fullmatch(path or ""):
             return max(self.max_upload, config.MAX_DOCUMENT_BODY)
         return self.max_upload
 
@@ -112,13 +114,14 @@ class App(ReviewRoutes):
     def _routes(self):
         r = Router()
         self.add_review_routes(r)
+        self.add_quick_routes(r)
         r.add("GET", r"/login", self.login_form, public=True)
         r.add("POST", r"/login", self.login, public=True)
         r.add("GET", r"/login/once", self.login_once, public=True)
         r.add("GET", r"/static/([a-z]+\.(?:css|js))", self.static, public=True)
         r.add("POST", r"/logout", self.logout)
         r.add("POST", r"/login/link", self.login_link)
-        r.add("GET", r"/", self.index)
+        r.add("GET", r"/studies", self.index)
         r.add("GET", r"/settings", self.settings_form)
         r.add("POST", r"/settings", self.settings_save)
         r.add("POST", r"/new", self.new_study)
@@ -376,7 +379,7 @@ class App(ReviewRoutes):
         new_sid = self.store_for(req.session).create(st)
         if new_cal and new_cal != old_cal:
             return redirect(f"/s/{new_sid}?f=duplicated-cal")
-        return redirect("/?f=duplicated")
+        return redirect("/studies?f=duplicated")
 
     def set_confidential(self, req, sid):
         v = req.field("confidential")
@@ -401,7 +404,7 @@ class App(ReviewRoutes):
         store.delete(sid)
         stamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         self.docs.move_to(sid, store.trash / f"{sid}.{stamp}.documents")
-        return redirect("/?f=removed")
+        return redirect("/studies?f=removed")
 
     def _draft_ctx(self, req, sid, st, state=None):
         private, why = calibrations.study_privacy(st)
@@ -465,7 +468,15 @@ class App(ReviewRoutes):
             raise HTTPError(409, "the engine exports only a study without errors; fix the errors listed in the checks")
         if not engine.have_xlsx():
             raise HTTPError(501, "the Excel export needs openpyxl, which is not installed here; the JSON export works")
-        data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir)
+        notice = sheets = None
+        if isinstance(st.get("quick"), dict):  # a quick-path study: honesty header, assumptions and top actions
+            try:
+                cat = self.quick_catalogue()
+                notice = engine.quick_notice(st["quick"], chk["cal"], cat)
+                sheets = engine.quick_sheets(st["quick"], chk["cal"], cat)
+            except engine.QuickError:
+                notice = sheets = None
+        data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir, notice, sheets)
         return Response(data, 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "xlsx")}"')])
 

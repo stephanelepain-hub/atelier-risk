@@ -148,7 +148,7 @@ def slot_source(slot):
     if slot.get("dont_know"):
         return "default"
     value = slot.get("value", slot.get("answer"))
-    if value is None or value == "" or value == []:
+    if value is None or value == "" or value == [] or value == "dont_know":
         return "default"
     return "answer"
 

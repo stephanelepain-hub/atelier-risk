@@ -49,7 +49,7 @@ class PrivateCalibrationTest(unittest.TestCase):
         self.assertEqual(calibrations.available(), {"anssi-v1.5": "public", SYNTH_ID: "private"})
 
     def test_picker_shows_public_and_private_with_badges_and_level_counts(self):
-        t = self.page("/")
+        t = self.page("/studies")
         pick = t.split('<fieldset class="cal-pick">', 1)[1].split("</fieldset>", 1)[0]
         opts = re.findall(r'<label class="cal-opt">(.*?)</label>', pick, re.S)
         self.assertEqual(len(opts), 2)
@@ -72,7 +72,7 @@ class PrivateCalibrationTest(unittest.TestCase):
         self.assertIn("4 risk levels", row)
         priv = re.search(r'<td id="privacy">(.*?)</td>', t, re.S).group(1)
         self.assertIn("it uses a private calibration", priv)
-        lst = self.page("/")
+        lst = self.page("/studies")
         rowl = re.search(rf'<a href="/s/{sid}">.*?</tr>', lst, re.S).group(0)
         self.assertIn('<span class="badge private"', rowl)
 
@@ -198,7 +198,7 @@ class PrivateCalibrationTest(unittest.TestCase):
     def test_plain_duplicate_still_works(self):
         sid = self.new_study("anssi-v1.5", "Public one")
         r = self.c.post_csrf(f"/s/{sid}/duplicate")
-        self.assertEqual((r.status, r.get("Location")), (303, "/?f=duplicated"))
+        self.assertEqual((r.status, r.get("Location")), (303, "/studies?f=duplicated"))
         names = sorted(st["study"]["name"] for _, st, _ in self.app.store.list())
         self.assertEqual(names, ["Public one", "Public one (copy)"])
 
@@ -227,7 +227,7 @@ class BrokenPrivateCalibrationTest(unittest.TestCase):
         try:
             c = Client(app)
             c.login()
-            t = c.text(c.get("/"))
+            t = c.text(c.get("/studies"))
             for cid in ("broken-cal", "bad-scale"):
                 opt = re.search(rf'<label class="cal-opt"><input type="radio" name="calibration" value="{cid}"[^>]*>', t)
                 self.assertIsNotNone(opt, cid)
