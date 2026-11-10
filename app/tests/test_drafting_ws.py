@@ -432,7 +432,7 @@ class AppDraftingTest(unittest.TestCase):
         sid = self.study()
         self.post(f"/s/{sid}/draft", {"ws": "2", "text": "x"})
         body = self.stub.requests[-1]["json"]
-        self.assertEqual(body["max_tokens"], drafting.CEILINGS["max_output_tokens"])
+        self.assertEqual(body["max_tokens"], drafting.LOCAL_OUTPUT_CAP)
         self.assertEqual((body["temperature"], body["stream"]), (0, False))
         self.make(local(self.stub, max_output_tokens=300))
         sid = self.study()

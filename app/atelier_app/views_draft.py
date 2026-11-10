@@ -36,7 +36,10 @@ def limits_line(info):
     return (f'<p class="hint">Limits for this study: at most {lim["requests_per_minute"]} requests a minute, '
             f'{lim["max_output_tokens"]} output tokens a request, and {lim["max_chunks"]} requests a draft. The source '
             f'text is cut to fit a {lim["context_tokens"]}-token context (about {info["budget"] // 1000}k characters a '
-            f'request, at {drafting.CHARS_PER_TOKEN} characters a token). Every request is logged without any text.</p>')
+            f'request, at {drafting.CHARS_PER_TOKEN} characters a token). Every request is logged without any text.</p>'
+            + ('<p class="hint">Local requests run one at a time, without reasoning output, with a 4096-token '
+               'output ceiling and at least a 360-second timeout. A draft can take several minutes.</p>'
+               if info["route"] == "local" else ''))
 
 
 def ssh_hint(info):
@@ -157,7 +160,8 @@ def panel(sid, st, chk, session, ctx, n):
 <fieldset class="doc-pick"><legend>Documents to draft from</legend>{boxes}</fieldset>
 <details class="paste"{" open" if state.get("text") else ""}><summary>Or paste text (at most {drafting.MAX_TEXT:,} characters)</summary>
 <textarea name="text" rows="5" maxlength="{drafting.MAX_TEXT}" aria-label="text to draft from">{esc(state.get("text", ""))}</textarea></details>
-<button>Draft {esc(drafts.WHAT[n])}</button></form>"""
+<button>Draft {esc(drafts.WHAT[n])}</button>
+<p class="draft-progress" role="status" hidden>Drafting... Waiting for the model. This can take several minutes; keep this page open.</p></form>"""
     lists = ""
     by_kind = {}
     for it in items:

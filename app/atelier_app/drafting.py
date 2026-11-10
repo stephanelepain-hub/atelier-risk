@@ -42,6 +42,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Shared by all adapters, including adapters rebuilt after a settings change.
+LOCAL_REQUEST_LOCK = threading.Lock()
+LOCAL_OUTPUT_CAP = 4096
+LOCAL_TIMEOUT = 360
 ROUTES = ("off", "local", "remote")
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 PROMPTS_DIR = pathlib.Path(__file__).resolve().parent.parent / "prompts"
@@ -169,6 +173,9 @@ def normalise(settings):
             out.update(route="off", problem="the remote route names no model")
         else:
             out.update(base_url=base, model=str(rem["model"])[:200], key_file=str(rem.get("key_file") or ""))
+    if out["route"] == "local":
+        out["timeout"] = max(LOCAL_TIMEOUT, out["timeout"])
+        out["limits"]["max_output_tokens"] = min(LOCAL_OUTPUT_CAP, out["limits"]["max_output_tokens"])
     return out
 
 
@@ -405,7 +412,7 @@ def chunk_budget(limits, fixed_chars):
     """Characters of source text one request may carry: the context minus the output tokens, the prompt and the
     study summary, in estimated tokens, and a small margin."""
     tokens = limits["context_tokens"] - limits["max_output_tokens"] - fixed_chars // CHARS_PER_TOKEN - 256
-    return max(500, tokens * CHARS_PER_TOKEN)
+    return max(0, tokens * CHARS_PER_TOKEN)
 
 
 def chunks(text, size):
@@ -505,12 +512,18 @@ def complete(settings, system, user):
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
     if key:
         headers["Authorization"] = "Bearer " + key
-    body = json.dumps({"model": settings["model"], "temperature": 0, "stream": False,
-                       "max_tokens": settings["limits"]["max_output_tokens"],
-                       "messages": [{"role": "system", "content": system},
-                                    {"role": "user", "content": user}]}).encode("utf-8")
+    payload = {"model": settings["model"], "temperature": 0, "stream": False,
+               "max_tokens": settings["limits"]["max_output_tokens"],
+               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    if settings["route"] == "local":
+        payload["reasoning_effort"] = "none"
+    body = json.dumps(payload).encode("utf-8")
     url = settings["base_url"].rstrip("/") + "/chat/completions"
-    status, data = _post(url, body, headers, settings["timeout"])
+    if settings["route"] == "local":
+        with LOCAL_REQUEST_LOCK:
+            status, data = _post(url, body, headers, settings["timeout"])
+    else:
+        status, data = _post(url, body, headers, settings["timeout"])
     if status != 200:
         raise EndpointError(f"the drafting endpoint answered HTTP {status}")
     if len(data) > MAX_REPLY:
@@ -578,6 +591,9 @@ class Drafter:
         study = (context.get("study") or "")[:MAX_STUDY_CONTEXT]
         lim = self.settings["limits"]
         size = chunk_budget(lim, len(system) + len(study))
+        if not size:
+            raise DraftError("the model context is too small for the prompt, study summary and output limit; "
+                             "raise the context limit or lower the output limit in Settings. Nothing was sent.")
         parts = chunks(text, size)
         sent = parts[:lim["max_chunks"]]
         try:
