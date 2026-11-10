@@ -132,7 +132,10 @@ class StudyFlowTest(unittest.TestCase):
         sid = self.c.load_example()
         t = self.page(f"/s/{sid}/w1")
         self.assertIn("No error, no warning.", t)
-        self.assertIn("G4 Critique", t)  # severity picker labelled from the calibration
+        cal = engine.load_cal("anssi-v1.5")
+        picker = re.search(r'<select name="severity" required>(.*?)</select>', t, re.S).group(1)
+        self.assertEqual(re.findall(r'<option value="(\d)">([^<]+)</option>', picker),
+                         [(str(x["n"]), f'{x["code"]} {x["label"]}') for x in cal["severity"]])
         r = self.c.post_csrf(f"/s/{sid}/w1/fe/add", {"business_value": "BV2", "label": "Batch records altered",
                                                      "criterion": "integrity", "severity": "3"}, page=f"/s/{sid}/w1")
         self.assertEqual(r.status, 303)

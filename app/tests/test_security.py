@@ -169,7 +169,7 @@ class TraversalTest(unittest.TestCase):
         token = self.app.auth.token
         for p in paths:
             r = self.c.get(p)
-            self.assertIn(r.status, (404, 405), p)
+            self.assertEqual(r.status, 404, p)
             self.assertNotIn(token.encode(), r.body, p)
 
     def test_store_refuses_bad_ids(self):
