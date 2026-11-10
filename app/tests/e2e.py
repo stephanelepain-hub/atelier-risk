@@ -7,13 +7,20 @@ Starts app/serve.py on 127.0.0.1:<port> with a throwaway data directory, logs in
 example and walks it through workshops 1 to 5 (one edit per workshop, an engine refusal of a value outside 1-4,
 severities taken from the engine), checks validate in the app and with the engine CLI, compares the register and
 both grids with the CLI, downloads the Excel export and reopens it with openpyxl, then follows an error link of a
-broken copy to its highlighted row. With --screenshots it also renders pages with headless
-Firefox, each run in its own throwaway profile, logged in through a one-time link. Stops the server at the end.
+broken copy to its highlighted row. Iteration 3 adds: a refused value whose form comes back with what was typed;
+a study on an invented private 4-level calibration (a temp private directory, never a real one) from W1 to the
+register, the Excel export and a duplicate on the public calibration; and drafting against an in-process stub of an
+OpenAI-compatible API on 127.0.0.1 (draft, accept, reject; the key never in the server log). With --screenshots it
+also renders pages with headless Firefox, each run in its own throwaway profile, logged in through a one-time link.
+A refused form is a POST answer, so its screenshot is taken from the server's exact answer bytes, served with the
+app's stylesheets by a throwaway static server. Stops the server at the end.
 Writes <out>/e2e.json and <out>/ss-*.txt. Exits 1 on the first failed step. The token is never printed.
 """
 import argparse
+import functools
 import html
 import http.cookiejar
+import http.server
 import io
 import json
 import os
@@ -23,12 +30,17 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 APP_DIR = pathlib.Path(__file__).resolve().parents[1]
+if str(APP_DIR.parent) not in sys.path:
+    sys.path.insert(0, str(APP_DIR.parent))
+from app.tests import helpers  # noqa: E402
+from app.tests.stub_model import StubModel  # noqa: E402
 CSRF_RE = re.compile(r'name="csrf" value="([^"]+)"')
 PRE_RE = re.compile(r'name="pre" value="([^"]+)"')
 SID_RE = re.compile(r"/s/(s-[0-9]{8}-[0-9a-f]{8})")
@@ -61,8 +73,22 @@ def main():
         if not cond:
             raise Step(name)
 
-    proc = subprocess.Popen([sys.executable, str(APP_DIR / "serve.py"), "--port", str(a.port), "--data-dir", a.data_dir],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # an invented private calibration in a temp dir (never the user's private directory), the stub model, its key
+    priv = helpers.make_private_dir()
+    keydir = pathlib.Path(tempfile.mkdtemp(prefix="atelier-e2e-key-"))
+    key = "sk-e2e-" + os.urandom(12).hex()
+    (keydir / "model.key").write_text(key + "\n")
+    (keydir / "model.key").chmod(0o600)
+    stub = StubModel().__enter__()
+    pathlib.Path(a.data_dir).mkdir(parents=True, exist_ok=True, mode=0o700)
+    (pathlib.Path(a.data_dir) / "drafting.json").write_text(json.dumps({
+        "backend": "openai-compatible", "base_url": stub.base_url, "model": "stub-model-1",
+        "key_file": str(keydir / "model.key")}))
+    env = {k: v for k, v in os.environ.items() if k not in ("ATELIER_PRIVATE_DIR", "ATELIER_DRAFTING")}
+    proc = subprocess.Popen([sys.executable, str(APP_DIR / "serve.py"), "--port", str(a.port), "--data-dir", a.data_dir,
+                             "--private-dir", str(priv)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                            env=env)
+    replays = {}
     try:
         banner = []
         deadline = time.time() + 15
@@ -155,10 +181,21 @@ def main():
         ro2 = el("risk_origins", "RO2")
         form = {"csrf": csrf, "origin": ro2["origin"], "objective": ro2["objective"], "motivation": "3", "resources": "4",
                 "decision": "selected", "feared_events": ro2["feared_events"]}
-        st, h, _ = call("POST", f"/s/{sid}/w2/ro/RO2", dict(form, motivation="5"))
-        st2, _, body = call("GET", f"/s/{sid}/w2/ro/RO2")
-        refused = st == 400 and "motivation" not in el("risk_origins", "RO2")
-        step("W2: motivation 5 refused by the engine", refused, str(st))
+        before = study_file.read_bytes()
+        st, h, body = call("POST", f"/s/{sid}/w2/ro/RO2", dict(form, motivation="5", origin="Activist (typed, kept)"))
+        refused = st == 400 and study_file.read_bytes() == before
+        step("W2: motivation 5 refused by the engine, file unchanged", refused, str(st))
+        page = body.decode()
+        fm = page.split(f'action="/s/{sid}/w2/ro/RO2"', 1)[1].split("</form>", 1)[0]
+        kept = ('name="origin" value="Activist (typed, kept)"' in fm and '<option value="5" selected>5 (not in the scale)'
+                in fm and '<option value="4" selected>' in fm.split('name="resources"', 1)[1].split("</select>", 1)[0])
+        msg = re.search(r'<select name="motivation">.*?</select><span class="field-error" role="alert">([^<]*)</span>',
+                        fm, re.S)
+        step("W2: the refused form keeps what was typed", kept)
+        step("W2: the engine's message is next to the motivation field",
+             msg is not None and html.unescape(msg.group(1)) ==
+             "The engine refused the value: RO2: motivation 5 out of scale 1-4", msg.group(1) if msg else "none")
+        replays["refused-form"] = body
         st, h, _ = call("POST", f"/s/{sid}/w2/ro/RO2", form)
         ro2 = el("risk_origins", "RO2")
         step("W2: edit RO2", st == 303 and (ro2.get("motivation"), ro2.get("resources")) == (3, 4), json.dumps(ro2))
@@ -277,18 +314,128 @@ def main():
         step("progress strip: W3 has the error", re.search(r'<li class="ps-bad"><a href="/s/' + bsid +
                                                           r'/w3"><b>W3</b>.*?1 error,', page) is not None)
 
+        # ---------- a study on an invented private calibration (4 levels), W1 to the register ----------
+        SY = helpers.SYNTH_ID
+        st, h, body = call("GET", "/")
+        pick = body.decode().split('<fieldset class="cal-pick">', 1)[1].split("</fieldset>", 1)[0]
+        step("picker lists public and private calibrations, private badge, 4 levels",
+             'value="anssi-v1.5"' in pick and f'value="{SY}"' in pick and '<span class="badge private"' in pick
+             and "4 risk levels" in pick and '<span class="badge public">public</span>' in pick)
+        st, h, _ = call("POST", "/new", {"csrf": csrf, "name": "Invented private study", "calibration": SY})
+        psid = SID_RE.search(h.get("Location", "")).group(1)
+        pfile = pathlib.Path(a.data_dir) / "studies" / f"{psid}.json"
+        step("new study on the private calibration", st == 303 and json.loads(pfile.read_text())["study"]["calibration"] == SY)
+        page = call("GET", f"/s/{psid}")[2].decode()
+        step("overview: private badge, 4 risk levels, private reason", '<span class="badge private"' in page
+             and "4 risk levels" in page and "it uses a private calibration" in page)
+        for path, form in (
+                ("w1/bv/add", {"label": "Order handling", "nature": "process"}),
+                ("w1/fe/add", {"business_value": "BV1", "label": "Orders stopped", "criterion": "availability",
+                               "severity": "4"}),
+                ("w2/ro/add", {"origin": "Organised crime", "objective": "Ransom", "motivation": "3", "resources": "3",
+                               "decision": "selected", "feared_events": ["FE1"]}),
+                ("w3/ss/add", {"risk_origin": "RO1", "feared_events": ["FE1"], "new_path_label": "Direct intrusion"}),
+                ("w5/rk/add", {"scenario": "ss::SS1", "label": "Orders stopped by ransomware", "likelihood": "3",
+                               "likelihood_target": "1", "treatment": "reduce", "owner": "Operations"}),
+                ("w5/ms/add", {"label": "Offline backups", "risks": ["R1"], "owner": "IT", "due": "2027-06-30",
+                               "status": "planned"})):
+            st, h, _ = call("POST", f"/s/{psid}/{path}", dict(form, csrf=csrf))
+            step(f"private study: {path}", st == 303, h.get("Location", ""))
+        page, msgs = checks(f"/s/{psid}/w5")
+        step("private study: no error, no warning", msgs == [] and "No error, no warning." in page, json.dumps(msgs))
+        page = call("GET", f"/s/{psid}/register")[2].decode()
+        grids = re.findall(r'<table class="grid">(.*?)</table>', page, re.S)
+        cells = [re.findall(r'<td class="(lvl-i\d)"><span class="lvl-name">([^<]+)</span>', g) for g in grids]
+        names = {n for c in cells for _, n in c}
+        step("private study: two grids of 16 cells, 4 levels and 4 colour classes",
+             len(grids) == 2 and all(len(c) == 16 for c in cells) and names == {"Calm", "Watch", "Alert", "Stop"}
+             and {k for c in cells for k, _ in c} == {"lvl-i0", "lvl-i1", "lvl-i2", "lvl-i3"}, json.dumps(sorted(names)))
+        legend = re.search(r'<ul class="legend">(.*?)</ul>', page, re.S).group(1)
+        step("private study: legend holds the 4 levels", len(re.findall(r'<span class="lvl ', legend)) == 4)
+        app_lv = dict(re.findall(r'<tr id="el-(R\d)">.*?<span class="lvl [^"]*">([^<]+)</span>', page, re.S))
+        cli = subprocess.run([sys.executable, "-m", "atelier_engine", "register", str(pfile)], cwd=APP_DIR.parent / "engine",
+                             capture_output=True, text=True, env=dict(env, ATELIER_PRIVATE_DIR=str(priv)))
+        (out / "cli-register-private.json").write_text(cli.stdout)
+        cli_rows = json.loads(cli.stdout)["risks"] if cli.returncode == 0 else []
+        step("private study: register equals the engine CLI (R1 Stop now, Watch at target)",
+             app_lv == {r["id"]: r["level"] for r in cli_rows} and [(r["level"], r["level_target"]) for r in cli_rows]
+             == [("Stop", "Watch")], json.dumps(app_lv))
+        css = call("GET", f"/cal/{SY}.css")[2].decode()
+        step("private study: calibration CSS has the 4 level colours",
+             all(f".lvl-i{i}{{background:#{c};" in css for i, (_, c) in enumerate(helpers.SYNTH_LEVELS)))
+        if helpers.HAVE_OPENPYXL:
+            st, h, body = call("GET", f"/s/{psid}/export.xlsx")
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(body))
+            ws = wb["Risk register"]
+            hd = [c.value for c in ws[1]]
+            r1 = dict(zip(hd, [c.value for c in ws[2]]))
+            step("private study: xlsx opens, R1 at the engine's levels", st == 200 and (r1.get("level"),
+                 r1.get("level_target")) == ("Stop", "Watch"), json.dumps(r1, default=str))
+        else:
+            print("SKIP private study xlsx: openpyxl not installed", flush=True)
+            report["steps"].append({"step": "private study xlsx", "ok": True, "detail": "skipped: no openpyxl"})
+        st, h, _ = call("POST", f"/s/{psid}/duplicate", {"csrf": csrf, "calibration": "anssi-v1.5"})
+        dsid_ = SID_RE.search(h.get("Location", "")).group(1)
+        cp = json.loads((pathlib.Path(a.data_dir) / "studies" / f"{dsid_}.json").read_text())
+        step("duplicate with calibration anssi-v1.5: copy on the public calibration, marked confidential",
+             st == 303 and cp["study"]["calibration"] == "anssi-v1.5" and cp["study"].get("confidential") is True
+             and json.loads(pfile.read_text())["study"]["calibration"] == SY, json.dumps(cp["study"]))
+
+        # ---------- drafting against the stub (OpenAI-compatible, 127.0.0.1, in this process) ----------
+        st, h, _ = call("POST", "/new", {"csrf": csrf, "name": "Drafting demo", "calibration": "anssi-v1.5"})
+        dsid = SID_RE.search(h.get("Location", "")).group(1)
+        dfile = pathlib.Path(a.data_dir) / "studies" / f"{dsid}.json"
+        page = call("GET", f"/s/{dsid}/w1")[2].decode()
+        step("W1 shows the drafting box and the endpoint on this machine", "Draft from text" in page
+             and "stub-model-1" in page and "(on this machine)" in page)
+        before = dfile.read_bytes()
+        st, h, _ = call("POST", f"/s/{dsid}/draft", {"csrf": csrf, "text": "We take customer orders by phone and buy "
+                                                     "from a few suppliers whose price list we keep."})
+        step("draft from text", st == 303 and h.get("Location") == f"/s/{dsid}/w1?f=drafted#draft", str(st))
+        step("the stub got one request, with the key in its Authorization header",
+             len(stub.requests) == 1 and stub.requests[0]["headers"].get("Authorization") == "Bearer " + key)
+        page = call("GET", f"/s/{dsid}/w1")[2].decode()
+        panel = page.split('id="draft"', 1)[1].split("</section>", 1)[0]
+        step("4 items listed, each marked draft; the study file unchanged",
+             panel.count('<span class="badge draft">draft</span>') == 4 and dfile.read_bytes() == before)
+        dr = json.loads((pathlib.Path(a.data_dir) / "drafts" / f"{dsid}.json").read_text())
+        step("no severity, likelihood or level in any draft item",
+             all(not ({"severity", "likelihood", "level"} & set(x)) for x in dr["items"]), json.dumps(dr["items"])[:300])
+        st, h, _ = call("POST", f"/s/{dsid}/draft/D1/accept", {"csrf": csrf, "label": "Customer order handling",
+                                                                "nature": "process", "owner": "Sales"})
+        step("accept D1 as a business value", st == 303 and json.loads(dfile.read_text())["business_values"] ==
+             [{"id": "BV1", "label": "Customer order handling", "nature": "process", "owner": "Sales"}])
+        st, h, _ = call("POST", f"/s/{dsid}/draft/D3/accept", {"csrf": csrf, "business_value": "BV1",
+                                                                "label": "Orders cannot be taken for two days",
+                                                                "criterion": "availability", "severity": ""})
+        step("accept D3 without a severity: refused (the user must pick it)", st == 400)
+        st, h, _ = call("POST", f"/s/{dsid}/draft/D3/accept", {"csrf": csrf, "business_value": "BV1",
+                                                                "label": "Orders cannot be taken for two days",
+                                                                "criterion": "availability", "severity": "3"})
+        fe = json.loads(dfile.read_text())["feared_events"]
+        step("accept D3 with the user's severity 3 (the stub said 4)", st == 303 and [x["severity"] for x in fe] == [3],
+             json.dumps(fe))
+        st, h, _ = call("POST", f"/s/{dsid}/draft/D2/reject", {"csrf": csrf})
+        left = [x["id"] for x in json.loads((pathlib.Path(a.data_dir) / "drafts" / f"{dsid}.json").read_text())["items"]]
+        step("reject D2; D4 stays pending", st == 303 and left == ["D4"], json.dumps(left))
+        # one more draft so the screenshot shows several pending items
+        call("POST", f"/s/{dsid}/draft", {"csrf": csrf, "text": "Second paste: the same shop, more detail."})
+        st, h, _ = call("POST", f"/s/{psid}/draft", {"csrf": csrf, "text": "Invented private text."})
+        pd = json.loads((pathlib.Path(a.data_dir) / "drafts" / f"{psid}.json").read_text())
+        step("private study: drafting through the local stub is allowed (route local)",
+             st == 303 and pd["batches"][0]["route"] == "local")
+
         if a.screenshots:
             shots = pathlib.Path(a.screenshots)
             shots.mkdir(parents=True, exist_ok=True)
             report["screenshots"] = []
             std = ((1400, 1000), (900, 1300))
-            plan = [("overview-progress", f"/s/{bsid}", ((1400, 1000),)), ("study-list", "/", ((1400, 1000),))]
-            plan += [(f"w{n}-editor", f"/s/{sid}/w{n}", std) for n in (1, 2, 3, 4, 5)]
-            # headless screenshots do not scroll to a #fragment, so the full W5 page (grids at the bottom) needs height
-            plan += [("w3-edit-scenario", f"/s/{sid}/w3/ss/SS1", std),
-                     ("w5-full-with-grids", f"/s/{sid}/w5", ((1400, 2200), (900, 3400))),
-                     ("register-grid", f"/s/{sid}/register", std),
-                     ("error-highlighted", f"/s/{bsid}/el/SS2-P1", std)]
+            plan = [("calibration-picker", "/", std),
+                    ("drafting-panel", f"/s/{dsid}/w1", ((1400, 1600), (900, 2400))),
+                    ("private-overview", f"/s/{psid}", ((1400, 1800), (900, 2700))),
+                    ("private-grid-4-levels", f"/s/{psid}/register", ((1400, 1200), (900, 1800))),
+                    ("w2-editor", f"/s/{sid}/w2", std)]
             for label, path, sizes in plan:
                 for w, hgt in sizes:
                     st, h, body = call("POST", "/login/link", {"csrf": csrf, "next": path.split("#")[0]})
@@ -308,6 +455,43 @@ def main():
                     report["screenshots"].append({"file": png.name, "path": path, "width": w, "rc": r.returncode,
                                                   "bytes": png.stat().st_size if png.exists() else 0})
                     step(f"screenshot {png.name}", ok, f"rc={r.returncode}")
+            # a refused form is a POST answer: serve its exact bytes with the app's stylesheets, then shoot that
+            rdir = pathlib.Path(tempfile.mkdtemp(prefix="atelier-replay-"))
+            try:
+                (rdir / "static").mkdir()
+                (rdir / "cal").mkdir()
+                for name in ("app.css", "app.js"):
+                    (rdir / "static" / name).write_bytes(call("GET", f"/static/{name}")[2])
+                (rdir / "cal" / "anssi-v1.5.css").write_bytes(call("GET", "/cal/anssi-v1.5.css")[2])
+                for label, body in replays.items():
+                    (rdir / f"{label}.html").write_bytes(body)
+                class Quiet(http.server.SimpleHTTPRequestHandler):
+                    def log_message(self, *x):
+                        pass
+                rs = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(rdir)))
+                threading.Thread(target=rs.serve_forever, daemon=True).start()
+                try:
+                    for label in replays:
+                        for w, hgt in ((1400, 1700), (900, 2600)):
+                            png = shots / f"{label}-{w}.png"
+                            prof = tempfile.mkdtemp(prefix="atelier-ff-profile-")
+                            try:
+                                r = subprocess.run(["firefox", "--headless", "--no-remote", "--profile", prof,
+                                                    "--screenshot", str(png), f"--window-size={w},{hgt}",
+                                                    f"http://127.0.0.1:{rs.server_address[1]}/{label}.html"],
+                                                   capture_output=True, text=True, timeout=120,
+                                                   env=dict(os.environ, MOZ_HEADLESS="1"))
+                            finally:
+                                shutil.rmtree(prof, ignore_errors=True)
+                            ok = png.is_file() and png.stat().st_size > 10000
+                            report["screenshots"].append({"file": png.name, "path": f"replay of {label}", "width": w,
+                                                          "rc": r.returncode, "bytes": png.stat().st_size if png.exists() else 0})
+                            step(f"screenshot {png.name} (replayed POST answer)", ok, f"rc={r.returncode}")
+                finally:
+                    rs.shutdown()
+                    rs.server_close()
+            finally:
+                shutil.rmtree(rdir, ignore_errors=True)
         report["ok"] = True
     except Step:
         pass
@@ -319,14 +503,22 @@ def main():
             proc.kill()
             proc.wait()
         err = proc.stderr.read()
+        stub.__exit__()
+        key_logged = key in err or str(keydir) in err
         (out / "server-log.txt").write_text(re.sub(r"n=\S+", "n=<one-time nonce>", err))
+        report["steps"].append({"step": "the key and its file path are not in the server log", "ok": not key_logged})
+        print(("FAIL" if key_logged else "PASS") + " the key and its file path are not in the server log", flush=True)
+        if key_logged:
+            report["ok"] = False
+        shutil.rmtree(priv, ignore_errors=True)
+        shutil.rmtree(keydir, ignore_errors=True)
         time.sleep(0.5)
         ss = subprocess.run(["ss", "-ltn"], capture_output=True, text=True).stdout
         (out / "ss-stopped.txt").write_text(ss)
         stopped = not any(re.search(rf":{a.port}\s", l) for l in ss.splitlines())
         report["steps"].append({"step": "server stopped, port free", "ok": stopped})
         print(("PASS" if stopped else "FAIL") + " server stopped, port free", flush=True)
-        report["ok"] = report["ok"] and stopped
+        report["ok"] = report["ok"] and stopped and not key_logged
         (out / "e2e.json").write_text(json.dumps(report, indent=1))
     print("E2E " + ("PASS" if report["ok"] else "FAIL"))
     return 0 if report["ok"] else 1

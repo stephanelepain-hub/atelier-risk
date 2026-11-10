@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 from app.tests import helpers
 from app.tests.helpers import Client, make_app
@@ -65,7 +66,7 @@ class StudyFlowTest(unittest.TestCase):
     def test_calibration_picker_lists_engine_calibrations(self):
         t = self.page("/")
         for cal in engine.calibrations():
-            self.assertIn(f'<option value="{cal}"', t)
+            self.assertIn(f'<input type="radio" name="calibration" value="{cal}"', t)
 
     # --- import ---
 
@@ -265,12 +266,16 @@ class StudyFlowTest(unittest.TestCase):
 
     # --- exports ---
 
-    def test_export_json_and_xlsx(self):
+    def test_export_json(self):
         sid = self.c.load_example()
         r = self.c.get(f"/s/{sid}/export.json")
         self.assertEqual(r.status, 200)
         self.assertIn("attachment", r.get("Content-Disposition"))
         self.assertEqual(json.loads(r.body), helpers.example_json())
+
+    @unittest.skipUnless(helpers.HAVE_OPENPYXL, "openpyxl not installed: the Excel export is not tested")
+    def test_export_xlsx(self):
+        sid = self.c.load_example()
         r = self.c.get(f"/s/{sid}/export.xlsx")
         self.assertEqual(r.status, 200)
         self.assertTrue(r.body.startswith(b"PK"))
@@ -281,6 +286,14 @@ class StudyFlowTest(unittest.TestCase):
         self.assertIn("About", wb.sheetnames)
         ws = wb["Risk register"]
         self.assertEqual(ws.max_row, 6)
+        self.assertEqual(list(self.app.tmp_dir.iterdir()), [])
+
+    def test_export_xlsx_without_openpyxl_says_so(self):
+        sid = self.c.load_example()
+        with mock.patch.dict(sys.modules, {"openpyxl": None}):
+            r = self.c.get(f"/s/{sid}/export.xlsx")
+        self.assertEqual(r.status, 501)
+        self.assertIn("needs openpyxl", self.c.text(r))
         self.assertEqual(list(self.app.tmp_dir.iterdir()), [])
 
 

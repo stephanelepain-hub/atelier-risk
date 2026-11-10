@@ -24,7 +24,11 @@ SID_RE = re.compile(r"/s/(s-[0-9]{8}-[0-9a-f]{8})")
 
 
 def make_app(**kw):
+    """An app on a fresh temp data dir. The private dir is always a temp one too (never the user's real one, even
+    when ATELIER_PRIVATE_DIR is set in the environment), and drafting is off unless the test passes settings."""
     d = tempfile.mkdtemp(prefix="atelier-test-")
+    kw.setdefault("private_dir", pathlib.Path(d) / "private")
+    kw.setdefault("drafting_settings", {"backend": "off"})
     return App(d, port=8770, **kw), d
 
 
@@ -104,3 +108,65 @@ class Client:
 
 def example_json():
     return json.loads(EXAMPLE.read_text(encoding="utf-8"))
+
+
+try:
+    import openpyxl  # noqa: F401
+    HAVE_OPENPYXL = True
+except ImportError:
+    HAVE_OPENPYXL = False
+
+# An invented private calibration: 4 risk levels, invented labels. It stands in for an organisation's own
+# calibration, which never enters the repository. Grid never decreasing along either axis, as the engine requires.
+SYNTH_ID = "synthetic-4level"
+SYNTH_LEVELS = [("Calm", "7FB77E"), ("Watch", "F2D06B"), ("Alert", "F28C38"), ("Stop", "8E1B10")]
+SYNTH_CAL = {
+    "id": SYNTH_ID,
+    "name": "Synthetic test calibration (invented, 4 levels)",
+    "source": "invented for the app tests",
+    "severity": [{"n": 1, "code": "S1", "label": "Slight"}, {"n": 2, "code": "S2", "label": "Notable"},
+                 {"n": 3, "code": "S3", "label": "Heavy"}, {"n": 4, "code": "S4", "label": "Extreme"}],
+    "likelihood": [{"n": 1, "code": "L1", "label": "Remote"}, {"n": 2, "code": "L2", "label": "Possible"},
+                   {"n": 3, "code": "L3", "label": "Likely"}, {"n": 4, "code": "L4", "label": "Expected"}],
+    "levels": [{"name": n, "rank": i + 1, "colour": c, "acceptability": f"{n} (invented acceptance class)",
+                "action": "invented"} for i, (n, c) in enumerate(SYNTH_LEVELS)],
+    "grid_by_severity": {
+        "4": ["Watch", "Alert", "Stop", "Stop"],
+        "3": ["Watch", "Watch", "Alert", "Stop"],
+        "2": ["Calm", "Watch", "Watch", "Alert"],
+        "1": ["Calm", "Calm", "Watch", "Watch"],
+    },
+}
+
+
+def make_private_dir(extra=None):
+    """A temp private directory holding the synthetic calibration (and `extra` {filename: text})."""
+    d = pathlib.Path(tempfile.mkdtemp(prefix="atelier-private-"))
+    d.chmod(0o700)
+    (d / f"{SYNTH_ID}.json").write_text(json.dumps(SYNTH_CAL, indent=1), encoding="utf-8")
+    for name, text in (extra or {}).items():
+        (d / name).write_text(text, encoding="utf-8")
+    return d
+
+
+def small_study(cal_id, name="Small study"):
+    """A complete little study (W1-W5) on any calibration: one risk at severity 4, likelihood 3, target 1."""
+    return {
+        "format": "atelier-study", "version": "0.1",
+        "study": {"name": name, "scope": "invented", "calibration": cal_id},
+        "business_values": [{"id": "BV1", "label": "Order handling", "nature": "process"}],
+        "supporting_assets": [{"id": "SA1", "label": "Order server", "business_values": ["BV1"]}],
+        "feared_events": [{"id": "FE1", "business_value": "BV1", "label": "Orders stopped", "criterion": "availability",
+                           "severity": 4}],
+        "baseline": [],
+        "risk_origins": [{"id": "RO1", "origin": "Organised crime", "objective": "Ransom", "motivation": 3,
+                          "resources": 3, "decision": "selected", "feared_events": ["FE1"]}],
+        "stakeholders": [],
+        "strategic_scenarios": [{"id": "SS1", "risk_origin": "RO1", "feared_events": ["FE1"], "severity": 4,
+                                 "paths": [{"id": "SS1-P1", "label": "Direct intrusion"}]}],
+        "operational_scenarios": [],
+        "risks": [{"id": "R1", "strategic_scenario": "SS1", "label": "Orders stopped by ransomware", "severity": 4,
+                   "likelihood": 3, "likelihood_target": 1, "treatment": "reduce"}],
+        "measures": [{"id": "M1", "label": "Offline backups", "risks": ["R1"], "owner": "IT", "due": "2027-06-30",
+                      "status": "planned"}],
+    }
