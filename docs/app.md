@@ -1,4 +1,4 @@
-# Web app (`app/`, iteration 3)
+# Web app (`app/`, iteration 4)
 
 A local, single-user web interface over the engine. It runs on your own machine and listens on the loopback
 address only. Levels, checks, registers and the Excel export all come from the engine. The app never computes
@@ -6,15 +6,61 @@ or sets a level itself.
 
 ## Run it
 
+The launcher starts the server in the background and prints the one-time login link. It opens nothing else.
+
 ```bash
-python3 app/serve.py
+python3 app/atelier.py start      # prints http://127.0.0.1:8770/ and the one-time login link
+python3 app/atelier.py status     # running or not, where, and the drafting route (exit 0 running, 3 not)
+python3 app/atelier.py stop
+python3 app/atelier.py token --new  # a new login token (mode 0600); restart for it to take effect
 ```
+
+`start` takes `--port` and `--private-dir`; every command takes `--data-dir` before the command name. The server
+log goes to `<data-dir>/server.log` (mode 0600); the login link is never written there. `stop` signals only the
+process the launcher started (it checks the process runs this checkout's `serve.py`).
+
+In the foreground, without the launcher: `python3 app/serve.py`.
 
 Python 3.12 or later, standard library only. The Excel export needs openpyxl, like the engine's. Without
 openpyxl the app still runs: the Excel download answers "needs openpyxl" (HTTP 501) and everything else works.
 The server prints its address (`http://127.0.0.1:8770/`) and a one-time login link. Open the link in your browser.
 
-Options: `--port`, `--data-dir`, `--private-dir`. `python3 app/serve.py --help` lists them.
+Options: `--port`, `--data-dir`, `--private-dir`, `--url-file`. `python3 app/serve.py --help` lists them.
+
+### README snippet
+
+```markdown
+## Web app
+python3 app/atelier.py start   # then open the one-time link it prints
+python3 app/atelier.py stop
+Drafting is off until you pick a route in Settings. See docs/app.md.
+```
+
+The same lines are in `app/README.md`.
+
+### systemd user unit (template, not installed)
+
+To start it with your session, adapt the path and save it as `~/.config/systemd/user/atelier.service`, then
+`systemctl --user daemon-reload && systemctl --user start atelier`. The one-time link lands in
+`$XDG_RUNTIME_DIR/atelier-login-url` (mode 0600); read it once, or log in with the token file.
+
+```ini
+[Unit]
+Description=Atelier (local EBIOS Risk Manager workbench)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/path/to/atelier-risk/app/serve.py --port 8770 --url-file %t/atelier-login-url
+Restart=on-failure
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=%h/.local/share/atelier %t
+UMask=0077
+
+[Install]
+WantedBy=default.target
+```
 
 ## Log in
 
@@ -33,8 +79,11 @@ Options: `--port`, `--data-dir`, `--private-dir`. `python3 app/serve.py --help` 
 | `studies/<id>.json.bak` | the previous version, rewritten on every save |
 | `studies/trash/` | deleted studies (delete moves the file here, it does not erase it) |
 | `drafts/<id>.json` | pending draft items of a study (see Drafting), never inside the study file |
+| `documents/<id>/` | a study's source documents (mode 0700): the file as uploaded, its extracted text, its metadata (each 0600) |
 | `private/` | private calibrations, passed to the engine as `ATELIER_PRIVATE_DIR` (mode 0700) |
-| `drafting.json` | drafting settings (optional; absent means drafting is off); override with `ATELIER_DRAFTING` |
+| `settings.json` | drafting route and limits (mode 0600; absent means drafting is off); override with `ATELIER_SETTINGS`. The iteration 3 `drafting.json` is still read when there is no `settings.json` |
+| `drafting-log.jsonl` | one line per drafting request (mode 0600), without any document text |
+| `server.log`, `run/` | the launcher's server log and pid file |
 | `token` | the login token (mode 0600) |
 
 Saves are atomic: the app writes a temporary file in the same directory, then renames it over the old one.
@@ -86,30 +135,82 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
   calibration is not available. The copy of a private study is marked confidential, so duplicating it on a public
   calibration does not make it public.
 
-## Drafting (workshop 1)
+## Documents
+
+- Each study has a Documents tab: upload `.txt`, `.md`, `.docx` or `.pdf` files of 20 MB at most. The list shows
+  name, type, size, upload date and the number of characters extracted; a document can be deleted.
+- Text is extracted on this machine. `.docx`: the standard library reads `word/document.xml` (paragraphs, tabs,
+  line breaks, table rows); a document type declaration, an oversized or an over-compressed archive is refused.
+  `.pdf`: `pdftotext` (poppler) if it is on `PATH`, run without a shell and with a time limit; without it PDFs
+  are refused with a message saying so. The app installs nothing. A scanned PDF without a text layer is refused.
+- Deleting a study moves its documents folder to `studies/trash/` with it.
+- Documents never leave the machine except as drafting requests, which follow the route policy below: the
+  documents of a private study only go to the local route.
+
+## Drafting (workshops 1 to 5)
 
 Rule of trust: the model drafts, the engine computes and checks, you validate. A draft never sets a level.
 
-- W1 has a "Draft from text" box. Paste text (document upload comes later); the model proposes business values
-  and feared events. They are listed, marked `draft`, outside the study. Each one has its own form: edit it and
-  accept it into the study, or reject it. A drafted feared event has no severity: you pick it in its form. Any
-  severity, likelihood, level or id in the model's answer is dropped before you see it.
-- Drafting is off unless `drafting.json` in the data directory says otherwise:
+- Every workshop tab has a drafting panel. It shows the active route, the model and the endpoint, the limits,
+  and (local route) the ssh command you set as a hint. Tick the documents to draft from (all are ticked by
+  default) and, if you like, paste text. The model's proposals are listed, marked `draft`, outside the study.
+  Each one has its own form, pre-filled with the drafted text: edit it and accept it, or reject it.
+- What a draft may propose, per workshop. Everything else in the model's answer is dropped:
 
-  ```json
-  {"backend": "openai-compatible", "base_url": "http://127.0.0.1:8081/v1", "model": "<model name>",
-   "key_file": "~/.config/atelier/model.key"}
-  ```
+  | Workshop | Proposals | Never drafted: you pick it, or the engine computes it |
+  |---|---|---|
+  | W1 | business values (label, nature), supporting assets (label, business values), feared events (label, business value, criterion) | severity, owner |
+  | W2 | risk origins with their target objective and feared events | decision, motivation, resources |
+  | W3 | stakeholders (name, category); strategic scenarios (risk origin, feared events, attack paths with their stakeholder) | dependence, penetration, maturity, trust, critical; the scenario's severity (engine, guide p.49) |
+  | W4 | operational scenario descriptions on a strategic scenario path | likelihood |
+  | W5 | measure proposals and the risks they treat | status, owner, due date, treatment |
 
-  `backend` is `off` (default) or `openai-compatible` (the app POSTs to `<base_url>/chat/completions`).
-  `key_file` is optional. It names a file holding the API key on one line, mode 0600 (`chmod 600`); a file
-  readable by others is refused. The key is sent only in the `Authorization` header. It is never logged, stored
-  or shown. Keep the key file outside the repository.
-- Route policy, enforced in code before anything is sent: a private study may only use an endpoint whose host is
-  `127.0.0.1`, `localhost` or `::1` and resolves to loopback addresses only, for example an `ssh -L` forward to
-  a model on your own network. Public studies may use any configured endpoint. A refused draft says why and sends
-  nothing. Requests ignore proxy settings and do not follow redirects, so a local endpoint cannot pass a private
-  request on.
+- In each accept form the fields above start empty ("you pick the decision" and so on), so nothing is
+  pre-selected for you. The form goes through the same checks as the workshop's own add form.
+- "Accept all" exists only for proposals made of text alone: business values, supporting assets and
+  stakeholders. Everything else is accepted one by one.
+- A new draft does not repeat proposals already in the study or already pending. A rejected proposal may come
+  back in a later draft.
+- Prompts: one file per workshop in `app/prompts/` (`w1.md` to `w5.md`), written in our own words from the ANSSI
+  guide v1.5 with its printed page numbers, and an example of the expected JSON. The prompt goes as the system
+  message; a short summary of the study so far (ids and labels the model may refer to, never a level) and the
+  source text go as the user message.
+- Model answers: the app reads the JSON even when the model wraps it in prose, code fences or a thinking block,
+  checks it against the workshop's schema and keeps only the allowed fields. When nothing usable remains, the
+  panel says "The model's answer could not be used" and nothing is stored. Raw answers are never stored.
+
+### Routes (Settings page, or `settings.json`)
+
+```json
+{"route": "local",
+ "local": {"port": 11434, "path": "/v1", "model": "<model name>", "key_file": "",
+           "ssh_hint": "ssh -N -L 11434:127.0.0.1:11434 <user>@<model host>"},
+ "remote": {"base_url": "https://<provider>/v1", "model": "<model name>", "key_file": "~/.config/atelier/model.key"},
+ "limits": {"requests_per_minute": 6, "max_output_tokens": 2048, "context_tokens": 8192, "max_chunks": 4}}
+```
+
+- `off` (default): nothing is sent anywhere.
+- `local`: an OpenAI-compatible endpoint on `http://127.0.0.1:<port><path>`, typically the local end of an
+  `ssh -L` forward to a model on your own network. You open the forward yourself; the app shows `ssh_hint` as
+  text and never runs ssh or any other command for drafting.
+- `remote`: any OpenAI-compatible URL. Refused for private studies, in code, before anything is sent.
+- `key_file` (optional) names a file holding the API key on one line, mode 0600; a file readable by others is
+  refused. The key is sent only in the `Authorization` header; it is never logged, stored or shown.
+- Requests ignore proxy settings and do not follow redirects, so an endpoint cannot pass a request on.
+- The Settings page writes the file atomically with mode 0600 and warns when its mode is looser.
+
+### Limits and log
+
+- Per study, enforced in code: at most `requests_per_minute` requests a minute (a draft that would pass it is
+  refused, nothing sent); `max_output_tokens` sent as `max_tokens` on every request. Hard ceilings: 60 requests
+  a minute, 8192 output tokens.
+- The source text is cut into chunks that fit `context_tokens` minus the output tokens, the prompt and the study
+  summary, at 4 characters a token (an estimate: there is no tokenizer in the standard library). At most
+  `max_chunks` requests are sent per draft; when the text needs more, the panel says how much was sent.
+- `drafting-log.jsonl` gets one line per request and per refused attempt: time, study id, workshop, route,
+  model, endpoint, outcome, request number, source size in characters, number of documents, max output tokens,
+  prompt and completion tokens (from the endpoint, or estimated and marked so), items read, latency. Never
+  document text, never the model's answer, never the key.
 
 ## Security model
 
@@ -121,7 +222,9 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
   `X-Frame-Options: DENY`, `nosniff`, no referrer, no caching.
 - Static files come from a fixed list; there is no directory listing. Study ids are generated slugs checked
   against a fixed pattern before any path is built.
-- All study text is HTML-escaped. Uploads are JSON only, capped at 5 MB, and checked before they are stored.
+- All study, document and draft text is HTML-escaped. Study imports are JSON only, capped at 5 MB. Document
+  uploads are capped at 20 MB (the only route with a larger body cap), typed by extension, and the uploaded file
+  name is only displayed, never used in a path (document ids are generated).
 - The server log never records query strings, so one-time login links do not end up in it.
 
 ## Code layout
@@ -129,16 +232,21 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
 | Module | Role |
 |---|---|
 | `app/serve.py` | entry point |
+| `app/atelier.py` | launcher: start, stop, status, token --new |
+| `app/prompts/` | one drafting prompt per workshop |
+| `app/atelier_app/documents.py` | document upload, local text extraction, storage |
+| `app/atelier_app/drafts.py` | draft items: workshop, pre-filled form values, study summary sent to the model |
+| `app/atelier_app/views_draft.py` | drafting panels, documents page, settings page |
 | `app/atelier_app/config.py` | settings and their defaults (environment, then the user's home) |
 | `app/atelier_app/engine.py` | the only module that calls the engine |
 | `app/atelier_app/calibrations.py` | calibration lookup, the picker's catalogue, whether a study is private |
-| `app/atelier_app/drafting.py` | the drafting adapter (`draft(task, context)`), its backends and the route policy |
+| `app/atelier_app/drafting.py` | the drafting adapter (`draft(task, context)`): routes and their policy, schemas, answer parsing, chunks, rate limit, request log |
 | `app/atelier_app/storage.py` | study files |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
 | `app/atelier_app/editors.py` | workshop 2 to 5 forms: fields, link checks, ids |
 | `app/atelier_app/app.py`, `views.py`, `views_ws.py`, `web.py`, `server.py` | routes and handlers, HTML (workshop 2 to 5 editors in `views_ws.py`), HTTP plumbing, the server |
 | `app/static/` | the CSS and JS files the pages load |
-| `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`), `no_openpyxl.py` (the same tests as if openpyxl were missing: the Excel tests skip), `stub_model.py` (a local stand-in for an OpenAI-compatible API) and `e2e.py` (end-to-end run) |
+| `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`), `no_openpyxl.py` (the same tests as if openpyxl were missing: the Excel tests skip), `stub_model.py` (a local stand-in for an OpenAI-compatible API, answering per workshop) and `e2e.py` (end-to-end run) |
 
 ## Limits of this iteration
 
@@ -150,7 +258,11 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
   function changes.
 - No relevance aid for risk origins and no stakeholder threat level: the engine does not compute them yet.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
-- Drafting covers workshop 1 only (business values and feared events from pasted text). No document upload yet
-  (PDF and DOCX come later). The tests use a local stub; no real model was called while building it.
+- Drafting was built and tested against a local stub of an OpenAI-compatible API only; no real model was called
+  while building it. Token counts for chunking are estimates (4 characters a token).
+- The rate limit lives in memory: a restart resets it.
+- A drafted strategic scenario brings its first attack path into the form; its other proposed paths are listed
+  so you can add them with Edit after accepting.
+- No OCR: a PDF without a text layer is refused.
 - No review mode yet (importing an existing analysis for review comes with the engine's importer).
 - Drafts are kept per study, in a file beside the studies; two tabs drafting at once both add their items.

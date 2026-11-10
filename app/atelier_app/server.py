@@ -45,9 +45,10 @@ class Handler(BaseHTTPRequestHandler):
             if n < 0:
                 self.close_connection = True
                 return self.send_error(400, "bad Content-Length")
-            if n > app.max_upload:
+            path = self.path.split("?", 1)[0]
+            if n > app.body_limit(path):
                 self.close_connection = True  # do not read the body
-                return self._send(app.too_large())
+                return self._send(app.too_large(path))
             body = self.rfile.read(n)
         req = Request(self.command, self.path, dict(self.headers.items()), body)
         self._send(app.handle(req))
@@ -85,6 +86,9 @@ def parse_args(argv=None):
     ap.add_argument("--allow-remote", action="store_true", help="allow a non-loopback bind address (not recommended)")
     ap.add_argument("--allowed-host", action="append", default=[],
                     help="extra Host header value to accept, as host:port (only with --allow-remote)")
+    ap.add_argument("--url-file", default=None,
+                    help="write the one-time login link to this file (mode 600) instead of printing it (the launcher "
+                         "app/atelier.py reads it, prints it and deletes it)")
     return ap.parse_args(argv)
 
 
@@ -112,7 +116,17 @@ def main(argv=None):
     print(f"Atelier listening on http://{shown}:{port}/", flush=True)
     print(f"Data directory: {app.data_dir}", flush=True)
     print(f"Login token file{' (new)' if app.token_created else ''}: {app.token_path}", flush=True)
-    print(f"One-time login link (single use, 10 minutes): http://{shown}:{port}/login/once?n={nonce}", flush=True)
+    link = f"http://{shown}:{port}/login/once?n={nonce}"
+    if a.url_file:
+        import os
+        uf = os.path.abspath(os.path.expanduser(a.url_file))
+        fd = os.open(uf + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(link + "\n")
+        os.replace(uf + ".tmp", uf)
+        print("One-time login link written for the launcher (not shown in this log).", flush=True)
+    else:
+        print(f"One-time login link (single use, 10 minutes): {link}", flush=True)
 
     def stop(*_):
         raise KeyboardInterrupt
