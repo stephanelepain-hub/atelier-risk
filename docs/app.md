@@ -92,7 +92,11 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 
 ## What it does
 
-- Study list with calibration, last change and a check badge; new, open, rename, duplicate, delete.
+- Home page (`/`) with the honesty statement and three ways in: start from scratch, start with a document, or import
+  an existing risk analysis (Reviews). The **quick path** (`/quick/new`, then four screens: About you, Risks, Now and
+  after, Results) is described in docs/quick-path.md. It saves at each step and builds a normal study that opens in
+  the screens below ("expert mode").
+- Study list (`/studies`) with calibration, last change and a check badge; new, open, rename, duplicate, delete.
 - Import a study JSON file (5 MB at most), or load the guide example. The engine checks the study on import.
 - Workshop 1 editor: business values, supporting assets, feared events (severity picked from the calibration's
   scale), security baseline. Links are picked from existing elements; ids are generated.
@@ -284,6 +288,7 @@ file in that directory and delete it after the download is prepared. Two tabs ed
 | `app/atelier_app/reviews.py`, `review_store.py`, `views_review.py` | review handlers, private snapshots/uploads and review pages |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
 | `app/atelier_app/editors.py` | workshop 2 to 5 forms: fields, link checks, ids |
+| `app/atelier_app/quick_routes.py`, `views_quick.py` | quick-path handlers and pages (home, four screens, EN and FR text) |
 | `app/atelier_app/app.py`, `views.py`, `views_ws.py`, `web.py`, `server.py` | routes and handlers, HTML (workshop 2 to 5 editors in `views_ws.py`), HTTP plumbing, the server |
 | `app/static/` | the CSS and JS files the pages load |
 | `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`), `no_openpyxl.py` (the same tests as if openpyxl were missing: the Excel tests skip), `stub_model.py` (a local stand-in for an OpenAI-compatible API, answering per workshop) and `e2e.py` (end-to-end run) |

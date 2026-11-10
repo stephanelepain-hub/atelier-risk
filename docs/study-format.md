@@ -35,3 +35,11 @@ Warnings (to review):
 - a measure that is not done or dropped and has no owner or no due date.
 
 The example in `examples/` is a valid study.
+
+## Optional keys
+
+- A study made by the quick path (docs/quick-path.md) carries a top-level `quick` object (the quick answers) and
+  `study.path: "quick"`. The checks and the register ignore them.
+- Any element may carry `source` (`document`, `answer`, `catalogue` or `default`); the quick path sets it on every
+  element it builds, and risks also carry `sources` and, when the severity was changed by the person,
+  `severity_reason` and `severity_proposed`. The checks ignore these keys; the Excel export's workshop sheets list `source`.
