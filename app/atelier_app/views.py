@@ -151,7 +151,7 @@ def page(title, body, session=None, cal_id=None, flash=""):
 </head>
 <body>
 <header class="top"><a class="brand" href="/">Atelier</a><span class="sub">EBIOS Risk Manager workbench</span>
-<nav><a href="/">Studies</a>{'<a href="/settings">Settings</a>' if session else ""}{logout}</nav></header>
+<nav><a href="/">Studies</a>{'<a href="/reviews">Reviews</a><a href="/settings">Settings</a>' if session else ""}{logout}</nav></header>
 <main>
 {note}
 {body}
@@ -646,8 +646,11 @@ def register_page(sid, st, chk, rows, summary, session):
     note = (f'<p class="hint">{hidden} column{"s" if hidden > 1 else ""} with no value for any risk '
             f'(target, treatment, owner, measures) not shown.</p>') if hidden else ""
     table = ('<p class="empty">The study has no risk yet (risks are workshop 5).</p>' if not rows else
-             '<div class="scroll"><table class="list register"><thead><tr>'
-             + "".join(f"<th>{esc(t)}</th>" for _, t, _ in cols) + f'</tr></thead><tbody>{"".join(trs)}</tbody></table></div>{note}')
+             '<p class="hint">Scroll horizontally to see all columns. <a href="#register-last-column">Show last column</a>.</p>'
+             '<div class="scroll register-scroll" tabindex="0" role="region" aria-label="Risk register, horizontally scrollable">'
+             '<table class="list register"><thead><tr>'
+             + "".join(f'<th' + (' id="register-last-column"' if k == cols[-1][0] else '') + f'>{esc(t)}</th>'
+                       for k, t, _ in cols) + f'</tr></thead><tbody>{"".join(trs)}</tbody></table></div>{note}')
     content = f"""<section class="card"><h2>Risk grid, now and at target</h2>
 {grids_block(cal, rows, summary, sid, inline_maps=True)}</section>
 <section class="card"><h2>Risk register <span class="count">{len(rows)}</span></h2>

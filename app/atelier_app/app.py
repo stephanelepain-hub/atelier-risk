@@ -14,6 +14,8 @@ import datetime
 from . import (REPO_DIR, STATIC_DIR, auth, calibrations, config, documents, drafting, drafts, editors, engine, views,
                views_draft, views_ws)
 from .storage import NotFound, Store
+from .review_store import ReviewStore
+from .reviews import MAX_BODY as REVIEW_BODY, ReviewRoutes
 from .web import HTTPError, Request, Response, Router, redirect
 
 MAX_UPLOAD = config.MAX_UPLOAD
@@ -58,11 +60,12 @@ def _no_constants(x):
     raise ValueError(f"{x} is not valid JSON")
 
 
-class App:
+class App(ReviewRoutes):
     def __init__(self, data_dir, private_dir=None, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD,
                  drafting_settings=None):
         self.data_dir = pathlib.Path(data_dir)
         self.store = Store(self.data_dir)
+        self.reviews = ReviewStore(self.data_dir)
         self.private_dir = pathlib.Path(private_dir) if private_dir else config.default_private_dir(self.data_dir)
         self.private_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.private_dir, 0o700)
@@ -90,6 +93,8 @@ class App:
 
     def body_limit(self, path):
         """Request body cap: 20 MB (plus the multipart envelope) for a document upload, else max_upload."""
+        if path == '/reviews':
+            return REVIEW_BODY
         if DOCS_RE.fullmatch(path or ""):
             return max(self.max_upload, config.MAX_DOCUMENT_BODY)
         return self.max_upload
@@ -106,6 +111,7 @@ class App:
 
     def _routes(self):
         r = Router()
+        self.add_review_routes(r)
         r.add("GET", r"/login", self.login_form, public=True)
         r.add("POST", r"/login", self.login, public=True)
         r.add("GET", r"/login/once", self.login_once, public=True)

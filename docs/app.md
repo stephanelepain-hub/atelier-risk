@@ -234,6 +234,36 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
   name is only displayed, never used in a path (document ids are generated).
 - The server log never records query strings, so one-time login links do not end up in it.
 
+## Review mode
+
+Open **Reviews**, then **New review**. Upload an existing `.xlsx` risk analysis (20 MB maximum), pick a public
+or private calibration, and optionally choose a layout. Auto detection is the default. The engine importer
+interprets the workbook; expanded archives are limited to 100 MB and 3,000 entries before parsing.
+
+The import report shows the detected layout, risks and measures read, stages, columns, pictures, errors, notes
+and findings. Errors block ratings and exports: correct the source and import again. Notes and findings are
+shown without blocking. The risk register and available now, target and initial maps come from the engine.
+
+With the optional `atelier_private.review` plugin installed under `ATELIER_PRIVATE_DIR/plugins`, **Rate criteria**
+shows its criteria grouped by axis and workshop, its machine proposals and explanations, and its status vocabulary.
+Selections are prefilled from proposals. Saving confirms selected statuses as reviewer ratings. A blank selection
+removes an explicit reviewer rating and leaves the plugin's automatic decision, if any. Applicability is handled
+by the plugin, including its not-applicable statuses. Notes are optional. A refused status returns the form with
+your input and the plugin error; it changes nothing on disk. Repeating an identical save changes nothing.
+
+**Result & export** shows a score and confidence only when the plugin returns a score. Otherwise it lists the
+unrated criteria with links back to their rows. Findings, measures and criterion sources distinguish automatic
+ratings from reviewer decisions. Download the study JSON or the plugin's short Excel review. No score, level
+or severity is calculated by the web app. Without the plugin, the interface explicitly says scoring and the short
+Excel export are unavailable; import, checks, register, maps and study JSON remain usable.
+
+Every review has its own `reviews/r-.../` directory under the data directory (0700), holding `upload.xlsx` and
+one atomic `state.json` snapshot (0600). Original filenames are discarded. An imported private calibration or
+private layout marks the study confidential. Review mode is local and offers no remote drafting route; the
+exported study carries the confidential mark and the study-mode route policy still applies if it is imported there.
+**Delete review** permanently removes the review directory and upload. Review exports use a private temporary
+file in that directory and delete it after the download is prepared. Two tabs editing the same criterion: last save wins.
+
 ## Code layout
 
 | Module | Role |
@@ -272,5 +302,6 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
 - A drafted strategic scenario brings its first attack path into the form; its other proposed paths are listed
   so you can add them with Edit after accepting.
 - No OCR: a PDF without a text layer is refused.
-- No review mode yet (importing an existing analysis for review comes with the engine's importer).
+- Review scoring and the short review Excel export require the optional private plugin. Without it, imports,
+  engine checks, register, maps and study JSON still work. Review mode does not call a language model.
 - Drafts are kept per study, in a file beside the studies; two tabs drafting at once both add their items.

@@ -1,11 +1,16 @@
 """The only place the app talks to the engine. Levels, checks and registers all come from here."""
 import copy
+import importlib
+import io
 import os
+import pathlib
 import re
+import sys
 import tempfile
+import zipfile
 
 from . import ENGINE_DIR  # noqa: F401  (puts the engine on sys.path)
-from atelier_engine import calibration, study as study_mod  # noqa: E402
+from atelier_engine import calibration, importer as importer_mod, study as study_mod  # noqa: E402
 
 COLLECTIONS = list(study_mod.COLLECTIONS)
 DECISIONS = frozenset(study_mod.DECISIONS)
@@ -14,6 +19,7 @@ MEASURE_STATUS = frozenset(study_mod.MEASURE_STATUS)
 DERIVED_SEVERITY = ("strategic_scenarios", "risks")  # the engine checks these against their sources
 DEFAULT_CAL = "anssi-v1.5"
 CalibrationError = calibration.CalibrationError
+SpreadsheetError = importer_mod.SpreadsheetError
 
 
 def calibrations():
@@ -117,6 +123,64 @@ def to_xlsx_bytes(st, cal, tmp_dir):
         export.to_xlsx(st, cal, path)
         with open(path, "rb") as f:
             return f.read()
+    finally:
+        os.unlink(path)
+
+
+def review_layouts():
+    from atelier_engine import importer
+    return importer.layouts()
+
+
+def import_review(data, cal, layout=None):
+    """Bound expanded workbook size before openpyxl parses it. The engine alone interprets cells."""
+    from atelier_engine import importer
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            entries = z.infolist()
+            if len(entries) > 3000 or sum(e.file_size for e in entries) > 100 * 1024 * 1024:
+                raise importer.SpreadsheetError("expanded workbook exceeds the safe import limit")
+    except zipfile.BadZipFile:
+        raise importer.SpreadsheetError("not an xlsx workbook") from None
+    return importer.read_xlsx(io.BytesIO(data), cal, layout=layout)
+
+
+def review_plugin(private_dir):
+    """Load the optional installed plugin, never a package from an unrelated private directory."""
+    directory = pathlib.Path(private_dir) / "plugins"
+    cached = sys.modules.get("atelier_private")
+    if cached and pathlib.Path(cached.__file__).resolve().parent.parent != directory.resolve():
+        for name in list(sys.modules):
+            if name == "atelier_private" or name.startswith("atelier_private."):
+                del sys.modules[name]
+    if not (directory / "atelier_private" / "review.py").is_file():
+        return None
+    sys.path.insert(0, str(directory))
+    try:
+        importlib.invalidate_caches()
+        return importlib.import_module("atelier_private.review")
+    finally:
+        sys.path.remove(str(directory))
+
+
+def review_result(state, cal, plugin):
+    if state['report'].get('errors'):
+        return {'register': [], 'summary': None, 'check': check(state['study']), 'score': None}
+    if plugin is not None:
+        return plugin.review(state["study"], state["report"], cal,
+                             ratings=state.get("ratings", {}), notes=state.get("notes", {}), kind="extract")
+    checked = check(state["study"])
+    rows, totals = ([], None) if checked["errors"] else register(state["study"], cal)
+    return {"register": rows, "summary": totals, "check": checked, "measures": state["study"].get("measures", []),
+            "score": None, "criteria": [], "proposed": {}, "ratings": {}, "sources": {}, "unrated": []}
+
+
+def review_xlsx(result, plugin, directory):
+    fd, path = tempfile.mkstemp(dir=directory, prefix=".export-", suffix=".xlsx")
+    os.close(fd)
+    try:
+        plugin.to_xlsx(result, path, "Risk analysis review")
+        return pathlib.Path(path).read_bytes()
     finally:
         os.unlink(path)
 
