@@ -23,6 +23,10 @@ SOURCES = ("document", "answer", "catalogue", "default")
 SOURCE_WEIGHT = {"document": 1.0, "answer": 0.75, "catalogue": 0.5, "default": 0.0}
 NO_DOCUMENT_CEILING = 75
 FAMILIES = ("deliberate", "accidental")
+AUDIENCES = ("all", "sensitive")
+SHORTLIST_LIMIT = 10
+HIGHEST_SENSITIVITY = "critical"        # "Secrets, health or legal data" on the About-you screen
+SENSITIVE_TOOL = "industrial"
 CRITERIA = ("confidentiality", "integrity", "availability")
 MAX_VALUES = 5
 
@@ -47,9 +51,9 @@ DOCUMENT_KINDS = ("architecture", "business-impact", "security-baseline", "other
 MISSING_DOCUMENTS = ("architecture", "business-impact", "security-baseline")
 
 SEVERITY_WORDS = {
-    "en": {1: "Minor: a nuisance", 2: "Serious: it hurts for a few days", 3: "Severe: lasting damage or a high cost",
+    "en": {1: "Minor: a nuisance", 2: "Significant: it hurts for a few days", 3: "Serious: lasting damage or a high cost",
            4: "Critical: it threatens the organisation"},
-    "fr": {1: "Mineur : une gêne", 2: "Sérieux : cela fait mal pendant quelques jours",
+    "fr": {1: "Mineure : une gêne", 2: "Significative : cela fait mal pendant quelques jours",
            3: "Grave : dégâts durables ou coût élevé", 4: "Critique : cela menace l'organisation"},
 }
 
@@ -104,6 +108,10 @@ def check_catalogue(cat):
             errs.append(f"risk {rid}: packs must be a non-empty list of known packs")
         if not isinstance(r.get("always_assessed"), bool):
             errs.append(f"risk {rid}: always_assessed must be true or false")
+        if r.get("audience", "all") not in AUDIENCES:
+            errs.append(f"risk {rid}: audience must be one of {AUDIENCES}")
+        elif r.get("audience") == "sensitive" and r.get("always_assessed") is True:
+            errs.append(f"risk {rid}: an always-assessed risk cannot have the audience 'sensitive'")
         for k in ("typical_severity", "typical_likelihood"):
             if not cal_mod_scale(r.get(k)):
                 errs.append(f"risk {rid}: {k} must be 1 to 4")
@@ -193,6 +201,32 @@ def suggest(profile, catalogue=None):
     packs = set(packs_for(profile, cat))
     hits = [r for r in cat["risks"] if packs & set(r["packs"])]
     return [r["id"] for r in hits if r["always_assessed"]] + [r["id"] for r in hits if not r["always_assessed"]]
+
+
+def shortlist(profile, catalogue=None, limit=SHORTLIST_LIMIT):
+    """The short list pre-ticked on the Risks screen: at most `limit` risk ids of those that apply to the profile
+    (`suggest`).
+
+    1. The always-assessed risks that apply come first, in catalogue order. They are never cut: if there are more
+       than `limit`, all of them are kept.
+    2. Then the other applicable risks, ranked by `typical_severity * typical_likelihood` (highest first; ties in
+       catalogue order), until `limit` ids are reached.
+    A risk whose `audience` is "sensitive" (state-level or targeted attacks, and the like) is left out of step 2 unless
+    the profile's sensitivity answer is the highest ("secrets, health or legal data") or the industrial tool is ticked.
+    `profile` is the "profile" object of the quick answers (a whole quick-answers object is accepted too)."""
+    cat = catalogue or load_catalogue()
+    if isinstance(profile, dict) and isinstance(profile.get("profile"), dict):
+        profile = profile["profile"]
+    applicable = suggest(profile, cat)
+    by_id = _by_id(cat)
+    order = {rid: i for i, rid in enumerate(r["id"] for r in cat["risks"])}
+    out = [rid for rid in applicable if by_id[rid]["always_assessed"]]
+    wide = (_slot(profile, "sensitivity").get("answer") == HIGHEST_SENSITIVITY
+            or SENSITIVE_TOOL in _tools(profile, cat))
+    rest = [rid for rid in applicable if not by_id[rid]["always_assessed"]
+            and (wide or by_id[rid].get("audience", "all") != "sensitive")]
+    rest.sort(key=lambda rid: (-by_id[rid]["typical_severity"] * by_id[rid]["typical_likelihood"], order[rid]))
+    return out + rest[:max(0, limit - len(out))]
 
 
 def _norm_measures(ids, allowed):
@@ -580,8 +614,9 @@ def xlsx_notice(quick, cal, catalogue=None):
     docs = ", ".join(f["documents"]) or ("none" if lang == "en" else "aucun")
     missing = ", ".join(f["not_provided"]) or ("none" if lang == "en" else "aucun")
     if lang == "fr":
+        band = {"low": "faible", "medium": "moyenne", "high": "élevée"}[f["band"]]
         line = (f"Documents : {docs}. Non fournis : {missing}. Réponses : {f['answers']}. Hypothèses à confirmer : "
-                f"{f['assumptions']}. Confiance : {f['confidence']} % ({f['band']}).")
+                f"{f['assumptions']}. Confiance : {f['confidence']} % ({band}).")
     else:
         line = (f"Documents: {docs}. Not provided: {missing}. Answers: {f['answers']}. Assumptions to confirm: "
                 f"{f['assumptions']}. Confidence: {f['confidence']}% ({f['band']}).")
@@ -592,7 +627,11 @@ def xlsx_sheets(quick, cal, catalogue=None):
     """Extra sheets for the Excel export: [(title, [rows])] with the assumptions and the top actions."""
     lang = quick.get("lang") if quick.get("lang") in ("en", "fr") else "en"
     head = ["Kind", "Risk", "Input", "Assumption"] if lang == "en" else ["Type", "Risque", "Élément", "Hypothèse"]
-    ass = [head] + [[a["kind"], a["risk"] or "", a["what"], a["text"][lang]] for a in assumptions(quick, cal, catalogue)]
+    kinds = {"default": "sans réponse", "dont_know": "ne sait pas", "catalogue": "valeur typique conservée"} if lang == "fr" else {}
+    whats = {"severity": "gravité", "likelihood": "vraisemblance", "measures": "mesures", "activity": "activité", "values": "valeurs",
+             "tools": "outils", "downtime": "arrêt", "sensitivity": "sensibilité"} if lang == "fr" else {}
+    ass = [head] + [[kinds.get(a["kind"], a["kind"]), a["risk"] or "", whats.get(a["what"], a["what"]), a["text"][lang]]
+                    for a in assumptions(quick, cal, catalogue)]
     head2 = ["Rank", "Action", "Risks", "Priority"] if lang == "en" else ["Rang", "Action", "Risques", "Priorité"]
     acts = [head2] + [[i, a[lang], ", ".join(a["risks"]), a["priority"]] for i, a in enumerate(top_actions(quick, cal, 5, catalogue), 1)]
     return [("Assumptions" if lang == "en" else "Hypotheses", ass), ("Top actions" if lang == "en" else "Actions", acts)]

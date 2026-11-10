@@ -472,6 +472,171 @@ class Honesty(unittest.TestCase):
             self.assertEqual(ws["A1"].value, "id")
 
 
+SMALL = {"tools": {"value": ["office", "cloud", "provider", "shop"]}, "downtime": {"answer": "day"},
+         "sensitivity": {"answer": "confidential"}}
+
+
+class Shortlist(unittest.TestCase):
+    """Round 2, F1: at most `limit` pre-ticked risks, always-assessed first, then by typical severity x likelihood."""
+
+    def setUp(self):
+        self.cat = quick.load_catalogue()
+        self.by = {r["id"]: r for r in self.cat["risks"]}
+
+    def test_small_business_profile_goes_from_29_to_at_most_10(self):
+        self.assertEqual(len(quick.suggest(SMALL)), 29)  # suggest keeps its meaning: every risk that applies
+        short = quick.shortlist(SMALL)
+        self.assertLessEqual(len(short), 10)
+        self.assertEqual(len(short), 10)
+        self.assertTrue(set(short) <= set(quick.suggest(SMALL)))
+
+    def test_always_assessed_come_first_then_ranked_by_severity_times_likelihood(self):
+        short = quick.shortlist(SMALL)
+        applicable = quick.suggest(SMALL)
+        always = [i for i in applicable if self.by[i]["always_assessed"]]
+        self.assertEqual(short[:len(always)], always)
+        score = [self.by[i]["typical_severity"] * self.by[i]["typical_likelihood"] for i in short[len(always):]]
+        self.assertEqual(score, sorted(score, reverse=True))
+        order = [r["id"] for r in self.cat["risks"]]
+        rest = short[len(always):]
+        for a, b in zip(rest, rest[1:]):  # ties keep catalogue order
+            if self.by[a]["typical_severity"] * self.by[a]["typical_likelihood"] == self.by[b]["typical_severity"] * self.by[b]["typical_likelihood"]:
+                self.assertLess(order.index(a), order.index(b))
+        # nothing left out outranks something kept
+        left = [i for i in applicable if i not in short and self.by[i].get("audience", "all") != "sensitive"]
+        if rest:
+            self.assertGreaterEqual(min(score), max(self.by[i]["typical_severity"] * self.by[i]["typical_likelihood"] for i in left))
+
+    def test_always_assessed_are_never_cut(self):
+        applicable = quick.suggest(SMALL)
+        always = [i for i in applicable if self.by[i]["always_assessed"]]
+        self.assertGreater(len(always), 3)
+        short = quick.shortlist(SMALL, limit=2)
+        self.assertEqual(short, always)  # more always-assessed than the limit: all kept, nothing else
+        self.assertEqual(quick.shortlist(SMALL, limit=len(always) + 1)[:len(always)], always)
+        self.assertEqual(len(quick.shortlist(SMALL, limit=len(always) + 1)), len(always) + 1)
+
+    def test_limit_is_respected_and_default_is_ten(self):
+        for n in (8, 9, 12, 20):
+            self.assertLessEqual(len(quick.shortlist(SMALL, limit=n)), max(n, len([i for i in quick.suggest(SMALL) if self.by[i]["always_assessed"]])))
+        self.assertEqual(quick.shortlist(SMALL), quick.shortlist(SMALL, limit=10))
+        self.assertEqual(quick.shortlist(SMALL, self.cat), quick.shortlist(SMALL))
+
+    def test_sensitive_audience_risks_are_held_back_unless_the_highest_sensitivity_or_industrial(self):
+        sens = [r["id"] for r in self.cat["risks"] if r.get("audience") == "sensitive"]
+        self.assertIn("D10", sens)  # targeted spying by a state-backed group
+        self.assertEqual(self.by["D10"]["origin"], "state")
+        for r in self.cat["risks"]:
+            self.assertIn(r.get("audience"), quick.AUDIENCES, r["id"])  # every risk carries the hint
+        for lvl in ("public", "internal", "confidential", "dont_know"):
+            prof = dict(SMALL, sensitivity={"answer": lvl})
+            self.assertFalse(set(sens) & set(quick.shortlist(prof, limit=99)), lvl)
+        top = dict(SMALL, sensitivity={"answer": "critical"})
+        self.assertIn("D10", quick.shortlist(top, limit=99))
+        ind = dict(SMALL, tools={"value": ["office", "industrial"]})
+        self.assertIn("D10", quick.shortlist(ind, limit=99))
+        # suggest() is unchanged by the hint
+        self.assertIn("D10", quick.suggest(SMALL))
+
+    def test_no_answers_and_a_whole_quick_object_work(self):
+        self.assertLessEqual(len(quick.shortlist({})), 10)
+        self.assertEqual(quick.shortlist({"profile": SMALL}), quick.shortlist(SMALL))
+
+    def test_always_assessed_risk_cannot_be_sensitive(self):
+        cat = json.loads(json.dumps(self.cat))
+        cat["risks"][0]["always_assessed"], cat["risks"][0]["audience"] = True, "sensitive"
+        with self.assertRaises(quick.QuickError):
+            quick.check_catalogue(cat)
+        cat["risks"][0]["audience"] = "bogus"
+        with self.assertRaises(quick.QuickError):
+            quick.check_catalogue(cat)
+
+
+class EnglishLabels(unittest.TestCase):
+    """Round 2, F2: optional English labels; the French originals stay the reference."""
+
+    def test_anssi_calibration_has_the_english_labels(self):
+        self.assertEqual([x["label_en"] for x in CAL["severity"]], ["Minor", "Significant", "Serious", "Critical"])
+        self.assertEqual([x["label_en"] for x in CAL["likelihood"]], ["Unlikely", "Likely", "Very likely", "Almost certain"])
+        self.assertEqual({l["name"]: l["name_en"] for l in CAL["levels"]}, {"Faible": "Low", "Moyen": "Medium", "Élevé": "High"})
+        self.assertEqual([x["label"] for x in CAL["severity"]], ["Mineure", "Significative", "Grave", "Critique"])  # originals untouched
+        self.assertEqual([x["code"] for x in CAL["severity"]], ["G1", "G2", "G3", "G4"])
+
+    def test_check_accepts_the_new_keys_and_a_calibration_without_them(self):
+        self.assertTrue(calibration.check(CAL))
+        bare = copy.deepcopy(CAL)
+        for x in bare["severity"] + bare["likelihood"]:
+            x.pop("label_en")
+        for l in bare["levels"]:
+            for k in ("name_en", "acceptability_en", "action_en"):
+                l.pop(k)
+        self.assertTrue(calibration.check(bare))
+        self.assertEqual(calibration.label(bare, "severity", 4, "en"), "Critique")  # falls back to the original
+        self.assertEqual(calibration.level_name(bare, "Élevé", "en"), "Élevé")
+
+    def test_check_refuses_an_empty_english_label(self):
+        bad = copy.deepcopy(CAL)
+        bad["severity"][0]["label_en"] = ""
+        with self.assertRaises(calibration.CalibrationError):
+            calibration.check(bad)
+
+    def test_label_and_level_name_follow_the_language(self):
+        self.assertEqual(calibration.label(CAL, "severity", 4), "Critique")
+        self.assertEqual(calibration.label(CAL, "severity", 4, "fr"), "Critique")
+        self.assertEqual(calibration.label(CAL, "severity", 4, "en"), "Critical")
+        self.assertEqual(calibration.label(CAL, "likelihood", 1, "en"), "Unlikely")
+        self.assertEqual(calibration.level_name(CAL, "Élevé", "en"), "High")
+        self.assertEqual(calibration.level_name(CAL, "Élevé", "fr"), "Élevé")
+        self.assertEqual(calibration.level_name(CAL, "Élevé"), "Élevé")
+
+    def test_map_svg_follows_the_language_and_default_is_unchanged(self):
+        rows = [{"id": "R1", "severity": 4, "likelihood": 1}]
+        from atelier_engine import maps
+        default = maps.svg(rows, CAL)
+        en = maps.svg(rows, CAL, lang="en")
+        fr = maps.svg(rows, CAL, lang="fr")
+        for word in ("Critique", "Peu vraisemblable", "Quasi certain"):
+            self.assertIn(word, default)
+            self.assertIn(word, fr)
+            self.assertNotIn(word, en)
+        for word in ("Critical", "Unlikely", "Almost certain", "Likelihood", "Severity"):
+            self.assertIn(word, en)
+        for word in ("Gravité", "Vraisemblance"):
+            self.assertIn(word, fr)
+        self.assertNotIn(">Severity<", fr)
+        for word in ("Élevé", "Moyen", "Faible"):
+            self.assertNotIn(word, en)
+
+    def test_map_with_labelled_by_draws_no_title_of_its_own(self):
+        from atelier_engine import maps
+        s = maps.svg([{"id": "R1", "severity": 4, "likelihood": 1}], CAL, title="Now", lang="en", labelled_by="cap")
+        self.assertIn('aria-labelledby="cap"', s)
+        self.assertNotIn("Now", s)
+        self.assertNotIn("<title>Now", s)
+
+    def test_xlsx_follows_the_language(self):
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest("openpyxl is not installed")
+        prof = profile()
+        q = answers(prof)
+        st = quick.build_study(q, CAL)
+        for lang, expect, absent in (("en", "High", "Élevé"), ("fr", "Élevé", "High"), (None, "Élevé", "High")):
+            with tempfile.TemporaryDirectory() as d:
+                f = pathlib.Path(d) / "x.xlsx"
+                export.to_xlsx(st, CAL, f, lang=lang)
+                wb = openpyxl.load_workbook(f)
+                cells = [str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None]
+                self.assertIn(expect, cells, lang)
+                self.assertNotIn(absent, cells, lang)
+                if lang == "en":
+                    self.assertIn("Map now", wb.sheetnames)
+                    self.assertNotIn("Tolérable sous contrôle", cells)
+                if lang == "fr":
+                    self.assertIn("Registre des risques", wb.sheetnames)
+
+
 class WorkedExample(unittest.TestCase):
     def test_the_guide_example_still_validates_with_the_same_levels(self):
         ex = json.loads(EXAMPLE.read_text(encoding="utf-8"))

@@ -104,10 +104,14 @@ class QuickRoutes:
         quick["step"] = ORDER[max(cur, ORDER.index(NEXT_STEP[done]))]
 
     def _sync_risks(self, quick):
-        """Suggested risks for the profile: keep earlier decisions, add new suggestions as kept, drop catalogue
-        risks that no longer apply, keep the person's own."""
+        """Risks that apply to the profile: keep earlier decisions; a new one is ticked (kept) when it is in the short
+        list and unticked (discard, shown under "More risks you can add") otherwise; drop catalogue risks that no
+        longer apply; keep the person's own."""
+        cat = self.quick_catalogue()
         old = {e["id"]: e for e in quick.get("risks") or []}
-        out = [old.get(rid) or {"id": rid, "decision": "keep"} for rid in engine.quick_suggest(quick["profile"], self.quick_catalogue())]
+        short = set(engine.quick_shortlist(quick["profile"], cat))
+        out = [old.get(rid) or {"id": rid, "decision": "keep" if rid in short else "discard"}
+               for rid in engine.quick_suggest(quick["profile"], cat)]
         out += [e for e in old.values() if e.get("custom")]
         quick["risks"] = out
 
@@ -250,8 +254,9 @@ class QuickRoutes:
         st, quick = self._quick_study(req, sid)
         cal = self._cal(st)
         lang = self._lang(req, quick)
-        resp = Response(views_quick.risks(req.session, sid, lang, self.quick_catalogue(), quick,
-                                          edited=self._edited_in_expert_mode(st, quick, cal), flash=req.arg("f")))
+        cat = self.quick_catalogue()
+        resp = Response(views_quick.risks(req.session, sid, lang, cat, quick, edited=self._edited_in_expert_mode(st, quick, cal),
+                                          flash=req.arg("f"), shortlist=engine.quick_shortlist(quick["profile"], cat)))
         return self._remember(req, resp, lang)
 
     def quick_risks_save(self, req, sid):
@@ -278,7 +283,8 @@ class QuickRoutes:
                     errors["new"] = views_quick.tr(lang, "err_values")
             if errors:
                 return Response(views_quick.risks(req.session, sid, lang, cat, quick, state, errors,
-                                                  edited=self._edited_in_expert_mode(st, quick, cal)), 400)
+                                                  edited=self._edited_in_expert_mode(st, quick, cal),
+                                                  shortlist=engine.quick_shortlist(quick["profile"], cat)), 400)
             for e in quick["risks"]:
                 e["decision"] = "keep" if e["id"] in kept else "discard"
                 if state["reasons"][e["id"]]:

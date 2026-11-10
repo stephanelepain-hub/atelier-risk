@@ -202,7 +202,9 @@ class WalkTest(Base):
         for r in rows:
             m = re.search(rf'<th scope="row">{r["id"]}</th><td>.*?</td><td><span class="lvl [^"]*">([^<]+)</span></td><td><span class="lvl [^"]*">([^<]+)</span></td>', t)
             self.assertIsNotNone(m, r["id"])
-            self.assertEqual((m.group(1), m.group(2)), (r["level"], r["level_target"]))
+            # the engine's level, shown by its English name on this English page (round 2: name_en)
+            self.assertEqual((m.group(1), m.group(2)), (engine.level_name(self.cal, r["level"], "en"),
+                                                        engine.level_name(self.cal, r["level_target"], "en")))
         # facts line
         self.assertIn("Not provided: architecture document, business impact analysis, security baseline.", t)
 
@@ -782,6 +784,224 @@ class ContrastTest(unittest.TestCase):
             fg = re.search(r"color:(#[0-9a-f]{3})", css).group(1)
             fg = "#" + "".join(ch * 2 for ch in fg[1:])
             self.assertGreaterEqual(contrast(fg, "#" + l["colour"]), 4.5, l["name"])
+
+
+class RoundTwoShortlistTest(Base):
+    """F1: the Risks screen pre-ticks only the short list; the rest sits under a collapsed section, unticked."""
+
+    def small(self, **over):
+        form = {"tools": ["office", "cloud", "provider", "shop"], "downtime": "day", "sensitivity": "confidential"}
+        form.update(over)
+        return self.start(**form)
+
+    def test_at_most_ten_are_pre_ticked_and_the_others_are_offered_unticked(self):
+        sid = self.small()
+        html = self.page(f"/quick/{sid}/risks")
+        boxes = re.findall(r'<input class="keep-box" type="checkbox" name="keep" value="([A-Z0-9]+)"( checked)?>', html)
+        self.assertEqual(len(boxes), 29)
+        ticked = [b for b, c in boxes if c]
+        self.assertEqual(len(ticked), 10)
+        self.assertEqual(sorted(ticked), sorted(engine.quick_shortlist({"tools": {"value": ["office", "cloud", "provider", "shop"]},
+                                                         "downtime": {"answer": "day"}, "sensitivity": {"answer": "confidential"}}, self.cat)))
+        self.assertIn("10 of 10 risks kept", html)
+        self.assertRegex(html, r'<details class="q more-risks"><summary><span class="q-t">More risks you can add \(19\)</span></summary>')
+        self.assertNotIn("more-risks\" open", html)  # collapsed
+        main, more = html.split('<details class="q more-risks">')
+        self.assertEqual(len(re.findall(r'name="keep"', main)), 10)
+        self.assertEqual(len(re.findall(r'name="keep"', more.split("</details>")[0])), 19)
+        self.assertNotIn(" checked>", more.split("</details>")[0].split("add-row")[0])
+
+    def test_a_risk_ticked_from_the_more_section_is_kept(self):
+        sid = self.small()
+        html = self.page(f"/quick/{sid}/risks")
+        first = re.findall(r'name="keep" value="([A-Z0-9]+)"', html.split('<details class="q more-risks">')[1])[0]
+        ids = re.findall(r'<input class="keep-box" type="checkbox" name="keep" value="([A-Z0-9]+)" checked>', html) + [first]
+        r = self.post(f"/quick/{sid}/risks", {"keep": ids, "lang": "en"})
+        self.assertEqual(r.status, 303)
+        kept = [e["id"] for e in self.study(sid)["quick"]["risks"] if e["decision"] == "keep"]
+        self.assertEqual(len(kept), 11)
+        self.assertIn(first, kept)
+        self.assertEqual(len(self.study(sid)["quick"]["risks"]), 29)
+        self.assertEqual(len(self.study(sid)["risks"]), 11)
+        # the ticked one now shows in the main list
+        html2 = self.page(f"/quick/{sid}/risks")
+        self.assertIn(f'name="keep" value="{first}" checked>', html2.split('<details class="q more-risks">')[0])
+
+    def test_now_and_after_and_results_cover_only_the_ticked_ones(self):
+        sid = self.small()
+        self.keep_all_ticked(sid)
+        now = self.page(f"/quick/{sid}/now")
+        self.assertEqual(len(re.findall(r'<article class="row-card', now)), 10)
+        self.assertEqual(self.page(f"/quick/{sid}/results").count('<th scope="row">'), 10)
+        self.assertEqual(len(self.study(sid)["risks"]), 10)
+
+    def keep_all_ticked(self, sid):
+        html = self.page(f"/quick/{sid}/risks")
+        ids = re.findall(r'<input class="keep-box" type="checkbox" name="keep" value="([A-Z0-9]+)" checked>', html)
+        r = self.post(f"/quick/{sid}/risks", {"keep": ids, "lang": "en"})
+        self.assertEqual(r.status, 303)
+        return ids
+
+    def test_state_level_risk_only_for_the_highest_sensitivity_or_industrial(self):
+        sid = self.small()
+        self.assertNotIn("D10", re.findall(r'name="keep" value="([A-Z0-9]+)" checked>', self.page(f"/quick/{sid}/risks")))
+        top = self.small(sensitivity="critical")
+        d10 = re.search(r'name="keep" value="D10"( checked)?>', self.page(f"/quick/{top}/risks"))
+        self.assertIsNotNone(d10)  # offered (main list or "More")
+        short = engine.quick_shortlist({"tools": {"value": ["office"]}, "sensitivity": {"answer": "critical"}}, self.cat, limit=99)
+        self.assertIn("D10", short)
+
+    def test_changing_the_answers_keeps_earlier_decisions(self):
+        sid = self.small()
+        ids = self.keep_all_ticked(sid)
+        discard = ids[-1]
+        self.post(f"/quick/{sid}/risks", {"keep": [i for i in ids if i != discard], "lang": "en"})
+        form = {"name": "Bakery review", "activity": "x", "values": "a", "tools": ["office", "cloud", "provider", "shop"],
+                "downtime": "day", "sensitivity": "confidential", "lang": "en"}
+        self.assertEqual(self.post(f"/quick/{sid}/about", form).status, 303)
+        decisions = {e["id"]: e["decision"] for e in self.study(sid)["quick"]["risks"]}
+        self.assertEqual(decisions[discard], "discard")
+        self.assertEqual(sum(1 for v in decisions.values() if v == "keep"), 9)
+
+
+class RoundTwoLanguageTest(Base):
+    """F2: English pages carry English level and axis names; French pages French; the quick xlsx follows."""
+
+    FRENCH_LEVELS = ("Élevé", "Moyen", "Faible", "Peu vraisemblable", "Quasi certain", "Très vraisemblable", "Critique", "Mineure", "Significative")
+    ENGLISH_LEVELS = ("Low", "Medium", "High", "Unlikely", "Almost certain", "Critical", "Minor")
+
+    def walk(self, lang):
+        sid = self.start(lang=lang)
+        self.keep_all(sid, lang=lang)
+        self.rate_all(sid, lang=lang)
+        return sid
+
+    def test_english_pages_have_no_french_level_or_axis_names(self):
+        sid = self.walk("en")
+        for path in ("now", "results"):
+            t = self.page(f"/quick/{sid}/{path}?lang=en")
+            body = t.split("<main", 1)[1]
+            for w in self.FRENCH_LEVELS:
+                self.assertNotIn(w, body, (path, w))
+        res = self.page(f"/quick/{sid}/results?lang=en")
+        for w in ("Critical", "Unlikely", "Almost certain", "Likelihood", "Severity"):
+            self.assertIn(w, res)
+        self.assertRegex(res, r'<span class="lvl lvl-i\d">(High|Medium|Low)</span>')
+
+    def test_french_pages_keep_the_french_names_and_french_axes(self):
+        sid = self.walk("fr")
+        res = self.page(f"/quick/{sid}/results?lang=fr")
+        body = res.split("<main", 1)[1]
+        for w in ("Critique", "Peu vraisemblable", "Quasi certain", "Gravité", "Vraisemblance"):
+            self.assertIn(w, body)
+        for w in ("Critical", "Unlikely", "Almost certain", ">Severity<", ">Likelihood<"):
+            self.assertNotIn(w, body)
+        self.assertRegex(res, r'<span class="lvl lvl-i\d">(Élevé|Moyen|Faible)</span>')
+
+    def test_no_code_in_brackets_on_the_suggestion_line(self):
+        sid = self.walk("en")
+        for lang in ("en", "fr"):
+            t = self.page(f"/quick/{sid}/now?lang={lang}")
+            self.assertNotRegex(t, r"\(G[1-4]\b")
+            self.assertNotIn("G4 Critique", t)
+            self.assertIn('<p class="proposed">', t)
+
+    def test_severity_words_agree_with_the_map_labels(self):
+        self.assertEqual([engine.SEVERITY_WORDS["en"][n].split(":")[0] for n in (1, 2, 3, 4)],
+                         [x["label_en"] for x in self.cal["severity"]])
+
+    @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl not installed")
+    def test_the_xlsx_follows_the_page_language(self):
+        import openpyxl
+        for lang, expect, absent in (("en", "High", "Élevé"), ("fr", "Élevé", "High")):
+            sid = self.walk(lang)
+            self.page(f"/quick/{sid}/results?lang={lang}")  # sets the language cookie as the page does
+            r = self.c.get(f"/s/{sid}/export.xlsx")
+            self.assertEqual(r.status, 200)
+            wb = openpyxl.load_workbook(io.BytesIO(r.body))
+            cells = [str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None]
+            self.assertIn(expect, cells, lang)
+            self.assertNotIn(absent, cells, lang)
+            self.assertIn(engine.HONESTY[lang], cells)
+            if lang == "fr":
+                self.assertIn("Registre des risques", wb.sheetnames)
+                self.assertIn("Carte maintenant", wb.sheetnames)
+            else:
+                self.assertIn("Map now", wb.sheetnames)
+
+
+class RoundTwoLayoutTest(Base):
+    """F3: markup and style rules behind the layout fixes. (The real rendering was checked in headless Chrome.)"""
+
+    def css(self):
+        return (STATIC / "app.css").read_text(encoding="utf-8")
+
+    def test_map_title_is_shown_once(self):
+        sid = self.start()
+        self.keep_all(sid)
+        self.rate_all(sid)
+        t = self.page(f"/quick/{sid}/results")
+        self.assertEqual(t.count("After your extra measures"), 1)
+        self.assertEqual(t.count('<figcaption id="map-now">Now</figcaption>'), 1)
+        self.assertEqual(len(re.findall(r"<svg[^>]*aria-labelledby=\"map-(now|after)\"", t)), 2)
+        self.assertNotIn("<title>Now", t)
+        self.assertNotRegex(t, r"<text[^>]*>(Now|After your extra measures)</text>")
+
+    def test_legend_choice_summary_and_row_grid_rules_exist(self):
+        css = self.css()
+        self.assertRegex(css, r"fieldset\.q > legend \{[^}]*float: left;[^}]*width: 100%")
+        self.assertRegex(css, r"fieldset\.q > legend \+ \* \{[^}]*clear: both")
+        self.assertRegex(css, r"\.q label\.choice \{[^}]*display: grid;[^}]*grid-template-columns: auto minmax\(0, 1fr\)")
+        self.assertRegex(css, r"\.choice \.c-t, \.choice \.c-d \{[^}]*grid-column: 2")
+        self.assertRegex(css, r"details\.q > summary \.q-t[^{]*\{[^}]*display: inline")
+        self.assertRegex(css, r"\.row-card \.blk\.sev \{[^}]*white-space: normal")  # the old nowrap `.sev` rule no longer leaks in
+        self.assertRegex(css, r"@media \(max-width: 900px\) \{ \.row-grid \{ grid-template-columns: minmax\(0, 1fr\); \} \}")
+
+    def test_document_question_summary_has_title_and_optional_inline(self):
+        t = self.page("/quick/new")
+        m = re.search(r'<details class="q doc"[^>]*><summary>(.*?)</summary>', t)
+        self.assertIsNotNone(m)
+        self.assertIn("Do you have a document about your systems or risks?", m.group(1))
+        self.assertIn("(optional)", m.group(1))
+
+
+class RoundTwoLogoTest(Base):
+    """F4: a logo slot. app/static/brand/logo.svg is shown when it exists; nothing extra otherwise."""
+
+    def test_no_logo_file_shows_nothing_extra(self):
+        self.assertFalse((STATIC / "brand" / "logo.svg").exists())  # no logo file is created by this change
+        for path in ("/", "/studies", "/quick/new"):
+            t = self.page(path)
+            self.assertNotIn("<img", t.split("</header>")[0])
+            self.assertNotIn("logo.svg", t)
+        self.assertEqual(self.c.get("/static/brand/logo.svg").status, 404)
+        self.assertIn('<a class="brand" href="/">Atelier</a>', self.page("/"))
+
+    def test_logo_file_is_shown_left_of_the_app_name(self):
+        import atelier_app
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            (pathlib.Path(d) / "brand").mkdir()
+            svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'
+            (pathlib.Path(d) / "brand" / "logo.svg").write_bytes(svg)
+            with mock.patch.object(atelier_app, "STATIC_DIR", pathlib.Path(d)):
+                for path in ("/", "/studies", "/quick/new"):
+                    head = self.page(path).split("</header>")[0]
+                    m = re.search(r'<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="30">', head)
+                    self.assertIsNotNone(m, path)
+                    self.assertLess(m.start(), head.index("Atelier</a>"))
+                r = self.c.get("/static/brand/logo.svg")
+                self.assertEqual((r.status, r.get("Content-Type")), (200, "image/svg+xml"))
+                self.assertEqual(r.body, svg)
+                self.assertIn("/static/brand/logo.svg", self.c.text(Client(self.app).get("/login")))  # public pages too
+        self.assertNotIn("<img", self.page("/").split("</header>")[0])  # and gone again when the file is gone
+
+    def test_logo_css_height_is_28_to_32_px(self):
+        css = (STATIC / "app.css").read_text(encoding="utf-8")
+        m = re.search(r"header\.top \.brand img\.logo \{[^}]*height: (\d+)px", css)
+        self.assertIsNotNone(m)
+        self.assertTrue(28 <= int(m.group(1)) <= 32)
 
 
 if __name__ == "__main__":

@@ -83,7 +83,7 @@ def register(st, cal):
     return rows, study_mod.summary(rows, cal)
 
 
-def risk_map(rows, cal, stage, title, plain=False):
+def risk_map(rows, cal, stage, title, plain=False, lang=None, labelled_by=None):
     """Inline SVG from the engine; orientation belongs to the calibration.
 
     Treat colours as data, not SVG markup: the engine currently interpolates them into attributes.
@@ -96,7 +96,13 @@ def risk_map(rows, cal, stage, title, plain=False):
             level["colour"] = "BBBBBB"
     if plain:  # quick-path pages: no method or calibration name under the map title (plain words, design s.17)
         safe["name"] = ""
-    return maps.svg(rows, safe, stage=stage, title=title, orientation=cal.get("map_orientation"))
+    return maps.svg(rows, safe, stage=stage, title=title, orientation=cal.get("map_orientation"), lang=lang,
+                    labelled_by=labelled_by)
+
+
+def level_name(cal, name, lang=None):
+    """Display name of a level in the page language (English names when the calibration has them)."""
+    return calibration.level_name(cal, name, lang)
 
 
 def level(cal, severity, likelihood):
@@ -116,13 +122,13 @@ def have_xlsx():
     return True
 
 
-def to_xlsx_bytes(st, cal, tmp_dir, notice=None, extra_sheets=None):
+def to_xlsx_bytes(st, cal, tmp_dir, notice=None, extra_sheets=None, lang=None):
     """Run the engine's Excel export into a private temp file and return the bytes."""
     from atelier_engine import export
     fd, path = tempfile.mkstemp(dir=tmp_dir, prefix=".export-", suffix=".xlsx")
     os.close(fd)
     try:
-        export.to_xlsx(st, cal, path, notice=notice, extra_sheets=extra_sheets)
+        export.to_xlsx(st, cal, path, notice=notice, extra_sheets=extra_sheets, lang=lang)
         with open(path, "rb") as f:
             return f.read()
     finally:
@@ -255,6 +261,10 @@ def quick_catalogue():
 
 def quick_suggest(profile, cat):
     return quick_mod.suggest(profile, cat)
+
+
+def quick_shortlist(profile, cat, limit=quick_mod.SHORTLIST_LIMIT):
+    return quick_mod.shortlist(profile, cat, limit)
 
 
 def quick_assess(quick, cat):

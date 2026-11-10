@@ -4,7 +4,7 @@ Text is in English and French (T). Every piece of user or catalogue text goes th
 the honesty statement are the engine's; nothing here computes a level.
 """
 from . import engine
-from .views import csrf_input, esc, level_classes, page, scale_text, when
+from .views import csrf_input, esc, level_classes, page, when
 
 STEPS = ("about", "risks", "now", "results")
 
@@ -54,7 +54,9 @@ T = {
         "criteria_availability": "whether you can use it", "typology": "Who and why",
         "add_title": "Add a risk in your own words", "add_hint": "Something we did not list? Describe it in one line.",
         "add_title_label": "The risk", "add_family": "It is", "add_crit": "It affects",
-        "mine": "Added by you", "risks_count": "{k} of {n} risks kept", "none_kept": "No risk kept yet. Keep at least one to continue.",
+        "mine": "Added by you", "more_risks": "More risks you can add ({n})",
+        "more_hint": "These apply less often or matter less. They are not ticked; tick any that fit you.",
+        "risks_count": "{k} of {n} risks kept", "none_kept": "No risk kept yet. Keep at least one to continue.",
         "now_title": "Now and after", "now_lead": "For each risk: how bad it would be, how likely it is, what you already do, and what you could add. We work out the levels for you.",
         "now_empty": "You have not kept any risk yet.", "now_empty_cta": "Choose your risks",
         "sev_q": "How bad would it be for you?", "sev_proposed": "We suggest", "sev_keep": "Keep our suggestion",
@@ -70,6 +72,7 @@ T = {
         "save_stay": "Save", "save_next": "Save and see the results", "err_row": "Check this risk: {msg}",
         "res_title": "Your results", "res_lead": "Where you stand now, and where you could be after the extra measures you ticked.",
         "map_now": "Now", "map_after": "After your extra measures", "map_legend": "Risks on the maps",
+        "map_section": "Where you stand",
         "risk_col": "Risk", "now_col": "Now", "after_col": "After",
         "conf": "Confidence", "conf_text": "How much of this rests on what you told us, rather than on assumptions.",
         "band_low": "low", "band_medium": "medium", "band_high": "high",
@@ -133,7 +136,9 @@ T = {
         "criteria_availability": "si vous pouvez l'utiliser", "typology": "Qui et pourquoi",
         "add_title": "Ajouter un risque avec vos mots", "add_hint": "Quelque chose que nous n'avons pas listé ? Décrivez-le en une ligne.",
         "add_title_label": "Le risque", "add_family": "C'est", "add_crit": "Cela touche",
-        "mine": "Ajouté par vous", "risks_count": "{k} risques gardés sur {n}", "none_kept": "Aucun risque gardé pour l'instant. Gardez-en au moins un pour continuer.",
+        "mine": "Ajouté par vous", "more_risks": "Autres risques à ajouter ({n})",
+        "more_hint": "Ceux-ci s'appliquent moins souvent ou comptent moins. Ils ne sont pas cochés ; cochez ceux qui vous concernent.",
+        "risks_count": "{k} risques gardés sur {n}", "none_kept": "Aucun risque gardé pour l'instant. Gardez-en au moins un pour continuer.",
         "now_title": "Maintenant et après", "now_lead": "Pour chaque risque : sa gravité, sa vraisemblance, ce que vous faites déjà et ce que vous pourriez ajouter. Nous calculons les niveaux pour vous.",
         "now_empty": "Vous n'avez gardé aucun risque.", "now_empty_cta": "Choisir vos risques",
         "sev_q": "Quelle serait la gravité pour vous ?", "sev_proposed": "Nous proposons", "sev_keep": "Garder notre proposition",
@@ -149,6 +154,7 @@ T = {
         "save_stay": "Enregistrer", "save_next": "Enregistrer et voir les résultats", "err_row": "Vérifiez ce risque : {msg}",
         "res_title": "Vos résultats", "res_lead": "Où vous en êtes maintenant, et où vous pourriez être après les mesures supplémentaires cochées.",
         "map_now": "Maintenant", "map_after": "Après vos mesures supplémentaires", "map_legend": "Les risques sur les cartes",
+        "map_section": "Où vous en êtes",
         "risk_col": "Risque", "now_col": "Maintenant", "after_col": "Après",
         "conf": "Confiance", "conf_text": "La part de ces résultats qui repose sur vos réponses plutôt que sur des hypothèses.",
         "band_low": "faible", "band_medium": "moyenne", "band_high": "élevée",
@@ -330,8 +336,10 @@ def _risk_card(lang, rdef, kept, reason, errors, mine=False):
 <p class="meta">{esc(tr(lang, "hits"))}: {esc(crit)}</p>{typology}{reason_html}</article>"""
 
 
-def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False, flash=""):
-    """state: {"keep": {id: bool}, "reasons": {id: text}, "new": [{"title","family","criteria"}]} when a form was refused."""
+def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False, flash="", shortlist=None):
+    """state: {"keep": {id: bool}, "reasons": {id: text}, "new": [{"title","family","criteria"}]} when a form was refused.
+    `shortlist`: the engine's short list for the profile. Its risks, the kept ones and the person's own are shown
+    in the main list; every other applicable risk goes under the collapsed "More risks you can add" section."""
     errors = errors or {}
     state = state or {}
     by_id = {r["id"]: r for r in cat["risks"]}
@@ -339,7 +347,9 @@ def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False,
     origins = {o["id"]: o for o in cat["origins"]}
     objectives = {o["id"]: o for o in cat["objectives"]}
     groups = {"deliberate": [], "accidental": []}
-    n_kept = 0
+    more = {"deliberate": [], "accidental": []}
+    n_kept = n_main = 0
+    short = set(shortlist) if shortlist is not None else None
     for e in quick.get("risks") or []:
         custom = e.get("custom")
         if custom:
@@ -354,13 +364,23 @@ def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False,
                 rdef["_objective"] = _pick(objectives[rdef["objective"]], lang)
         kept = keep_state.get(e["id"], e.get("decision") == "keep")
         reason = (state.get("reasons") or {}).get(e["id"], e.get("reason") or "")
-        groups[rdef["family"]].append(_risk_card(lang, rdef, kept, reason, errors, mine=bool(custom)))
+        card = _risk_card(lang, rdef, kept, reason, errors, mine=bool(custom))
+        if short is None or custom or kept or e["id"] in short or errors.get(e["id"]):
+            groups[rdef["family"]].append(card)
+            n_main += 1
+        else:
+            more[rdef["family"]].append(card)
         n_kept += 1 if kept else 0
     sections = ""
     for fam in ("deliberate", "accidental"):
         if groups[fam]:
             sections += (f'<section class="family"><h2>{esc(tr(lang, "fam_" + fam))}</h2><p class="hint">{esc(tr(lang, "fam_" + fam + "_text"))}</p>'
                          f'{"".join(groups[fam])}</section>')
+    n_more = sum(len(v) for v in more.values())
+    if n_more:
+        inner = "".join(f'<h3>{esc(tr(lang, "fam_" + fam))}</h3>{"".join(more[fam])}' for fam in ("deliberate", "accidental") if more[fam])
+        sections += (f'<details class="q more-risks"><summary><span class="q-t">{esc(tr(lang, "more_risks", n=n_more))}</span></summary>'
+                     f'<p class="example">{esc(tr(lang, "more_hint"))}</p>{inner}</details>')
     new_rows = state.get("new") or [{}, {}, {}]
     crit_names = ("confidentiality", "integrity", "availability")
     add_rows = ""
@@ -374,7 +394,7 @@ def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False,
                      f'value="{esc(row.get("title", ""))}"></label>'
                      f'<label>{esc(tr(lang, "add_family"))} <select name="new_family_{i}">{fam_opts}</select></label>'
                      f'<fieldset class="inline-set"><legend>{esc(tr(lang, "add_crit"))}</legend>{boxes}</fieldset></div>')
-    count = tr(lang, "risks_count", k=n_kept, n=len(quick.get("risks") or []))
+    count = tr(lang, "risks_count", k=n_kept, n=n_main)
     body = f"""{stepper(sid, "risks", lang)}
 <h1>{esc(tr(lang, "risks_title"))}</h1><p class="lead">{esc(tr(lang, "risks_lead"))}</p>
 {_flash(lang, flash)}{_edited_banner(lang, edited)}
@@ -392,8 +412,8 @@ def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False,
 
 # ------------------------------------------------------------------ screen 3: now and after
 
-def _level_chip(cal, name, cls):
-    return f'<span class="lvl {cls.get(name, "")}">{esc(name)}</span>'
+def _level_chip(cal, name, cls, lang="en"):
+    return f'<span class="lvl {cls.get(name, "")}">{esc(engine.level_name(cal, name, lang))}</span>'
 
 
 def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edited=False, flash=""):
@@ -433,16 +453,15 @@ def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edit
                 out.append(f'<div class="meas-row" role="group" aria-labelledby="mt-{esc(rid)}-{esc(m["id"])}">'
                            f'<p class="m-t" id="mt-{esc(rid)}-{esc(m["id"])}">{esc(_pick(m, lang))}</p><div class="seg">{radios}</div></div>')
             return "".join(out)
-        result = (f'<p class="result" aria-live="polite"><span>{esc(tr(lang, "now_level"))}: {_level_chip(cal, r["level"], cls)}</span>'
+        result = (f'<p class="result" aria-live="polite"><span>{esc(tr(lang, "now_level"))}: {_level_chip(cal, r["level"], cls, lang)}</span>'
                   f'<span aria-hidden="true">&rarr;</span>'
-                  f'<span>{esc(tr(lang, "after_level"))}: {_level_chip(cal, r["level_target"], cls)}</span></p>')
+                  f'<span>{esc(tr(lang, "after_level"))}: {_level_chip(cal, r["level_target"], cls, lang)}</span></p>')
         sev_err = errors.get(rid)
         cards.append(f"""<article class="row-card{" has-error" if sev_err else ""}" id="risk-{esc(rid)}">
 <header><h2><span class="rid">{esc(rid)}</span> {esc(_pick(d["title"], lang))}</h2><p class="r-desc">{esc(_pick(d["description"], lang))}</p></header>
 <div class="row-grid">
 <div class="blk sev"><label for="sev-{esc(rid)}"><span class="q-t">{esc(tr(lang, "sev_q"))}</span></label>
-<p class="proposed">{esc(tr(lang, "sev_proposed"))}: <strong>{esc(words[proposed])}</strong>
-<small>({esc(scale_text(cal, "severity", proposed))})</small></p>
+<p class="proposed">{esc(tr(lang, "sev_proposed"))}: <strong>{esc(words[proposed])}</strong></p>
 <select id="sev-{esc(rid)}" name="sev_{esc(rid)}">{sev_opts}</select>
 <div class="reason{" needed" if sev_err else ""}"><label for="sr-{esc(rid)}">{esc(tr(lang, "sev_reason"))}</label>
 <input id="sr-{esc(rid)}" name="sevreason_{esc(rid)}" value="{esc(sev_reason)}" maxlength="500" placeholder="{esc(tr(lang, "sev_reason_ph"))}">{_err(sev_err)}</div></div>
@@ -455,7 +474,7 @@ def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edit
         actions = (f'<div class="actions"><a class="button secondary" href="/quick/{sid}/risks">{esc(tr(lang, "back"))}</a>'
                    f'<button class="secondary big" name="go" value="stay">{esc(tr(lang, "save_stay"))}</button>'
                    f'<button class="primary big" name="go" value="next">{esc(tr(lang, "save_next"))} <span aria-hidden="true">&rarr;</span></button></div>')
-        form = (f'<form method="post" action="/quick/{sid}/now" class="flow">{csrf_input(session)}<input type="hidden" name="lang" value="{esc(lang)}">'
+        form = (f'<form method="post" action="/quick/{sid}/now" class="flow wide">{csrf_input(session)}<input type="hidden" name="lang" value="{esc(lang)}">'
                 f'<p class="hint">{esc(tr(lang, "levels_note"))}</p>{main}{actions}</form>')
     else:
         form = (f'<div class="empty-state"><p>{esc(tr(lang, "now_empty"))}</p>'
@@ -480,11 +499,13 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
     cap = f'<p class="hint">{esc(tr(lang, "conf_cap", n=engine.NO_DOCUMENT_CEILING))}</p>' if not facts["document_provided"] else ""
     maps = ""
     if reg_rows:
-        maps = (f'<div class="maps"><figure><figcaption>{esc(tr(lang, "map_now"))}</figcaption>{engine.risk_map(reg_rows, cal, "now", tr(lang, "map_now"), plain=True)}</figure>'
-                f'<figure><figcaption>{esc(tr(lang, "map_after"))}</figcaption>{engine.risk_map(reg_rows, cal, "target", tr(lang, "map_after"), plain=True)}</figure></div>')
+        maps = (f'<div class="maps"><figure><figcaption id="map-now">{esc(tr(lang, "map_now"))}</figcaption>'
+                f'{engine.risk_map(reg_rows, cal, "now", tr(lang, "map_now"), plain=True, lang=lang, labelled_by="map-now")}</figure>'
+                f'<figure><figcaption id="map-after">{esc(tr(lang, "map_after"))}</figcaption>'
+                f'{engine.risk_map(reg_rows, cal, "target", tr(lang, "map_after"), plain=True, lang=lang, labelled_by="map-after")}</figure></div>')
         legend = "".join(
             f'<tr><th scope="row">{esc(r["id"])}</th><td>{esc(_pick(r["def"]["title"], lang))}</td>'
-            f'<td>{_level_chip(cal, r["level"], cls)}</td><td>{_level_chip(cal, r["level_target"], cls)}</td></tr>' for r in rows)
+            f'<td>{_level_chip(cal, r["level"], cls, lang)}</td><td>{_level_chip(cal, r["level_target"], cls, lang)}</td></tr>' for r in rows)
         maps += (f'<details class="legend-table" open><summary>{esc(tr(lang, "map_legend"))}</summary><div class="scroll"><table class="list">'
                  f'<thead><tr><th>#</th><th>{esc(tr(lang, "risk_col"))}</th><th>{esc(tr(lang, "now_col"))}</th><th>{esc(tr(lang, "after_col"))}</th></tr></thead>'
                  f'<tbody>{legend}</tbody></table></div></details>')
@@ -516,7 +537,7 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
 <section class="card conf"><div class="conf-n"><span class="big-n">{conf}%</span><span class="band b-{esc(band)}">{esc(tr(lang, "band_" + band))}</span></div>
 <div><h2>{esc(tr(lang, "conf"))}</h2><progress max="100" value="{conf}" aria-label="{esc(tr(lang, "conf"))}">{conf}%</progress>
 <p>{esc(tr(lang, "conf_text"))}</p>{cap}{doc_note}<p class="facts">{esc(line)}</p></div></section>
-<section class="card"><h2>{esc(tr(lang, "map_now"))} &rarr; {esc(tr(lang, "map_after"))}</h2>{maps}</section>
+<section class="card"><h2>{esc(tr(lang, "map_section"))}</h2>{maps}</section>
 <section class="card"><h2>{esc(tr(lang, "top5"))}</h2>{top}</section>
 <section class="card"><h2>{esc(tr(lang, "assumptions"))}</h2><p class="hint">{esc(tr(lang, "assumptions_lead"))}</p>{ass}</section>
 <section class="card next-steps"><div class="btns">{export}

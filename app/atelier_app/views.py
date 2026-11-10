@@ -1,6 +1,7 @@
 """Server-rendered HTML. Every piece of study or user text goes through esc(). No inline script or style."""
 import datetime
 import html
+import pathlib
 import re
 import urllib.parse
 
@@ -138,6 +139,19 @@ NAV = {"en": {"home": "Home", "list": "Studies", "reviews": "Reviews", "settings
               "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu"}}
 
 
+def logo_path():
+    """Where the brand logo goes, `app/static/brand/logo.svg`. It is supplied later; the file may not exist."""
+    import atelier_app
+    return pathlib.Path(atelier_app.STATIC_DIR) / "brand" / "logo.svg"
+
+
+def logo_html():
+    """The header logo (alt text CPLT, 30 px high) when the logo file exists, else nothing."""
+    if not logo_path().is_file():
+        return ""
+    return '<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="30">'
+
+
 def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=None):
     """The shared page shell. `lang` ("en" or "fr") sets the language of the shell and of <html lang>; `lang_path`
     (a local path) adds the EN / FR switch, which links to that path with ?lang=."""
@@ -168,7 +182,7 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
 </head>
 <body>
 <a class="skip" href="#main">{esc(n["skip"])}</a>
-<header class="top"><a class="brand" href="/">Atelier</a><span class="sub">{esc(n["sub"])}</span>
+<header class="top"><a class="brand" href="/">{logo_html()}Atelier</a><span class="sub">{esc(n["sub"])}</span>
 <nav>{links}{switch}{logout}</nav></header>
 <main id="main">
 {note}

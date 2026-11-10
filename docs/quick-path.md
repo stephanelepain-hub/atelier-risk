@@ -18,8 +18,11 @@ are in `engine/atelier_engine/quick.py`; the web app never computes a level.
 | 4 Results | `/quick/<study>/results` | Before and after maps, top 5 actions, assumptions, confidence, honesty statement, Excel download, link to expert mode. | nothing |
 
 Every POST saves and rebuilds the study from the quick answers (`quick.build_study`), so the study file is always a
-valid study. Saving screen 1 again re-suggests the risks: earlier keep/discard decisions are kept, new suggestions are
-added as kept, and a catalogue risk that no longer applies to the new answers is dropped with its ratings. Language: `?lang=en|fr` (kept in the `atelier_lang` cookie); the forms carry it and it is stored in
+valid study. Screen 2 pre-ticks only the short list (`quick.shortlist`, see "Short list" below); the other risks that
+apply are listed under a collapsed "More risks you can add (N)" section, unticked, and are stored as `discard` until
+ticked. Saving screen 1 again re-suggests the risks: earlier keep/discard decisions are kept, a new risk is ticked
+when it is in the short list and unticked otherwise, and a catalogue risk that no longer applies to the new answers is
+dropped with its ratings. Language: `?lang=en|fr` (kept in the `atelier_lang` cookie); the forms carry it and it is stored in
 `quick.lang`, which is also the language of the generated study text.
 
 Documents: a file sent with screen 1 is stored in the study's documents (same store and limits as the Documents tab)
@@ -141,12 +144,40 @@ confidence) read it from there.
 ## Public catalogue
 
 `catalogues/quick-risks.json`, described in `catalogues/README.md`. `quick.load_catalogue()` reads and checks it;
-`quick.suggest(profile)` returns the ids for the packs the profile implies, always-assessed risks first. With no
-answer for "what you use", the packs are `all` and `office-it`.
+`quick.suggest(profile)` returns the ids for the packs the profile implies (every risk that applies),
+always-assessed risks first. With no answer for "what you use", the packs are `all` and `office-it`.
+
+### Short list and `audience`
+
+`quick.shortlist(profile, catalogue=None, limit=10)` returns the ids pre-ticked on screen 2: the always-assessed risks
+that apply (catalogue order, never cut: if there are more than `limit` all are kept), then the other applicable risks
+ranked by `typical_severity * typical_likelihood` (highest first; ties in catalogue order), up to `limit` ids in total.
+
+Each risk has one `audience` field: `all` (the default when absent) or `sensitive`. A `sensitive` risk is one that
+only makes sense for a large or sensitive organisation (state-backed or targeted espionage, a competitor stealing
+know-how). It is left out of the short list unless the profile's sensitivity answer is the highest one (`critical`,
+"Secrets, health or legal data") or the industrial tool is ticked. It stays in `suggest` and in the "More risks"
+section. An always-assessed risk cannot be `sensitive` (the catalogue check refuses it).
+
+### English labels of a calibration
+
+A calibration may carry optional English texts: `severity[].label_en`, `likelihood[].label_en`, `levels[].name_en`
+(and `levels[].acceptability_en`, `action_en`, my translations, only used in the quick Excel export). The French
+originals (`label`, `name`, ...) stay the reference and the level `name` stays the key; `calibration.check` accepts the
+new keys (a non-empty text when present) and a calibration without them falls back to the original text.
+`calibration.label(cal, axis, n, lang)` and `calibration.level_name(cal, name, lang)` give the text for `lang="en"`;
+any other language, or none, gives the original. The quick-path screens, result maps and table and the quick Excel
+export follow the page language; expert mode is unchanged. In the Excel export the object sheets keep their raw
+column names.
+
+### Brand logo
+
+If `app/static/brand/logo.svg` exists, the page header shows it (30 px high, alt text "CPLT") to the left of the app
+name, and `/static/brand/logo.svg` serves it. Without the file nothing extra is shown. No logo file is shipped.
 
 ## Not done in this draft
 
 - Reading documents (the upload is stored and flagged only).
 - French text beyond the quick-path screens and the honesty statement (other pages stay English).
-- Level names are the calibration's own (`anssi-v1.5` names them in French).
+- Expert mode and the other pages show the calibration's own (French) level names.
 - Several users or accounts.

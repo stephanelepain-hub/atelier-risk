@@ -236,6 +236,7 @@
     "industrial"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 4,
    "typical_likelihood": 3,
    "origin": "cybercriminal",
@@ -293,6 +294,7 @@
     "cloud-service"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 4,
    "origin": "cybercriminal",
@@ -338,6 +340,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 3,
    "origin": "cybercriminal",
@@ -385,6 +388,7 @@
     "website-shop"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "cybercriminal",
@@ -436,6 +440,7 @@
     "website-shop"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "cybercriminal",
@@ -487,6 +492,7 @@
     "website-shop"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "origin": "activist",
@@ -538,6 +544,7 @@
     "cloud-service"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "origin": "activist",
@@ -579,6 +586,7 @@
     "cloud-service"
    ],
    "always_assessed": false,
+   "audience": "sensitive",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "competitor",
@@ -626,6 +634,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "insider",
@@ -672,6 +681,7 @@
     "cloud-service"
    ],
    "always_assessed": false,
+   "audience": "sensitive",
    "typical_severity": 4,
    "typical_likelihood": 1,
    "origin": "state",
@@ -724,6 +734,7 @@
     "cloud-service"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 4,
    "typical_likelihood": 2,
    "origin": "cybercriminal",
@@ -781,6 +792,7 @@
     "office-it"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 3,
    "origin": "cybercriminal",
@@ -829,6 +841,7 @@
     "office-it"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "cybercriminal",
@@ -880,6 +893,7 @@
     "industrial"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 4,
    "typical_likelihood": 1,
    "origin": "activist",
@@ -931,6 +945,7 @@
     "industrial"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "origin": "cybercriminal",
@@ -977,6 +992,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 4,
    "nist_source": "accidental / user",
@@ -1017,6 +1033,7 @@
     "all"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 4,
    "typical_likelihood": 2,
    "nist_source": "accidental / process error",
@@ -1061,6 +1078,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "accidental / user",
@@ -1103,6 +1121,7 @@
     "website-shop"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 3,
    "nist_source": "accidental / privileged user",
@@ -1148,6 +1167,7 @@
     "website-shop"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "nist_source": "accidental / privileged user",
@@ -1194,6 +1214,7 @@
     "industrial"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 3,
    "nist_source": "structural / IT equipment",
@@ -1238,6 +1259,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "environmental / infrastructure failure (telecommunications)",
@@ -1278,6 +1300,7 @@
     "industrial"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "environmental / infrastructure failure (electrical power)",
@@ -1317,6 +1340,7 @@
     "cloud-service"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "nist_source": "structural / supplier and software failure",
@@ -1361,6 +1385,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "nist_source": "structural / supplier failure",
@@ -1405,6 +1430,7 @@
     "office-it"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "accidental / user (loss of equipment)",
@@ -1446,6 +1472,7 @@
     "industrial"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 2,
    "nist_source": "adversarial / outsider (theft of equipment)",
@@ -1491,6 +1518,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 4,
    "typical_likelihood": 1,
    "nist_source": "environmental / natural or man-made disaster",
@@ -1540,6 +1568,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 1,
    "nist_source": "environmental / natural disaster",
@@ -1584,6 +1613,7 @@
     "all"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "accidental / process error",
@@ -1624,6 +1654,7 @@
     "industrial"
    ],
    "always_assessed": true,
+   "audience": "all",
    "typical_severity": 3,
    "typical_likelihood": 2,
    "nist_source": "structural / controller and software",
@@ -1669,6 +1700,7 @@
     "website-shop"
    ],
    "always_assessed": false,
+   "audience": "all",
    "typical_severity": 2,
    "typical_likelihood": 3,
    "nist_source": "accidental / privileged user",

@@ -39,7 +39,8 @@ small { color: var(--muted); }
 header.top { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.2rem; padding: .8rem 1.6rem;
   background: linear-gradient(100deg, #1a2b63, #27458f); color: #fff; }
 header.top a { color: #fff; text-decoration: none; }
-header.top .brand { font-weight: 750; font-size: 1.3rem; letter-spacing: .01em; }
+header.top .brand { font-weight: 750; font-size: 1.3rem; letter-spacing: .01em; display: inline-flex; align-items: center; gap: .6rem; }
+header.top .brand img.logo { height: 30px; width: auto; display: block; }
 header.top .sub { color: #dbe4ff; font-size: .95rem; }
 header.top nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; align-items: center; }
 header.top nav a { padding: .3rem .1rem; border-bottom: 2px solid transparent; }
@@ -310,19 +311,29 @@ nav.stepper li.current a, nav.stepper li.current span { background: var(--accent
 nav.stepper li.current .n { background: #fff; color: var(--accent-dark); }
 
 form.flow { max-width: 56rem; }
+form.flow.wide { max-width: 72rem; }
 .q { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem 1.4rem; margin: 0 0 1.1rem; box-shadow: var(--shadow); }
 details.q > summary { cursor: pointer; list-style-position: inside; }
+details.q > summary .q-t, details.q > summary .opt { display: inline; }
+/* A fieldset's legend is drawn on the border; a floated legend sits inside the card like a label does. */
+fieldset.q { min-width: 0; }
+fieldset.q > legend { float: left; width: 100%; }
+fieldset.q > legend + * { clear: both; }
+.more-risks > h3, .more-risks .risk-card { margin-top: .6rem; }
+.more-risks h3 { font-size: 1.1rem; margin-bottom: .2rem; }
 .q label, .q legend { display: block; font-weight: 400; margin: 0 0 .5rem; padding: 0; }
 .q-t { display: block; font-size: 1.2rem; font-weight: 700; line-height: 1.35; color: var(--ink); }
 .opt { color: var(--muted); font-weight: 400; }
 .example { display: block; color: var(--muted); font-size: .98rem; margin: .15rem 0 .4rem; font-weight: 400; }
 .q label.dk { display: inline-flex; align-items: center; gap: .5rem; margin: .5rem 0 0; color: var(--muted); font-size: .98rem; }
 .choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .7rem; margin: .5rem 0 .3rem; }
-.q label.choice { display: flex; align-items: flex-start; gap: .7rem; margin: 0; padding: .8rem .9rem; background: #fff; border: 2px solid var(--line);
-  border-radius: 12px; cursor: pointer; }
-.choice .c-t { display: block; font-weight: 600; }
-.choice .c-d { display: block; color: var(--muted); font-size: .92rem; font-weight: 400; }
-.choice > span { display: block; }
+.q label.choice { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .7rem; align-items: start; align-content: start; margin: 0;
+  padding: .8rem .9rem; background: #fff; border: 2px solid var(--line); border-radius: 12px; cursor: pointer; }
+/* control on the left, title on the first line, description under it (one column, not two side by side) */
+.choice > input { grid-column: 1; grid-row: 1 / span 2; margin-top: .2rem; }
+.choice .c-t, .choice .c-d { grid-column: 2; display: block; }
+.choice .c-t { font-weight: 600; }
+.choice .c-d { color: var(--muted); font-size: .92rem; font-weight: 400; }
 .q label.choice:hover { border-color: var(--accent); }
 .q label.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .q label.choice:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -364,12 +375,15 @@ section.family h2 { font-size: 1.4rem; margin-bottom: .1rem; }
 .rid { display: inline-block; background: var(--accent-soft); color: var(--accent-dark); border-radius: 6px; padding: 0 .5rem; font-size: .95rem; margin-right: .3rem; }
 .row-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem 2rem; margin-top: .8rem; }
 .blk { min-width: 0; }
+/* the older workshop-1 rule `.sev` (nowrap, bold) must not leak into the severity block of a row card */
+.row-card .blk.sev { white-space: normal; font-weight: 400; overflow-wrap: anywhere; }
+.row-card .blk.sev .proposed { margin: .1rem 0 .5rem; }
 .blk label { font-weight: 400; }
 fieldset.blk { border: 0; padding: 0; margin: 0; }
 fieldset.blk legend { padding: 0; margin-bottom: .4rem; }
 .blk .q-t { font-size: 1.05rem; }
 .blk legend small { display: block; }
-.meas-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem 1rem; padding: .55rem 0; border-top: 1px solid var(--line); }
+.meas-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .3rem 1rem; padding: .4rem 0; border-top: 1px solid var(--line); }
 .meas-row .m-t { flex: 1 1 18rem; margin: 0; }
 .seg { display: inline-flex; border: 1px solid var(--accent-line); border-radius: 999px; overflow: hidden; background: #fff; }
 .seg-opt { margin: 0; cursor: pointer; }
@@ -418,12 +432,12 @@ ul.assumptions li { margin: 0 0 .5rem; }
 .badge.k-catalogue { background: var(--accent-soft); color: var(--accent-dark); }
 .next-steps .btns { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: .6rem; }
 
+@media (max-width: 900px) { .row-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 820px) {
   main { padding: 1rem 1rem 3rem; }
   header.top { padding: .7rem 1rem; }
   h1 { font-size: 1.7rem; }
   .hero h1 { font-size: 2rem; }
-  .row-grid { grid-template-columns: minmax(0, 1fr); }
   .add-row { grid-template-columns: minmax(0, 1fr); }
   .q, .row-card { padding: 1rem; }
 }

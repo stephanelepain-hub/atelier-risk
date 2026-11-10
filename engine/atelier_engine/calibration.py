@@ -44,8 +44,15 @@ def load(cal_id):
 
 
 def check(cal):
-    """Structural check: 1-4 scales, a 4x4 grid of declared levels, never decreasing along either axis."""
+    """Structural check: 1-4 scales, a 4x4 grid of declared levels, never decreasing along either axis.
+    The optional English texts (`severity[].label_en`, `likelihood[].label_en`, `levels[].name_en`, and the
+    level texts `acceptability_en`, `action_en`) may be absent; when present they must be non-empty strings."""
     cid = cal.get("id", "?")
+    for axis, key in (("severity", "label_en"), ("likelihood", "label_en"), ("levels", "name_en"),
+                      ("levels", "acceptability_en"), ("levels", "action_en")):
+        for x in cal.get(axis) or []:
+            if key in x and not (isinstance(x[key], str) and x[key].strip()):
+                raise CalibrationError(f"{cid}: {axis} {key} must be a non-empty text when present")
     levels = cal.get("levels") or []
     rank = {l["name"]: l["rank"] for l in levels}
     if len(rank) != len(levels) or not levels:
@@ -91,8 +98,29 @@ def level_info(cal, name):
     raise CalibrationError(f"{cal.get('id')}: no level '{name}'")
 
 
-def label(cal, axis, n):
+def _en(lang):
+    return lang == "en"
+
+
+def label(cal, axis, n, lang=None):
+    """Label of a scale step. With lang="en" the optional `label_en` is used when the calibration has it; any other
+    language (or none) gives the original label, which stays the reference."""
     for x in cal[axis]:
         if x["n"] == n:
-            return x["label"]
+            return (x.get("label_en") or x["label"]) if _en(lang) else x["label"]
     raise CalibrationError(f"{axis} {n} not in scale")
+
+
+def level_name(cal, name, lang=None):
+    """Display name of a level (its `name` is the key and never changes). lang="en" gives `name_en` when present."""
+    if _en(lang):
+        for l in cal["levels"]:
+            if l["name"] == name:
+                return l.get("name_en") or name
+    return name
+
+
+def level_text(cal, name, key, lang=None):
+    """`acceptability` or `action` of a level, in English (`<key>_en`) when asked and present, else the original."""
+    info = level_info(cal, name)
+    return (info.get(key + "_en") or info.get(key, "")) if _en(lang) else info.get(key, "")

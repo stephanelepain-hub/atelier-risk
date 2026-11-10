@@ -5,21 +5,21 @@
   "licence": "Licence Ouverte / Open Licence (Etalab V1)",
   "verified": "2026-11-10: grid read cell by cell from the p.75 figure; colours matched to the p.74 legend (teal Faible, orange Moyen, red Élevé); labels and texts with the guide's accents and apostrophes (U+2019)",
   "severity": [
-    {"n": 1, "code": "G1", "label": "Mineure"},
-    {"n": 2, "code": "G2", "label": "Significative"},
-    {"n": 3, "code": "G3", "label": "Grave"},
-    {"n": 4, "code": "G4", "label": "Critique"}
+    {"n": 1, "code": "G1", "label": "Mineure", "label_en": "Minor"},
+    {"n": 2, "code": "G2", "label": "Significative", "label_en": "Significant"},
+    {"n": 3, "code": "G3", "label": "Grave", "label_en": "Serious"},
+    {"n": 4, "code": "G4", "label": "Critique", "label_en": "Critical"}
   ],
   "likelihood": [
-    {"n": 1, "code": "V1", "label": "Peu vraisemblable"},
-    {"n": 2, "code": "V2", "label": "Vraisemblable"},
-    {"n": 3, "code": "V3", "label": "Très vraisemblable"},
-    {"n": 4, "code": "V4", "label": "Quasi certain"}
+    {"n": 1, "code": "V1", "label": "Peu vraisemblable", "label_en": "Unlikely"},
+    {"n": 2, "code": "V2", "label": "Vraisemblable", "label_en": "Likely"},
+    {"n": 3, "code": "V3", "label": "Très vraisemblable", "label_en": "Very likely"},
+    {"n": 4, "code": "V4", "label": "Quasi certain", "label_en": "Almost certain"}
   ],
   "levels": [
-    {"name": "Faible", "rank": 1, "colour": "4FC3B5", "acceptability": "Acceptable en l’état", "action": "Aucune action n’est à entreprendre"},
-    {"name": "Moyen", "rank": 2, "colour": "FFC57A", "acceptability": "Tolérable sous contrôle", "action": "Un suivi en termes de gestion du risque est à mener et des actions sont à mettre en place dans le cadre d’une amélioration continue sur le moyen et long terme"},
-    {"name": "Élevé", "rank": 3, "colour": "F07178", "acceptability": "Inacceptable", "action": "Des mesures de réduction du risque doivent impérativement être prises à court terme. Dans le cas contraire, tout ou partie de l’activité sera refusé"}
+    {"name": "Faible", "name_en": "Low", "rank": 1, "colour": "4FC3B5", "acceptability": "Acceptable en l’état", "acceptability_en": "Acceptable as it is", "action": "Aucune action n’est à entreprendre", "action_en": "No action is needed"},
+    {"name": "Moyen", "name_en": "Medium", "rank": 2, "colour": "FFC57A", "acceptability": "Tolérable sous contrôle", "acceptability_en": "Tolerable under control", "action": "Un suivi en termes de gestion du risque est à mener et des actions sont à mettre en place dans le cadre d’une amélioration continue sur le moyen et long terme", "action_en": "Follow the risk through risk management, and put actions in place as part of continuous improvement over the medium and long term"},
+    {"name": "Élevé", "name_en": "High", "rank": 3, "colour": "F07178", "acceptability": "Inacceptable", "acceptability_en": "Unacceptable", "action": "Des mesures de réduction du risque doivent impérativement être prises à court terme. Dans le cas contraire, tout ou partie de l’activité sera refusé", "action_en": "Risk-reduction measures must be taken in the short term. Otherwise all or part of the activity will be refused"}
   ],
   "grid_by_severity": {
     "4": ["Moyen", "Moyen", "Élevé", "Élevé"],

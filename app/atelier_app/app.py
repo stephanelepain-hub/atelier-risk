@@ -119,6 +119,7 @@ class App(ReviewRoutes, QuickRoutes):
         r.add("POST", r"/login", self.login, public=True)
         r.add("GET", r"/login/once", self.login_once, public=True)
         r.add("GET", r"/static/([a-z]+\.(?:css|js))", self.static, public=True)
+        r.add("GET", r"/static/brand/logo\.svg", self.brand_logo, public=True)
         r.add("POST", r"/logout", self.logout)
         r.add("POST", r"/login/link", self.login_link)
         r.add("GET", r"/studies", self.index)
@@ -256,6 +257,13 @@ class App(ReviewRoutes, QuickRoutes):
         if name not in STATIC:
             raise HTTPError(404, "not found")
         return Response((STATIC_DIR / name).read_bytes(), 200, STATIC[name])
+
+    def brand_logo(self, req):
+        """The brand logo, only when the file exists (it is supplied later; nothing is drawn or created here)."""
+        p = views.logo_path()
+        if not p.is_file():
+            raise HTTPError(404, "not found")
+        return Response(p.read_bytes(), 200, "image/svg+xml")
 
     def cal_css(self, req, cal_id):
         if cal_id not in calibrations.available():
@@ -468,15 +476,19 @@ class App(ReviewRoutes, QuickRoutes):
             raise HTTPError(409, "the engine exports only a study without errors; fix the errors listed in the checks")
         if not engine.have_xlsx():
             raise HTTPError(501, "the Excel export needs openpyxl, which is not installed here; the JSON export works")
-        notice = sheets = None
+        notice = sheets = lang = None
         if isinstance(st.get("quick"), dict):  # a quick-path study: honesty header, assumptions and top actions
             try:
                 cat = self.quick_catalogue()
-                notice = engine.quick_notice(st["quick"], chk["cal"], cat)
-                sheets = engine.quick_sheets(st["quick"], chk["cal"], cat)
+                lang = self._lang(req, st["quick"])  # the quick workbook follows the page language
+                quick = dict(st["quick"], lang=lang)
+                if lang != st["quick"].get("lang") and not self._edited_in_expert_mode(st, st["quick"], chk["cal"]):
+                    st = engine.quick_build(quick, chk["cal"], cat)  # same answers, texts in the page language
+                notice = engine.quick_notice(quick, chk["cal"], cat)
+                sheets = engine.quick_sheets(quick, chk["cal"], cat)
             except engine.QuickError:
-                notice = sheets = None
-        data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir, notice, sheets)
+                notice = sheets = lang = None
+        data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir, notice, sheets, lang)
         return Response(data, 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "xlsx")}"')])
 

@@ -12,7 +12,7 @@ company names and no text copied from another catalogue.
   - **Accidental** (17): staff error, process or change error, failure of a network, hardware, software, supplier or
     building service, loss or theft of equipment, natural events.
 - Per risk: `id`, `family`, `title` and `description` (EN and FR), `criteria` (which of confidentiality, integrity,
-  availability it hits), `packs`, `always_assessed`, 3 to 6 `measures` (id, EN, FR), and two typical levels.
+  availability it hits), `packs`, `always_assessed`, `audience` (`all` or `sensitive`, see docs/quick-path.md), 3 to 6 `measures` (id, EN, FR), and two typical levels.
 - Top level: `packs`, the `tools` tick-list of the first screen (each tool implies packs), `origins`, `objectives`,
   `generic_measures` (offered for a risk the person adds), and `sources`.
 - Packs: `office-it`, `cloud-service`, `website-shop`, `industrial`, and `all` (every organisation).
