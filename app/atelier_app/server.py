@@ -7,7 +7,8 @@ import socket
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .app import MAX_UPLOAD, App, default_data_dir
+from . import config
+from .app import MAX_UPLOAD, App
 from .web import Request
 
 QUERY_RE = re.compile(r"\?\S*")
@@ -76,8 +77,8 @@ def is_loopback(host):
 
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(prog="serve.py", description="Atelier web app (local, single user).")
-    ap.add_argument("--host", default="127.0.0.1", help="bind address (default 127.0.0.1)")
-    ap.add_argument("--port", type=int, default=8770, help="port (default 8770)")
+    ap.add_argument("--host", default=config.DEFAULT_HOST, help="bind address (default 127.0.0.1)")
+    ap.add_argument("--port", type=int, default=config.DEFAULT_PORT, help="port (default 8770)")
     ap.add_argument("--data-dir", default=None, help="data directory (default $ATELIER_DATA_DIR or ~/.local/share/atelier)")
     ap.add_argument("--private-dir", default=None,
                     help="private calibrations (default $ATELIER_PRIVATE_DIR or <data-dir>/private)")
@@ -88,7 +89,6 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
-    import os
     a = parse_args(argv)
     if not is_loopback(a.host) and not a.allow_remote:
         print(f"refusing to bind {a.host}: not a loopback address (pass --allow-remote to override)", file=sys.stderr)
@@ -97,8 +97,8 @@ def main(argv=None):
         print("--allowed-host needs --allow-remote", file=sys.stderr)
         return 2
     host = "127.0.0.1" if a.host == "localhost" else a.host
-    data = a.data_dir or default_data_dir()
-    private = a.private_dir or os.environ.get("ATELIER_PRIVATE_DIR") or None
+    data = a.data_dir or config.default_data_dir()
+    private = a.private_dir or None  # default: config.default_private_dir()
     extra = list(a.allowed_host)
     if a.allow_remote and not is_loopback(host):
         extra.append(f"{host}:{a.port}")

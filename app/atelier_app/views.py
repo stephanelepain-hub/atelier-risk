@@ -4,7 +4,7 @@ import html
 import re
 import urllib.parse
 
-from . import engine
+from . import calibrations, engine
 
 FIELDS = {
     "business_values": ["id", "label", "nature", "owner"],
@@ -162,7 +162,7 @@ def study_list(rows, cals, session, flash=""):
     table = ("<p class=\"empty\">No study yet. Create one, import a study file or load the guide example.</p>" if not trs else
              "<table class=\"list\"><thead><tr><th>Name</th><th>Calibration</th><th>Last modified</th><th>Checks</th>"
              "<th>Actions</th></tr></thead><tbody>" + "".join(trs) + "</tbody></table>")
-    opts = "".join(f'<option value="{esc(c)}"{" selected" if c == engine.DEFAULT_CAL else ""}>{esc(c)} ({esc(k)})</option>'
+    opts = "".join(f'<option value="{esc(c)}"{" selected" if c == calibrations.DEFAULT else ""}>{esc(c)} ({esc(k)})</option>'
                    for c, k in sorted(cals.items()))
     body = f"""<h1>Studies</h1>
 {table}

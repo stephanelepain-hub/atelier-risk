@@ -38,9 +38,10 @@ def load_or_create_token(path):
 
 
 class Session:
-    __slots__ = ("sid", "csrf", "seen")
+    __slots__ = ("sid", "csrf", "seen", "user")
 
-    def __init__(self):
+    def __init__(self, user):
+        self.user = user
         self.sid = secrets.token_urlsafe(32)
         self.csrf = secrets.token_urlsafe(32)
         self.seen = time.time()
@@ -65,8 +66,8 @@ class Auth:
                 self.failures.append(now)
             return "ok" if ok else "bad"
 
-    def new_session(self):
-        s = Session()
+    def new_session(self, user):
+        s = Session(user)
         with self.lock:
             self.sessions[s.sid] = s
         return s

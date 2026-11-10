@@ -8,11 +8,11 @@ import threading
 import traceback
 import urllib.parse
 
-from . import REPO_DIR, STATIC_DIR, auth, engine, views
+from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, engine, views
 from .storage import NotFound, Store
 from .web import HTTPError, Request, Response, Router, redirect
 
-MAX_UPLOAD = 5 * 1024 * 1024
+MAX_UPLOAD = config.MAX_UPLOAD
 EXAMPLE = REPO_DIR / "examples" / "anssi-guide-vaccine-example.json"
 SID = r"(s-[0-9]{8}-[0-9a-f]{8})"
 W1SLUG = r"(bv|sa|fe|bl)"
@@ -35,13 +35,6 @@ class FormError(Exception):
     pass
 
 
-def default_data_dir():
-    if os.environ.get("ATELIER_DATA_DIR"):
-        return pathlib.Path(os.environ["ATELIER_DATA_DIR"]).expanduser()
-    base = os.environ.get("XDG_DATA_HOME") or str(pathlib.Path.home() / ".local" / "share")
-    return pathlib.Path(base).expanduser() / "atelier"
-
-
 def allowed_hosts_for(port, extra=()):
     return {f"127.0.0.1:{port}", f"localhost:{port}"} | {h.lower() for h in extra}
 
@@ -51,13 +44,13 @@ def _no_constants(x):
 
 
 class App:
-    def __init__(self, data_dir, private_dir=None, port=8770, extra_hosts=(), max_upload=MAX_UPLOAD):
+    def __init__(self, data_dir, private_dir=None, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD):
         self.data_dir = pathlib.Path(data_dir)
         self.store = Store(self.data_dir)
-        self.private_dir = pathlib.Path(private_dir) if private_dir else self.data_dir / "private"
+        self.private_dir = pathlib.Path(private_dir) if private_dir else config.default_private_dir(self.data_dir)
         self.private_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.private_dir, 0o700)
-        os.environ["ATELIER_PRIVATE_DIR"] = str(self.private_dir)  # read by the engine at every call
+        calibrations.use_private_dir(self.private_dir)
         self.tmp_dir = self.data_dir / "tmp"
         self.tmp_dir.mkdir(exist_ok=True, mode=0o700)
         os.chmod(self.tmp_dir, 0o700)
@@ -69,6 +62,10 @@ class App:
         self.set_port(port)
         self.edit_lock = threading.Lock()
         self.router = self._routes()
+
+    def store_for(self, session):
+        """The study store of a session's user. A local install has one user and one store."""
+        return self.store
 
     def set_port(self, port):
         self.port = port
@@ -143,8 +140,8 @@ class App:
                 resp.header(k, v)
         return resp
 
-    def _load(self, sid):
-        st = self.store.load(sid)
+    def _load(self, req, sid):
+        st = self.store_for(req.session).load(sid)
         if not isinstance(st, dict):
             raise HTTPError(500, "the study file is not a JSON object")
         return st
@@ -169,7 +166,7 @@ class App:
         return self._start_session("/")
 
     def _start_session(self, next_path):
-        s = self.auth.new_session()
+        s = self.auth.new_session(config.LOCAL_USER)
         resp = redirect(next_path)
         resp.header("Set-Cookie", auth.session_cookie(s.sid))
         resp.header("Set-Cookie", f"{auth.PRE_COOKIE}=; HttpOnly; SameSite=Strict; Path=/login; Max-Age=0")
@@ -203,11 +200,11 @@ class App:
         return Response((STATIC_DIR / name).read_bytes(), 200, STATIC[name])
 
     def cal_css(self, req, cal_id):
-        if cal_id not in engine.calibrations():
+        if cal_id not in calibrations.available():
             raise HTTPError(404, "unknown calibration")
         try:
-            cal = engine.load_cal(cal_id)
-        except engine.CalibrationError as e:
+            cal = calibrations.load(cal_id)
+        except calibrations.CalibrationError as e:
             raise HTTPError(404, str(e))
         return Response(views.cal_css(cal), 200, "text/css; charset=utf-8")
 
@@ -215,24 +212,24 @@ class App:
 
     def index(self, req):
         rows = []
-        for sid, st, mtime in self.store.list():
+        for sid, st, mtime in self.store_for(req.session).list():
             chk = engine.check(st) if st is not None else {"errors": ["file unreadable"], "warnings": [],
                                                             "calibration": "?", "cal": None}
             rows.append((sid, st, mtime, chk))
-        return Response(views.study_list(rows, engine.calibrations(), req.session, req.arg("f")))
+        return Response(views.study_list(rows, calibrations.available(), req.session, req.arg("f")))
 
     def new_study(self, req):
         name = req.field("name").strip()
         if not name or len(name) > 200:
             raise HTTPError(400, "a name of 1 to 200 characters is required")
-        cal = req.field("calibration") or engine.DEFAULT_CAL
-        if cal not in engine.calibrations():
+        cal = req.field("calibration") or calibrations.DEFAULT
+        if cal not in calibrations.available():
             raise HTTPError(400, "unknown calibration")
         st = {"format": "atelier-study", "version": "0.1",
               "study": {"name": name, "scope": req.field("scope").strip()[:4000], "calibration": cal}}
         for k in engine.COLLECTIONS:
             st[k] = []
-        sid = self.store.create(st)
+        sid = self.store_for(req.session).create(st)
         return redirect(f"/s/{sid}/w1?f=created")
 
     def _accept_study(self, raw, filename):
@@ -246,9 +243,9 @@ class App:
         errs = engine.structure_errors(st)
         if errs:
             return None, errs
-        cal = engine.study_cal_id(st)
-        if cal not in engine.calibrations():
-            return None, [f"unknown calibration '{cal}' (available: {', '.join(sorted(engine.calibrations()))})"]
+        cal = calibrations.of_study(st)
+        if cal not in calibrations.available():
+            return None, [f"unknown calibration '{cal}' (available: {', '.join(sorted(calibrations.available()))})"]
         return st, None
 
     def import_study(self, req):
@@ -261,67 +258,67 @@ class App:
         st, errs = self._accept_study(raw, filename)
         if errs:
             return Response(views.import_errors(filename, errs, req.session), 400)
-        sid = self.store.create(st)
+        sid = self.store_for(req.session).create(st)
         return redirect(f"/s/{sid}?f=imported")
 
     def load_example(self, req):
         st, errs = self._accept_study(EXAMPLE.read_bytes(), EXAMPLE.name)
         if errs:
             raise HTTPError(500, "; ".join(errs))
-        sid = self.store.create(st)
+        sid = self.store_for(req.session).create(st)
         return redirect(f"/s/{sid}?f=example")
 
     # ---------- one study ----------
 
     def overview(self, req, sid):
-        st = self._load(sid)
-        return Response(views.overview(sid, st, engine.check(st), self.store.mtime(sid), req.session, req.arg("f")))
+        st = self._load(req, sid)
+        return Response(views.overview(sid, st, engine.check(st), self.store_for(req.session).mtime(sid), req.session, req.arg("f")))
 
     def rename(self, req, sid):
         name = req.field("name").strip()
         if not name or len(name) > 200:
             raise HTTPError(400, "a name of 1 to 200 characters is required")
         with self.edit_lock:
-            st = self._load(sid)
+            st = self._load(req, sid)
             meta = st.get("study") if isinstance(st.get("study"), dict) else {}
             meta["name"] = name
             meta["scope"] = req.field("scope").strip()[:4000]
             st["study"] = meta
-            self.store.save(sid, st)
+            self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}?f=renamed")
 
     def duplicate(self, req, sid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         meta = st.get("study") if isinstance(st.get("study"), dict) else {}
         meta["name"] = (meta.get("name") or "study") + " (copy)"
         st["study"] = meta
-        self.store.create(st)
+        self.store_for(req.session).create(st)
         return redirect("/?f=duplicated")
 
     def delete_confirm(self, req, sid):
-        return Response(views.confirm_delete(sid, self._load(sid), req.session))
+        return Response(views.confirm_delete(sid, self._load(req, sid), req.session))
 
     def delete(self, req, sid):
-        self.store.delete(sid)
+        self.store_for(req.session).delete(sid)
         return redirect("/?f=removed")
 
     def w1(self, req, sid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         return Response(views.w1_page(sid, st, engine.check(st), req.session, req.arg("f")))
 
     def workshop(self, req, sid, n):
-        st = self._load(sid)
+        st = self._load(req, sid)
         return Response(views.workshop_ro(sid, st, engine.check(st), int(n), req.session))
 
     def locate(self, req, sid, eid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         idx = views.element_index(st)
         if eid not in idx:
             raise HTTPError(404, "no such element in this study")
         return redirect(f"/s/{sid}/w{idx[eid][1]}#{views.anchor(eid)}")
 
     def register(self, req, sid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         chk = engine.check(st)
         if chk["errors"] or not chk["cal"]:
             return Response(views.register_blocked(sid, st, chk, req.session))
@@ -334,13 +331,13 @@ class App:
         return f"{base}.{ext}"
 
     def export_json(self, req, sid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         data = (json.dumps(st, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
         return Response(data, 200, "application/json; charset=utf-8",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "json")}"')])
 
     def export_xlsx(self, req, sid):
-        st = self._load(sid)
+        st = self._load(req, sid)
         chk = engine.check(st)
         if chk["errors"] or not chk["cal"]:
             raise HTTPError(409, "the engine exports only a study without errors; fix the errors listed in the checks")
@@ -426,7 +423,7 @@ class App:
     def w1_add(self, req, sid, slug):
         key = views.W1[slug]
         with self.edit_lock:
-            st = self._load(sid)
+            st = self._load(req, sid)
             chk = engine.check(st)
             try:
                 fields = self._w1_fields(key, req, st, chk.get("cal"))
@@ -436,7 +433,7 @@ class App:
             if not isinstance(st.get(key), list):
                 st[key] = []
             st[key].append(el)
-            self.store.save(sid, st)
+            self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/w1?f=added#{views.anchor(el['id'])}")
 
     def _find(self, st, key, eid):
@@ -447,13 +444,13 @@ class App:
 
     def w1_edit_form(self, req, sid, slug, eid):
         key = views.W1[slug]
-        st = self._load(sid)
+        st = self._load(req, sid)
         return Response(views.w1_edit(sid, st, engine.check(st), key, self._find(st, key, eid), req.session))
 
     def w1_save(self, req, sid, slug, eid):
         key = views.W1[slug]
         with self.edit_lock:
-            st = self._load(sid)
+            st = self._load(req, sid)
             el = self._find(st, key, eid)
             chk = engine.check(st)
             try:
@@ -461,14 +458,14 @@ class App:
             except FormError as e:
                 return Response(views.w1_edit(sid, st, chk, key, el, req.session, str(e)), 400)
             self._apply(el, fields)
-            self.store.save(sid, st)
+            self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/w1?f=saved#{views.anchor(eid)}")
 
     def w1_delete(self, req, sid, slug, eid):
         key = views.W1[slug]
         with self.edit_lock:
-            st = self._load(sid)
+            st = self._load(req, sid)
             el = self._find(st, key, eid)
             st[key] = [x for x in st[key] if x is not el]
-            self.store.save(sid, st)
+            self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/w1?f=deleted#sec-{urllib.parse.quote(slug)}")
