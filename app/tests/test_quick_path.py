@@ -377,6 +377,29 @@ class ValidationTest(Base):
         self.assertIn(escaped, self.page(f"/quick/{sid}/results"))
 
 
+class EmptyTest(Base):
+    def test_no_risk_kept_gives_friendly_empty_states_and_a_valid_study(self):
+        sid = self.start()
+        ids = re.findall(r'name="keep" value="([^"]+)"', self.page(f"/quick/{sid}/risks"))
+        form = {"keep": [], "lang": "en"}
+        for r in self.cat["risks"]:
+            form[f"reason_{r['id']}"] = "not relevant"
+        r = self.post(f"/quick/{sid}/risks", form)
+        self.assertEqual(r.status, 303)
+        t = self.page(f"/quick/{sid}/now")
+        self.assertIn("You have not kept any risk yet.", t)
+        self.assertIn(f'href="/quick/{sid}/risks"', t)
+        self.assertNotIn("<form method=\"post\" action=\"/quick/", t.split("</nav>", 2)[-1])
+        t = self.page(f"/quick/{sid}/results")
+        self.assertIn("You have not kept any risk yet.", t)
+        self.assertIn("No action yet.", t)
+        self.assertIn('<span class="big-n">0%</span>', t)
+        st = self.study(sid)
+        self.assertEqual(engine.check(st)["errors"], [])
+        self.assertEqual(engine.register(st, self.cal)[0], [])
+        self.assertEqual(len(ids), len([e for e in st["quick"]["risks"] if e["decision"] == "discard"]))
+
+
 class ConfidenceAndAssumptionsTest(Base):
     def conf(self, sid):
         return engine.quick_confidence(self.study(sid)["quick"], self.cat)

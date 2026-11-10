@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import pathlib
 import re
@@ -419,12 +420,15 @@ class AssumptionsAndActions(unittest.TestCase):
 class Honesty(unittest.TestCase):
     def test_statement_constants(self):
         self.assertEqual(set(quick.HONESTY), {"en", "fr"})
-        self.assertTrue(quick.HONESTY["en"].startswith("This analysis reflects only the answers you gave and the documents you provided."))
+        # the exact English text of the owner's brief, pinned by hash so that the text itself stays in one place
+        self.assertEqual(hashlib.sha256(quick.HONESTY["en"].encode("utf-8")).hexdigest(),
+                         "02f1e09c76e2938862de6d93b89bf8dca6c15c61df681c8c15a1f6f9283e52a0")
         self.assertIn("treat it as a first view.", quick.HONESTY["en"])
         self.assertTrue(quick.HONESTY["fr"].startswith("Cette analyse reflète uniquement"))
+        self.assertIn("première vue", quick.HONESTY["fr"])
 
     def test_the_text_is_written_once_in_the_engine_package_and_app(self):
-        needle = "reflects only the answers you gave"
+        needle = "reflects only the " + "answers you gave"
         hits = []
         for base in (ROOT / "engine", ROOT / "app"):
             for f in base.rglob("*.py"):

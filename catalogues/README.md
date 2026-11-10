@@ -28,8 +28,7 @@ company names and no text copied from another catalogue.
 
 The guide's typology is short; the five origins and five objectives used here are the ones its glossary and its
 workshop 2 example name. Each accidental risk carries its Table D-2 family in `nist_source`. Theft of equipment is
-adversarial in Table D-2; it is listed with the accidental family because it is a loss of equipment from the
-person's point of view (owner's brief for the quick path).
+adversarial in Table D-2; it is listed with the accidental family because, from the person's point of view, it is a loss of equipment.
 
 ## What the figures mean
 
