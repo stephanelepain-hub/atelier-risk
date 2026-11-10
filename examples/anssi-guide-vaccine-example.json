@@ -1,0 +1,47 @@
+{
+  "format": "atelier-study",
+  "version": "0.1",
+  "study": {
+    "name": "Vaccine manufacturer (worked example of the ANSSI EBIOS Risk Manager v1.5 guide)",
+    "scope": "Example only. Risks R1-R5 and their positions are those of the guide's initial risk map (p.75). Feared events, risk origins and scenarios are reduced to the minimum the format needs.",
+    "calibration": "anssi-v1.5",
+    "source": "ANSSI, EBIOS Risk Manager v1.5 (2024), Licence Ouverte / Open Licence (Etalab V1)"
+  },
+  "business_values": [
+    {"id": "BV1", "label": "Research and development (vaccines)", "nature": "information"},
+    {"id": "BV2", "label": "Vaccine production", "nature": "process"},
+    {"id": "BV3", "label": "Vaccine distribution", "nature": "process"}
+  ],
+  "feared_events": [
+    {"id": "FE1", "business_value": "BV1", "label": "R&D information stolen", "criterion": "confidentiality", "severity": 3},
+    {"id": "FE2", "business_value": "BV2", "label": "Production stopped", "criterion": "availability", "severity": 4},
+    {"id": "FE3", "business_value": "BV3", "label": "Distribution disrupted (wrong labelling)", "criterion": "integrity", "severity": 4}
+  ],
+  "risk_origins": [
+    {"id": "RO1", "origin": "Competitor", "objective": "Steal R&D information", "decision": "selected", "feared_events": ["FE1"]},
+    {"id": "RO2", "origin": "Activist", "objective": "Stop or disrupt vaccine supply", "decision": "selected", "feared_events": ["FE2", "FE3"]}
+  ],
+  "stakeholders": [
+    {"id": "SH1", "name": "Research laboratory", "category": "partner"},
+    {"id": "SH2", "name": "IT service provider", "category": "supplier"},
+    {"id": "SH3", "name": "Equipment supplier (maintenance)", "category": "supplier"}
+  ],
+  "strategic_scenarios": [
+    {"id": "SS1", "risk_origin": "RO1", "feared_events": ["FE1"], "severity": 3, "paths": [
+      {"id": "SS1-P1", "label": "Direct exfiltration channel"},
+      {"id": "SS1-P2", "label": "Exfiltration of data held by the laboratory", "stakeholder": "SH1"},
+      {"id": "SS1-P3", "label": "Exfiltration channel via the IT service provider", "stakeholder": "SH2"}]},
+    {"id": "SS2", "risk_origin": "RO2", "feared_events": ["FE2"], "severity": 4, "paths": [
+      {"id": "SS2-P1", "label": "Compromise of the supplier's maintenance equipment", "stakeholder": "SH3"}]},
+    {"id": "SS3", "risk_origin": "RO2", "feared_events": ["FE3"], "severity": 4, "paths": [
+      {"id": "SS3-P1", "label": "Tampering with vaccine labelling"}]}
+  ],
+  "risks": [
+    {"id": "R1", "strategic_scenario": "SS1", "label": "A competitor steals R&D information through a direct exfiltration channel", "severity": 3, "likelihood": 3},
+    {"id": "R2", "strategic_scenario": "SS1", "label": "A competitor steals R&D information by exfiltrating the data held by the laboratory", "severity": 3, "likelihood": 2},
+    {"id": "R3", "strategic_scenario": "SS1", "label": "A competitor steals R&D information through an exfiltration channel via the IT service provider", "severity": 3, "likelihood": 4},
+    {"id": "R4", "strategic_scenario": "SS2", "label": "An activist stops vaccine production by compromising the equipment supplier's maintenance equipment", "severity": 4, "likelihood": 2},
+    {"id": "R5", "strategic_scenario": "SS3", "label": "An activist disrupts vaccine distribution by changing their labelling", "severity": 4, "likelihood": 1}
+  ],
+  "measures": []
+}

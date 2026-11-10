@@ -1,0 +1,17 @@
+Atelier
+Copyright 2026 The Atelier contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes material reproduced or adapted from:
+
+  EBIOS Risk Manager - Le guide, version 1.5 (September 2024), ANSSI-PA-048
+  Agence nationale de la sécurité des systèmes d'information (ANSSI)
+  https://cyber.gouv.fr/
+  Licence Ouverte / Open Licence (Etalab, version 1)
+
+  Used in: calibrations/anssi-v1.5.json (severity and likelihood scales, p.26 and p.66; acceptance
+  classes, p.74; risk grid, p.75) and examples/anssi-guide-vaccine-example.json (worked example, p.75).
+  These have been translated into English and restructured; ANSSI does not endorse this product.
+
+EBIOS is a registered trademark of the Secrétariat général de la défense et de la sécurité nationale.
