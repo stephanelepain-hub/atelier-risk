@@ -1,4 +1,5 @@
 """The only place the app talks to the engine. Levels, checks and registers all come from here."""
+import copy
 import os
 import tempfile
 
@@ -6,6 +7,10 @@ from . import ENGINE_DIR  # noqa: F401  (puts the engine on sys.path)
 from atelier_engine import calibration, study as study_mod  # noqa: E402
 
 COLLECTIONS = list(study_mod.COLLECTIONS)
+DECISIONS = frozenset(study_mod.DECISIONS)
+TREATMENTS = frozenset(x for x in study_mod.TREATMENTS if x is not None)
+MEASURE_STATUS = frozenset(study_mod.MEASURE_STATUS)
+DERIVED_SEVERITY = ("strategic_scenarios", "risks")  # the engine checks these against their sources
 DEFAULT_CAL = "anssi-v1.5"
 CalibrationError = calibration.CalibrationError
 
@@ -90,3 +95,52 @@ def to_xlsx_bytes(st, cal, tmp_dir):
             return f.read()
     finally:
         os.unlink(path)
+
+
+def derived_severity(st, cal, key, eid):
+    """The severity the engine's checks accept for strategic scenario or risk `eid`, or None if they leave it open.
+
+    The engine checks that a strategic scenario's severity is the highest of its feared events (guide p.49) and that
+    a risk's severity is its scenario's, but it has no function that returns that value. So the app asks the
+    engine's own validate(): it tries 1 to 4 on a copy and keeps the single value that raises no severity error for
+    this element. The rule itself is never coded in the app. If the engine gains a function for it, only this
+    function changes.
+    """
+    if key not in DERIVED_SEVERITY or not cal or structure_errors(st):
+        return None
+    probe = copy.deepcopy(st)
+    hits = [x for x in probe.get(key) or [] if isinstance(x, dict) and x.get("id") == eid]
+    if len(hits) != 1:
+        return None
+    el, prefix, ok = hits[0], f"{eid}: severity ", []
+    for k in (1, 2, 3, 4):
+        el["severity"] = k
+        try:
+            errs = study_mod.validate(probe, cal)["errors"]
+        except Exception:  # a shape the engine does not expect: no value
+            return None
+        if not any(e.startswith(prefix) for e in errs):
+            ok.append(k)
+    return ok[0] if len(ok) == 1 else None
+
+
+def severity_errors(chk, eid):
+    """The engine's severity errors for one element, as the engine words them."""
+    return [e for e in chk.get("errors", []) if e.startswith(f"{eid}: severity ")]
+
+
+def take_severities(st, cal, only=None):
+    """Store the engine-accepted severity on strategic scenarios, then on risks (they follow their scenario).
+
+    `only` limits the change to one element id. Returns [(id, old, new)] for the values that changed.
+    """
+    changed = []
+    for key in DERIVED_SEVERITY:
+        for x in st.get(key) or []:
+            if not isinstance(x, dict) or (only is not None and x.get("id") != only):
+                continue
+            v = derived_severity(st, cal, key, x.get("id"))
+            if v is not None and x.get("severity") != v:
+                changed.append((x.get("id"), x.get("severity"), v))
+                x["severity"] = v
+    return changed
