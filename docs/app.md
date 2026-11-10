@@ -113,9 +113,10 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
   row it names, in the right workshop tab, and that row is highlighted.
 - Overview: a study progress strip with, per workshop, the number of objects and of the engine's open errors
   and warnings.
-- Risk register and grids: the engine's register, and the calibration's severity x likelihood grid now and at
-  target, side by side, each risk in its cell, coloured with the calibration's level colours. A study with
-  errors gets no register, as with the engine CLI.
+- Risk register and grids: the engine's register and inline SVG maps now and at target, side by side. The
+  engine renders both maps with the calibration's `map_orientation` (severity rows by default, or likelihood
+  rows). Expand "Tabular risk grids" for the accessible table alternative (severity rows). A study with errors
+  gets no register, as with the engine CLI. Malformed colour values use a neutral fallback before inline rendering.
 - Downloads: the study JSON, and the engine's Excel export.
 - A refused form comes back with what you typed. The message (the app's, or the engine's refusal of a value
   outside 1-4) sits next to the field it is about, and the study file is not changed.
@@ -196,7 +197,11 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
 - `remote`: any OpenAI-compatible URL. Refused for private studies, in code, before anything is sent.
 - `key_file` (optional) names a file holding the API key on one line, mode 0600; a file readable by others is
   refused. The key is sent only in the `Authorization` header; it is never logged, stored or shown.
-- Requests ignore proxy settings and do not follow redirects, so an endpoint cannot pass a request on.
+- Requests ignore proxy settings and do not follow redirects, so an endpoint cannot redirect a request.
+- Local requests use `reasoning_effort: "none"`, a maximum of 4096 output tokens and a timeout of at least
+  360 seconds (up to 600 when configured). They run one at a time across studies and settings changes.
+  The submit button says "Drafting..." and a status message stays visible while waiting; keep the page open.
+  Open the loopback forward yourself while using the app and close it afterwards.
 - The Settings page writes the file atomically with mode 0600 and warns when its mode is looser.
 
 ### Limits and log
@@ -207,6 +212,8 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
 - The source text is cut into chunks that fit `context_tokens` minus the output tokens, the prompt and the study
   summary, at 4 characters a token (an estimate: there is no tokenizer in the standard library). At most
   `max_chunks` requests are sent per draft; when the text needs more, the panel says how much was sent.
+  If the prompt, summary and output allowance already exhaust the configured context, the request is refused
+  before sending anything; raise the context limit or lower the output limit.
 - `drafting-log.jsonl` gets one line per request and per refused attempt: time, study id, workshop, route,
   model, endpoint, outcome, request number, source size in characters, number of documents, max output tokens,
   prompt and completion tokens (from the endpoint, or estimated and marked so), items read, latency. Never
@@ -258,8 +265,9 @@ Rule of trust: the model drafts, the engine computes and checks, you validate. A
   function changes.
 - No relevance aid for risk origins and no stakeholder threat level: the engine does not compute them yet.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
-- Drafting was built and tested against a local stub of an OpenAI-compatible API only; no real model was called
-  while building it. Token counts for chunking are estimates (4 characters a token).
+- Automated tests use a local OpenAI-compatible stub. A separate smoke test exercises one W1 draft with a
+  public guide example on a local model; it does not establish the quality of drafts for other workshops or
+  private documents. Token counts for chunking are estimates (4 characters a token).
 - The rate limit lives in memory: a restart resets it.
 - A drafted strategic scenario brings its first attack path into the form; its other proposed paths are listed
   so you can add them with Edit after accepting.
