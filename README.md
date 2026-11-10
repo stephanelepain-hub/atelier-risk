@@ -18,7 +18,10 @@ Status: early (v0.1). The engine works. The web app is being built.
   scenario's severity follows its feared events, an operational scenario inherits it, and every risk matches its
   scenario. High-severity feared events left out of every scenario are flagged as blind spots.
 - **Risk register.** Level now and at target, acceptability, linked measures, and counts per level.
-- **Excel export.** A risk register with coloured levels, plus one sheet per workshop object.
+- **Risk maps.** The calibration's grid with each risk placed in its cell, now, at target and initially, as SVG or
+  as Excel sheets. The default orientation is the ANSSI guide's figure (severity in rows); a calibration can set
+  `map_orientation` to `likelihood-rows`.
+- **Excel export.** A risk register with coloured levels, risk maps, plus one sheet per workshop object.
 - **Spreadsheet import (review).** Reads an existing risk analysis from an .xlsx file (register, measures, risk
   maps; levels as text or only as colours), recomputes the levels and lists what does not hold together. See
   `docs/import.md`.
@@ -33,6 +36,7 @@ python3 -m atelier_engine validate ../examples/anssi-guide-vaccine-example.json
 python3 -m atelier_engine register ../examples/anssi-guide-vaccine-example.json
 pip install openpyxl   # only for the Excel export
 python3 -m atelier_engine export ../examples/anssi-guide-vaccine-example.json risks.xlsx
+python3 -m atelier_engine map ../examples/anssi-guide-vaccine-example.json map.svg --stage now
 python3 -m atelier_engine import filled.xlsx --cal anssi-v1.5   # review an existing analysis
 python3 -m unittest    # tests
 ```
@@ -43,7 +47,7 @@ Python 3.8 or later. The standard library is enough, except for the Excel export
 
 | Path | Content |
 |---|---|
-| `engine/atelier_engine/` | calibrations, study checks, risk register, export, spreadsheet import, CLI |
+| `engine/atelier_engine/` | calibrations, study checks, risk register, risk maps, export, spreadsheet import, CLI |
 | `layouts/` | public spreadsheet layouts for the import (JSON) |
 | `calibrations/` | public calibrations (JSON) |
 | `examples/` | the worked example of the ANSSI guide, as a study file |

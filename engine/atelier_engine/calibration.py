@@ -50,6 +50,8 @@ def check(cal):
     rank = {l["name"]: l["rank"] for l in levels}
     if len(rank) != len(levels) or not levels:
         raise CalibrationError(f"{cid}: levels missing or duplicated")
+    if cal.get("map_orientation") not in (None, "severity-rows", "likelihood-rows"):
+        raise CalibrationError(f"{cid}: map_orientation must be severity-rows or likelihood-rows")
     for k in ("severity", "likelihood"):
         if [x.get("n") for x in cal.get(k, [])] != [1, 2, 3, 4]:
             raise CalibrationError(f"{cid}: {k} scale must be 1-4")

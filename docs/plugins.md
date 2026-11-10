@@ -9,11 +9,13 @@
   "severity":   [{"n": 1, "code": "G1", "label": "..."}, "... n = 1 to 4"],
   "likelihood": [{"n": 1, "code": "V1", "label": "..."}, "... n = 1 to 4"],
   "levels": [{"name": "Low", "rank": 1, "colour": "00B050", "acceptability": "...", "action": "..."}, "..."],
-  "grid_by_severity": {"4": ["...", "...", "...", "..."], "3": [], "2": [], "1": []}
+  "grid_by_severity": {"4": ["...", "...", "...", "..."], "3": [], "2": [], "1": []},
+  "map_orientation": "severity-rows"
 }
 ```
 
-`grid_by_severity["s"][v-1]` is the level for severity `s` and likelihood `v`. The engine refuses a calibration
+`map_orientation` is optional: `severity-rows` (the ANSSI figure, default) or `likelihood-rows` (severity across,
+likelihood down). `grid_by_severity["s"][v-1]` is the level for severity `s` and likelihood `v`. The engine refuses a calibration
 whose scales are not 1-4, whose grid uses an undeclared level, or whose level drops as severity or likelihood
 rises.
 

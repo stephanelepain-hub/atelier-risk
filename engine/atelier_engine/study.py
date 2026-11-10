@@ -150,6 +150,9 @@ def register(study, cal):
         row["acceptability"] = cal_mod.level_info(cal, row["level"]).get("acceptability", "")
         if r.get("likelihood_target"):
             row["level_target"] = cal_mod.level(cal, r["severity"], r["likelihood_target"])
+        if r.get("likelihood_initial"):
+            row["likelihood_initial"] = r["likelihood_initial"]
+            row["level_initial"] = cal_mod.level(cal, r["severity"], r["likelihood_initial"])
         row["measures"] = [m["id"] for m in measures if r.get("id") in (m.get("risks") or [])]
         rows.append(row)
     return rows

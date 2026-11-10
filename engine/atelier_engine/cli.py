@@ -7,6 +7,7 @@
   python3 -m atelier_engine validate study.json [--cal ID]           # calibration defaults to study.calibration
   python3 -m atelier_engine register study.json [--cal ID]
   python3 -m atelier_engine export   study.json out.xlsx [--cal ID]
+  python3 -m atelier_engine map      study.json out.svg [--stage now|target|initial] [--cal ID] [--orientation O]
   python3 -m atelier_engine layouts
   python3 -m atelier_engine import   filled.xlsx --cal ID [--layout ID] [--out study.json]
 
@@ -55,6 +56,9 @@ def main(argv=None):
         p = sp.add_parser(name); p.add_argument("file"); p.add_argument("--cal")
     p = sp.add_parser("export"); p.add_argument("file"); p.add_argument("out"); p.add_argument("--cal")
     sp.add_parser("layouts")
+    p = sp.add_parser("map"); p.add_argument("file"); p.add_argument("out"); p.add_argument("--cal")
+    p.add_argument("--stage", default="now", choices=("now", "target", "initial"))
+    p.add_argument("--orientation", choices=("severity-rows", "likelihood-rows"))
     p = sp.add_parser("import"); p.add_argument("file"); p.add_argument("--cal", required=True)
     p.add_argument("--layout"); p.add_argument("--out")
     plugin = _plugin()
@@ -110,6 +114,12 @@ def main(argv=None):
         if a.cmd == "register":
             rows = study_mod.register(st, cal)
             return out({"calibration": cal["id"], "risks": rows, "summary": study_mod.summary(rows, cal), "warnings": check["warnings"]})
+        if a.cmd == "map":
+            from . import maps
+            rows = study_mod.register(st, cal)
+            pathlib.Path(a.out).write_text(maps.svg(rows, cal, a.stage, orientation=a.orientation), encoding="utf-8")
+            return out({"written": a.out, "stage": a.stage, "placed": sum(len(v) for v in maps.placements(rows, a.stage).values()),
+                        "calibration": cal["id"]})
         if a.cmd == "export":
             from . import export
             return out({"written": export.to_xlsx(st, cal, a.out), "calibration": cal["id"], "warnings": check["warnings"]})

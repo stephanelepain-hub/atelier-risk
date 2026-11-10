@@ -1,4 +1,5 @@
-"""Excel export of a study: one sheet for the risk register (coloured levels), one per workshop object."""
+"""Excel export of a study: the risk register (coloured levels), risk maps (now, target, initial when present),
+then one sheet per workshop object."""
 from . import calibration as cal_mod
 from . import study as study_mod
 
@@ -16,7 +17,7 @@ def _cell(v):
     return v
 
 
-def to_xlsx(study, cal, path):
+def to_xlsx(study, cal, path, orientation=None):
     try:
         import openpyxl
         from openpyxl.styles import Alignment, Font, PatternFill
@@ -37,6 +38,10 @@ def to_xlsx(study, cal, path):
             name = r.get(c)
             if name and colour.get(name):
                 ws.cell(ws.max_row, cols.index(c) + 1).fill = PatternFill("solid", fgColor=colour[name])
+    from . import maps
+    for stage, key in (("now", "level"), ("target", "level_target"), ("initial", "level_initial")):
+        if any(r.get(key) for r in rows):
+            maps.add_sheet(wb, rows, cal, stage, orientation=orientation)
     for key, title in SHEETS:
         items = study.get(title) or []
         if not items:
@@ -47,6 +52,8 @@ def to_xlsx(study, cal, path):
         for x in items:
             sh.append([_cell(x.get(f)) for f in fields])
     for sh in wb.worksheets:
+        if sh.title.startswith("Map "):
+            continue
         for c in sh[1]:
             c.fill = head
             c.font = Font(bold=True, color="FFFFFF")
