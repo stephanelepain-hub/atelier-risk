@@ -707,3 +707,7 @@ operational scenario carrying the likelihood; measures become baseline items (in
 Out of scope for this first draft: document parsing on the quick path (the upload is stored and flagged only),
 FR text completeness beyond the quick path screens, accounts.
 
+Honesty statement of the quick path (built, first draft): the shorter wording of the owner's brief for the quick
+path is kept in `quick.HONESTY` (`engine/atelier_engine/quick.py`, EN and FR) and replaces the text of 2.1 for the
+quick path's home page, results pages and Excel header. The facts line of 2.1 is kept (documents, not provided,
+answers, assumptions, confidence). See docs/quick-path.md.
