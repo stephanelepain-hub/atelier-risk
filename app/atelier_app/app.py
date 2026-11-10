@@ -11,13 +11,15 @@ import urllib.parse
 
 import datetime
 
-from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, drafting, editors, engine, views, views_ws
+from . import (REPO_DIR, STATIC_DIR, auth, calibrations, config, documents, drafting, drafts, editors, engine, views,
+               views_draft, views_ws)
 from .storage import NotFound, Store
 from .web import HTTPError, Request, Response, Router, redirect
 
 MAX_UPLOAD = config.MAX_UPLOAD
 EXAMPLE = REPO_DIR / "examples" / "anssi-guide-vaccine-example.json"
 SID = r"(s-[0-9]{8}-[0-9a-f]{8})"
+DOCS_RE = re.compile(r"/s/s-[0-9]{8}-[0-9a-f]{8}/docs")
 W1SLUG = r"(bv|sa|fe|bl)"
 STATIC = {"app.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8"}
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; "
@@ -44,6 +46,14 @@ def allowed_hosts_for(port, extra=()):
     return {f"127.0.0.1:{port}", f"localhost:{port}"} | {h.lower() for h in extra}
 
 
+class EngineRefused(Exception):
+    """The engine refused a value of a W2-W5 form: (message above the form, {field: message})."""
+
+    def __init__(self, message, errs):
+        super().__init__(message)
+        self.message, self.errs = message, errs
+
+
 def _no_constants(x):
     raise ValueError(f"{x} is not valid JSON")
 
@@ -67,9 +77,22 @@ class App:
         self.extra_hosts = tuple(extra_hosts)
         self.set_port(port)
         self.edit_lock = threading.Lock()
-        self.drafter = drafting.Drafter(drafting_settings if drafting_settings is not None
-                                        else config.drafting_settings(self.data_dir))
+        self.docs = documents.DocStore(self.data_dir)
+        self.draft_log = self.data_dir / "drafting-log.jsonl"
+        self.limiter = drafting.RateLimiter()
+        self.load_drafter(drafting_settings)
         self.router = self._routes()
+
+    def load_drafter(self, settings=None):
+        """(Re)build the drafting adapter from the given settings, or from the settings file."""
+        raw = settings if settings is not None else config.drafting_settings(self.data_dir)
+        self.drafter = drafting.Drafter(raw, log_path=self.draft_log, limiter=self.limiter)
+
+    def body_limit(self, path):
+        """Request body cap: 20 MB (plus the multipart envelope) for a document upload, else max_upload."""
+        if DOCS_RE.fullmatch(path or ""):
+            return max(self.max_upload, config.MAX_DOCUMENT_BODY)
+        return self.max_upload
 
     def store_for(self, session):
         """The study store of a session's user. A local install has one user and one store."""
@@ -90,6 +113,8 @@ class App:
         r.add("POST", r"/logout", self.logout)
         r.add("POST", r"/login/link", self.login_link)
         r.add("GET", r"/", self.index)
+        r.add("GET", r"/settings", self.settings_form)
+        r.add("POST", r"/settings", self.settings_save)
         r.add("POST", r"/new", self.new_study)
         r.add("POST", r"/import", self.import_study)
         r.add("POST", r"/example", self.load_example)
@@ -111,8 +136,12 @@ class App:
         r.add("GET", rf"/s/{SID}/register", self.register)
         r.add("GET", rf"/s/{SID}/export\.json", self.export_json)
         r.add("GET", rf"/s/{SID}/export\.xlsx", self.export_xlsx)
+        r.add("GET", rf"/s/{SID}/docs", self.documents)
+        r.add("POST", rf"/s/{SID}/docs", self.document_upload)
+        r.add("POST", rf"/s/{SID}/docs/(d[0-9a-f]{{12}})/delete", self.document_delete)
         r.add("POST", rf"/s/{SID}/draft", self.draft)
         r.add("POST", rf"/s/{SID}/draft/clear", self.draft_clear)
+        r.add("POST", rf"/s/{SID}/draft/accept-all", self.draft_accept_all)
         r.add("POST", rf"/s/{SID}/draft/(D[0-9]{{1,6}})/accept", self.draft_accept)
         r.add("POST", rf"/s/{SID}/draft/(D[0-9]{{1,6}})/reject", self.draft_reject)
         r.add("POST", rf"/s/{SID}/w1/{W1SLUG}/add", self.w1_add)
@@ -126,8 +155,9 @@ class App:
             host = req.headers.get("host", "").lower()
             if host not in self.allowed_hosts:
                 raise HTTPError(421, "this server only answers to its own loopback address")
-            if len(req.body) > self.max_upload:
-                raise HTTPError(413, f"request body over {self.max_upload // (1024 * 1024)} MB")
+            limit = self.body_limit(req.path)
+            if len(req.body) > limit:
+                raise HTTPError(413, f"request body over {limit // (1024 * 1024)} MB")
             fn, args, public = self.router.match(req.method, req.path)
             req.session = self.auth.get(req.cookies.get(auth.SESSION_COOKIE))
             if not public and not req.session:
@@ -148,8 +178,9 @@ class App:
             resp = Response(views.error_page(500, "internal error (details in the server log)", req.session), 500)
         return self.secure(resp)
 
-    def too_large(self):
-        return self.secure(Response(views.error_page(413, f"request body over {self.max_upload // (1024 * 1024)} MB"), 413))
+    def too_large(self, path=""):
+        limit = self.body_limit(path)
+        return self.secure(Response(views.error_page(413, f"request body over {limit // (1024 * 1024)} MB"), 413))
 
     @staticmethod
     def secure(resp):
@@ -360,13 +391,16 @@ class App:
         return Response(views.confirm_delete(sid, self._load(req, sid), req.session))
 
     def delete(self, req, sid):
-        self.store_for(req.session).delete(sid)
+        store = self.store_for(req.session)
+        store.delete(sid)
+        stamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.docs.move_to(sid, store.trash / f"{sid}.{stamp}.documents")
         return redirect("/?f=removed")
 
     def _draft_ctx(self, req, sid, st, state=None):
         private, why = calibrations.study_privacy(st)
         return {"info": self.drafter.describe(private), "private": private, "why": why,
-                "drafts": self.store_for(req.session).load_drafts(sid), "state": state}
+                "drafts": self.store_for(req.session).load_drafts(sid), "state": state, "docs": self.docs.list(sid)}
 
     def _w1_page(self, req, sid, st, chk=None, flash="", form_error=None, draft_state=None, status=200):
         chk = chk or engine.check(st)
@@ -376,13 +410,18 @@ class App:
     def w1(self, req, sid):
         return self._w1_page(req, sid, self._load(req, sid), flash=req.arg("f"))
 
-    def _ws_page(self, req, sid, st, n, flash="", form_error=None, status=200):
+    def _ws_page(self, req, sid, st, n, flash="", form_error=None, status=200, draft_state=None):
         chk = engine.check(st)
         reg = None
         if n == 5 and not chk["errors"] and chk["cal"]:
             reg = engine.register(st, chk["cal"])
         return Response(views_ws.workshop_page(sid, st, chk, n, req.session, flash, req.arg("hl") or None,
-                                               form_error, reg), status)
+                                               form_error, reg, self._draft_ctx(req, sid, st, draft_state)), status)
+
+    def _draft_page(self, req, sid, st, n, state, status):
+        if n == 1:
+            return self._w1_page(req, sid, st, draft_state=state, status=status)
+        return self._ws_page(req, sid, st, n, draft_state=state, status=status)
 
     def workshop(self, req, sid, n):
         return self._ws_page(req, sid, self._load(req, sid), int(n), req.arg("f"))
@@ -576,12 +615,51 @@ class App:
             raise HTTPError(404, "not found")
         return key, ws, prefix
 
+    def _build(self, st, n, slug, req, eid=None):
+        """The study with one W2-W5 element added (eid None) or updated, as a copy: (candidate, element).
+
+        Raises editors.FormError for a value the form refuses, EngineRefused for one the engine refuses. The
+        severities of strategic scenarios and risks are the engine's (engine.take_severities), never the form's.
+        """
+        key, ws, prefix = self._spec(n, slug)
+        before = engine.check(st)
+        el = None if eid is None else self._find(st, key, eid)
+        fields = editors.parse(slug, req, st, el)
+        paths = editors.parse_paths(req, st, el) if slug == "ss" else None
+        cand = copy.deepcopy(st)
+        if not isinstance(cand.get(key), list):
+            cand[key] = []
+        if el is None:
+            target = {"id": editors.next_id(cand, prefix)}
+            cand[key].append(target)
+        else:
+            target = next(x for x in cand[key] if isinstance(x, dict) and str(x.get("id")) == eid)
+        editors.apply(target, fields)
+        if paths is not None:
+            taken = {p.get("id") for p in paths if p.get("id")}
+            for p in paths:
+                if p.get("id") is None:
+                    p["id"] = editors.next_path_id(cand, target["id"], taken)
+                    taken.add(p["id"])
+            if paths:
+                target["paths"] = paths
+            else:
+                target.pop("paths", None)
+        if key in engine.DERIVED_SEVERITY and before.get("cal"):
+            engine.take_severities(cand, before["cal"], only=target["id"])
+        refused = editors.scale_refusals(before, engine.check(cand), target["id"])
+        if refused:
+            by_field = editors.refusal_fields(slug, refused)
+            rest = [m for m in refused if m not in by_field.values()]
+            errs = {k: "The engine refused the value: " + m for k, m in by_field.items()}
+            raise EngineRefused("The engine refused the value: " + "; ".join(rest) if rest else "", errs)
+        return cand, target
+
     def _commit(self, req, sid, n, slug, eid=None):
         """Add (eid None) or update one element. Returns a Response. The file changes only on success."""
         key, ws, prefix = self._spec(n, slug)
         with self.edit_lock:
             st = self._load(req, sid)
-            before = engine.check(st)
             el = None if eid is None else self._find(st, key, eid)
 
             def refuse(msg, errs):
@@ -589,39 +667,14 @@ class App:
                 sticky = editors.echo(slug, req, el)
                 if el is None:
                     return self._ws_page(req, sid, st, ws, form_error=(slug, msg, errs, sticky), status=400)
-                return Response(views_ws.edit_page(sid, st, before, slug, el, req.session, msg, errs, sticky), 400)
+                return Response(views_ws.edit_page(sid, st, engine.check(st), slug, el, req.session, msg, errs,
+                                                   sticky), 400)
             try:
-                fields = editors.parse(slug, req, st, el)
-                paths = editors.parse_paths(req, st, el) if slug == "ss" else None
+                cand, target = self._build(st, n, slug, req, eid)
             except editors.FormError as e:
                 return refuse(*self._refusal(e))
-            cand = copy.deepcopy(st)
-            if not isinstance(cand.get(key), list):
-                cand[key] = []
-            if el is None:
-                target = {"id": editors.next_id(cand, prefix)}
-                cand[key].append(target)
-            else:
-                target = next(x for x in cand[key] if isinstance(x, dict) and str(x.get("id")) == eid)
-            editors.apply(target, fields)
-            if paths is not None:
-                taken = {p.get("id") for p in paths if p.get("id")}
-                for p in paths:
-                    if p.get("id") is None:
-                        p["id"] = editors.next_path_id(cand, target["id"], taken)
-                        taken.add(p["id"])
-                if paths:
-                    target["paths"] = paths
-                else:
-                    target.pop("paths", None)
-            if key in engine.DERIVED_SEVERITY and before.get("cal"):
-                engine.take_severities(cand, before["cal"], only=target["id"])
-            refused = editors.scale_refusals(before, engine.check(cand), target["id"])
-            if refused:
-                by_field = editors.refusal_fields(slug, refused)
-                rest = [m for m in refused if m not in by_field.values()]
-                errs = {k: "The engine refused the value: " + m for k, m in by_field.items()}
-                return refuse("The engine refused the value: " + "; ".join(rest) if rest else "", errs)
+            except EngineRefused as e:
+                return refuse(e.message, e.errs)
             self.store_for(req.session).save(sid, cand)
         flag = "added" if el is None else "saved"
         return redirect(f"/s/{sid}/w{ws}?f={flag}&hl={urllib.parse.quote(target['id'], safe='')}"
@@ -661,87 +714,280 @@ class App:
                 self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/{back}?f={'synced' if changed else 'unchanged'}")
 
-    # ---------- drafting (workshop 1) ----------
+    # ---------- settings ----------
+
+    def _settings_raw(self):
+        path = config.settings_path(self.data_dir)
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = {}
+        return (raw if isinstance(raw, dict) else {}), path
+
+    def settings_form(self, req):
+        raw, path = self._settings_raw()
+        info = self.drafter.describe(False)
+        return Response(views_draft.settings_page(info, raw, path, config.settings_mode_problem(path), req.session,
+                                                  req.arg("f"), saved_problem=info.get("problem")))
+
+    def settings_save(self, req):
+        """Check and store the settings form (mode 0600, atomic). Refused: the form comes back with what was typed."""
+        errs = {}
+        route = req.field("route")
+        if route not in drafting.ROUTES:
+            errs["route"] = "pick off, local or remote"
+
+        def number(name, lo, hi):
+            v = req.field(name).strip()
+            try:
+                n = int(v)
+            except ValueError:
+                errs[name] = "a whole number is required"
+                return None
+            if not lo <= n <= hi:
+                errs[name] = f"between {lo} and {hi}"
+                return None
+            return n
+
+        def key_file(name):
+            v = req.field(name).strip()[:500]
+            if v:
+                p = pathlib.Path(v).expanduser()
+                try:
+                    st_ = p.stat()
+                except OSError:
+                    errs[name] = "this file does not exist"
+                    return v
+                if not p.is_file() or st_.st_mode & 0o077:
+                    errs[name] = "the key file must be a regular file with mode 600"
+            return v
+        port = number("local_port", 1, 65535)
+        lpath = req.field("local_path").strip() or "/v1"
+        if not re.fullmatch(r"/[A-Za-z0-9/_.\-]{0,99}", lpath):
+            errs["local_path"] = "a path such as /v1"
+        lmodel = req.field("local_model").strip()[:200]
+        lkey = key_file("local_key_file")
+        hint = " ".join(req.field("local_ssh_hint").split())[:400]
+        rurl = req.field("remote_base_url").strip()[:500]
+        rmodel = req.field("remote_model").strip()[:200]
+        rkey = key_file("remote_key_file")
+        if rurl:
+            u = urllib.parse.urlsplit(rurl)
+            if u.scheme not in ("http", "https") or not u.hostname:
+                errs["remote_base_url"] = "an http:// or https:// URL"
+        if route == "local" and not lmodel:
+            errs["local_model"] = "the local route needs a model name"
+        if route == "remote":
+            if not rurl:
+                errs["remote_base_url"] = "the remote route needs a base URL"
+            if not rmodel:
+                errs["remote_model"] = "the remote route needs a model name"
+        lims = {k: number(f"limits_{k}", drafting.FLOORS[k], drafting.CEILINGS[k]) for k in drafting.DEFAULT_LIMITS}
+        if errs:
+            raw, path = self._settings_raw()
+            sticky = {k: v[0] for k, v in req.form.items() if k != "csrf"}
+            return Response(views_draft.settings_page(self.drafter.describe(False), raw, path,
+                                                      config.settings_mode_problem(path), req.session, errs=errs,
+                                                      sticky=sticky), 400)
+        raw, _ = self._settings_raw()
+        data = {"route": route,
+                "local": {"port": port, "path": lpath, "model": lmodel, "key_file": lkey, "ssh_hint": hint},
+                "remote": {"base_url": rurl, "model": rmodel, "key_file": rkey},
+                "limits": lims, "timeout": raw.get("timeout", 120)}
+        with self.edit_lock:
+            config.save_settings(self.data_dir, data)
+            self.load_drafter()
+        return redirect("/settings?f=settings-saved")
+
+    # ---------- documents ----------
+
+    def _docs_page(self, req, sid, st, flash="", error="", status=200):
+        private, why = calibrations.study_privacy(st)
+        return Response(views_draft.documents_page(sid, st, engine.check(st), self.docs.list(sid), req.session, flash,
+                                                   error, private, why, documents.pdftotext_path()), status)
+
+    def documents(self, req, sid):
+        return self._docs_page(req, sid, self._load(req, sid), req.arg("f"))
+
+    def document_upload(self, req, sid):
+        st = self._load(req, sid)
+        f = req.files.get("file")
+        if not f or not f[1]:
+            return self._docs_page(req, sid, st, error="Choose a file to upload.", status=400)
+        try:
+            self.docs.add(sid, f[0], f[1])
+        except documents.DocumentError as e:
+            return self._docs_page(req, sid, st, error=f"Not uploaded: {e}.", status=400)
+        return redirect(f"/s/{sid}/docs?f=uploaded")
+
+    def document_delete(self, req, sid, did):
+        self._load(req, sid)
+        self.docs.delete(sid, did)
+        return redirect(f"/s/{sid}/docs?f=doc-deleted")
+
+    # ---------- drafting (workshops 1 to 5) ----------
 
     def draft(self, req, sid):
         """Ask the drafting adapter for proposals. They go to the study's draft file, not into the study."""
         st = self._load(req, sid)
-        private, _ = calibrations.study_privacy(st)
-        text = req.field("text")
         try:
-            out = self.drafter.draft("w1-values-events", {"text": text, "private": private})
+            n = int(req.field("ws") or "1")
+        except ValueError:
+            n = 0
+        if n not in range(1, 6):
+            raise HTTPError(400, "unknown workshop")
+        private, _ = calibrations.study_privacy(st)
+        pasted = req.field("text").strip()
+        known = {d["id"]: d for d in self.docs.list(sid)}
+        picked = list(dict.fromkeys(req.fields("docs")))
+        state = {"text": pasted[:drafting.MAX_TEXT], "docs": picked}
+        if any(d not in known for d in picked):
+            return self._draft_page(req, sid, st, n, dict(state, error="Pick documents from the list."), 400)
+        if len(pasted) > drafting.MAX_TEXT:
+            return self._draft_page(req, sid, st, n, dict(
+                state, error=f"The pasted text is over {drafting.MAX_TEXT} characters; paste a shorter part."), 400)
+        parts = [f"[Document: {known[d]['name']}]\n{self.docs.text(sid, d)}" for d in picked]
+        if pasted:
+            parts.append("[Pasted text]\n" + pasted)
+        ctx = {"text": "\n\n".join(parts), "private": private, "study_id": sid, "documents": len(picked),
+               "study": drafts.study_summary(st, n)}
+        status = None
+        try:
+            out = self.drafter.draft(f"w{n}", ctx)
         except drafting.RouteRefused as e:
-            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=403)
-        except drafting.EndpointError as e:
-            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=502)
+            status, msg = 403, str(e)
+        except drafting.RateLimited as e:
+            status, msg = 429, str(e)
+        except (drafting.Unusable, drafting.EndpointError) as e:
+            status, msg = 502, str(e)
         except drafting.DraftError as e:
-            return self._w1_page(req, sid, st, draft_state={"error": str(e), "text": text[:drafting.MAX_TEXT]}, status=400)
-        if not out["items"]:
-            return self._w1_page(req, sid, st, draft_state={
-                "error": "The model answered, but no business value or feared event could be read from its answer.",
-                "text": text[:drafting.MAX_TEXT]}, status=502)
+            status, msg = 400, str(e)
+        if status:
+            if not msg.endswith("."):
+                msg += "."
+            return self._draft_page(req, sid, st, n, dict(state, error=msg[0].upper() + msg[1:]), status)
         with self.edit_lock:
             store = self.store_for(req.session)
             d = store.load_drafts(sid)
             d.pop("unreadable", None)
-            n = int(d.get("next") or 1)
+            known = drafts.known_keys(self._load(req, sid), d["items"])
+            fresh = [it for it in out["items"] if drafts.key(it) not in known]
+            if not fresh:
+                return redirect(f"/s/{sid}/w{n}?f=drafted-nothing-new#draft")
+            out["items"] = fresh
+            k = int(d.get("next") or 1)
             b = len(d["batches"]) + 1
-            d["batches"].append({"id": f"B{b}", "at": datetime.datetime.now().isoformat(timespec="seconds"),
-                                 "model": out["model"], "route": out["route"], "text": out["text"]})
+            d["batches"].append({"id": f"B{b}", "ws": f"w{n}", "at": datetime.datetime.now().isoformat(timespec="seconds"),
+                                 "model": out["model"], "route": out["route"], "requests": out["requests"],
+                                 "covered": out["covered"], "total": out["total"], "documents": len(picked)})
             for it in out["items"]:
-                d["items"].append(dict(it, id=f"D{n}", batch=f"B{b}", status="draft"))
-                n += 1
-            d["next"] = n
+                d["items"].append(dict(it, id=f"D{k}", batch=f"B{b}", state="draft"))
+                k += 1
+            d["next"] = k
             store.save_drafts(sid, d)
-        return redirect(f"/s/{sid}/w1?f=drafted#draft")
+        return redirect(f"/s/{sid}/w{n}?f=drafted#draft")
+
+    def _find_draft(self, d, did):
+        it = next((x for x in d["items"] if isinstance(x, dict) and x.get("id") == did), None)
+        if it is None:
+            raise HTTPError(404, "no such draft item (already accepted or rejected?)")
+        if it.get("kind") not in drafting.KIND_WS:
+            raise HTTPError(400, "unknown draft item kind")
+        return it
+
+    def _add_w1(self, st, key, req):
+        """Add one W1 element from a form (the same checks as the W1 add form). Raises FormError. Returns it."""
+        fields = self._w1_fields(key, req, st, engine.check(st).get("cal"))
+        el = self._apply({"id": self._next_id(st, views.W1_PREFIX[key])}, fields)
+        if not isinstance(st.get(key), list):
+            st[key] = []
+        st[key].append(el)
+        return el
 
     def draft_accept(self, req, sid, did):
         """Turn one draft item into a study element with the values the user confirmed in its form.
 
-        The form goes through the same checks as the W1 add form; the severity is the user's pick (the draft item
-        has none, and nothing from the draft is used without passing through that form).
+        The form goes through the same checks as the workshop's own add form. Severity, likelihood, decision and
+        status are the user's picks (the draft item has none), and the engine computes scenario severities.
         """
         with self.edit_lock:
             store = self.store_for(req.session)
             st = self._load(req, sid)
             d = store.load_drafts(sid)
-            it = next((x for x in d["items"] if isinstance(x, dict) and x.get("id") == did), None)
-            if it is None:
-                raise HTTPError(404, "no such draft item (already accepted or rejected?)")
-            key = {"business_value": "business_values", "feared_event": "feared_events"}.get(it.get("kind"))
-            if key is None:
-                raise HTTPError(400, "unknown draft item kind")
-            chk = engine.check(st)
+            it = self._find_draft(d, did)
+            kind, n = it["kind"], drafts.ws_number(it)
             try:
-                fields = self._w1_fields(key, req, st, chk.get("cal"))
-            except FormError as e:
-                msg, errs = self._refusal(e)
-                return self._w1_page(req, sid, st, chk, draft_state={"item": did, "msg": msg, "errs": errs,
-                                                                     "sticky": self._w1_echo(key, req)}, status=400)
-            el = self._apply({"id": self._next_id(st, views.W1_PREFIX[key])}, fields)
-            if not isinstance(st.get(key), list):
-                st[key] = []
-            st[key].append(el)
-            store.save(sid, st)
+                if kind in drafts.W1_KINDS:
+                    cand = copy.deepcopy(st)
+                    el = self._add_w1(cand, drafts.W1_KINDS[kind], req)
+                else:
+                    cand, el = self._build(st, n, drafts.KIND_SLUG[kind], req)
+            except (FormError, editors.FormError, EngineRefused) as e:
+                if isinstance(e, EngineRefused):
+                    msg, errs = e.message, e.errs
+                else:
+                    msg, errs = self._refusal(e)
+                sticky = (self._w1_echo(drafts.W1_KINDS[kind], req) if kind in drafts.W1_KINDS
+                          else editors.echo(drafts.KIND_SLUG[kind], req))
+                return self._draft_page(req, sid, st, n, {"item": did, "msg": msg, "errs": errs, "sticky": sticky}, 400)
+            store.save(sid, cand)
             d["items"] = [x for x in d["items"] if x is not it]
             store.save_drafts(sid, d)
-        return redirect(f"/s/{sid}/w1?f=draft-accepted&hl={urllib.parse.quote(el['id'], safe='')}#{views.anchor(el['id'])}")
+        return redirect(f"/s/{sid}/w{n}?f=draft-accepted&hl={urllib.parse.quote(el['id'], safe='')}#{views.anchor(el['id'])}")
+
+    def draft_accept_all(self, req, sid):
+        """Accept every pending text-only item of one workshop (business values, supporting assets, stakeholders).
+        Items that need a pick of the user (severity, likelihood, decision, status, links) are never accepted here."""
+        try:
+            n = int(req.field("ws"))
+        except ValueError:
+            raise HTTPError(400, "unknown workshop")
+        with self.edit_lock:
+            store = self.store_for(req.session)
+            st = self._load(req, sid)
+            d = store.load_drafts(sid)
+            order = {k: i for i, k in enumerate(drafts.KIND_ORDER)}
+            pending = sorted((x for x in d["items"] if isinstance(x, dict) and drafts.ws_number(x) == n
+                              and x.get("kind") in drafting.TEXT_ONLY_KINDS), key=lambda x: order[x["kind"]])
+            cand, done = copy.deepcopy(st), []
+            for it in pending:
+                form = drafts.Form(drafts.as_form(cand, it))
+                try:
+                    if it["kind"] in drafts.W1_KINDS:
+                        self._add_w1(cand, drafts.W1_KINDS[it["kind"]], form)
+                    else:
+                        cand, _ = self._build(cand, n, drafts.KIND_SLUG[it["kind"]], form)
+                except (FormError, editors.FormError, EngineRefused):
+                    continue  # stays in the list, to be accepted one by one
+                done.append(it)
+            if done:
+                store.save(sid, cand)
+                d["items"] = [x for x in d["items"] if not any(x is y for y in done)]
+                store.save_drafts(sid, d)
+        return redirect(f"/s/{sid}/w{n}?f=drafts-accepted-all#draft")
 
     def draft_reject(self, req, sid, did):
         with self.edit_lock:
             store = self.store_for(req.session)
             self._load(req, sid)
             d = store.load_drafts(sid)
-            keep = [x for x in d["items"] if not (isinstance(x, dict) and x.get("id") == did)]
-            if len(keep) == len(d["items"]):
+            it = next((x for x in d["items"] if isinstance(x, dict) and x.get("id") == did), None)
+            if it is None:
                 raise HTTPError(404, "no such draft item (already accepted or rejected?)")
-            d["items"] = keep
+            d["items"] = [x for x in d["items"] if x is not it]
             store.save_drafts(sid, d)
-        return redirect(f"/s/{sid}/w1?f=draft-rejected#draft")
+        return redirect(f"/s/{sid}/w{drafts.ws_number(it)}?f=draft-rejected#draft")
 
     def draft_clear(self, req, sid):
+        """Reject every pending draft item of one workshop (ws field), or of the whole study without it."""
+        ws = req.field("ws")
         with self.edit_lock:
             store = self.store_for(req.session)
             self._load(req, sid)
-            store.save_drafts(sid, {"items": [], "batches": []})
-        return redirect(f"/s/{sid}/w1?f=drafts-cleared#draft")
+            d = store.load_drafts(sid)
+            if ws in ("1", "2", "3", "4", "5"):
+                d["items"] = [x for x in d["items"] if not (isinstance(x, dict) and drafts.ws_number(x) == int(ws))]
+            else:
+                d = {"items": [], "batches": []}
+            store.save_drafts(sid, d)
+        return redirect(f"/s/{sid}/w{ws if ws in ('1', '2', '3', '4', '5') else '1'}?f=drafts-cleared#draft")

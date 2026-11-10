@@ -190,3 +190,32 @@ li.draft-item .grid-form { margin-top: .5rem; }
 details.raw pre { white-space: pre-wrap; max-height: 16rem; overflow: auto; background: var(--bg); padding: .5rem;
   border-radius: 5px; font-size: .85rem; }
 li.draft-item .form-actions { display: flex; gap: 1.2rem; align-items: center; }
+
+/* iteration 4: documents, drafting in every workshop, settings */
+.route-line { display: flex; flex-wrap: wrap; gap: .3rem .6rem; align-items: baseline; margin: .3rem 0 .4rem; }
+.badge.route { background: #e3e8f1; color: var(--accent); }
+.badge.route-local { background: #dff1e5; color: var(--ok); }
+.badge.route-remote { background: #fdeccc; color: var(--warn); }
+.badge.route-off { background: #eceef2; color: var(--muted); }
+fieldset.doc-pick { border: 1px solid var(--line); border-radius: 6px; padding: .4rem .7rem .3rem; margin: .4rem 0 .6rem; }
+fieldset.doc-pick legend { font-weight: 600; font-size: .92rem; padding: 0 .3rem; }
+fieldset.doc-pick label.check { display: block; font-weight: 400; margin: .15rem 0; }
+fieldset.doc-pick label.check small { margin-left: .3rem; }
+details.paste { margin: 0 0 .6rem; }
+details.paste summary { cursor: pointer; color: var(--accent); font-size: .92rem; }
+details.paste textarea { width: 100%; margin-top: .4rem; min-height: 6rem; }
+.draft-actions { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; align-items: center; margin: .2rem 0 .4rem; }
+li.draft-item .kind { color: var(--muted); font-size: .9rem; }
+ul.more-paths { margin: .2rem 0 .4rem 1.2rem; padding: 0; font-size: .9rem; }
+table.docs { width: 100%; border-collapse: collapse; margin-top: .6rem; }
+table.docs th, table.docs td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.docs td:first-child { overflow-wrap: anywhere; }
+table.docs td.num { text-align: right; white-space: nowrap; }
+form.upload { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: end; margin: .4rem 0; }
+form.upload label { flex: 1 1 22rem; }
+form.settings > fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .8rem .2rem; margin: 0 0 .8rem; }
+form.settings > fieldset > legend { font-weight: 600; padding: 0 .3rem; }
+form.settings > fieldset > .grid-form { margin: 0; }
+form.settings > fieldset > label.check { display: flex; gap: .5rem; align-items: center; font-weight: 400;
+  margin: .25rem 0; }
+form.settings > fieldset > label.check input[type=radio] { display: inline; width: auto; flex: none; margin: 0; }

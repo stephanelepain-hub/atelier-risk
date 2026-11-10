@@ -22,7 +22,7 @@ from app.tests.stub_model import CANNED, StubModel
 from atelier_app import config, drafting
 
 REMOTE = "http://203.0.113.10:8080/v1"  # TEST-NET-3, never reached: the tests make sure no request goes there
-ALLOWED_KEYS = {"id", "kind", "label", "nature", "criterion", "business_value_label", "batch", "status"}
+ALLOWED_KEYS = {"id", "kind", "label", "nature", "criterion", "business_value", "batch", "state"}
 
 
 def settings(base_url, key_file=""):
@@ -70,7 +70,7 @@ class RoutePolicyTest(unittest.TestCase):
                   {"backend": "openai-compatible", "base_url": "ftp://x/", "model": "m"},
                   {"backend": "openai-compatible", "base_url": "http://127.0.0.1:9/v1"}):
             d = drafting.Drafter(s)
-            self.assertEqual(d.settings["backend"], "off", s)
+            self.assertEqual(d.settings["route"], "off", s)
             with mock.patch.object(drafting, "_post") as post:
                 with self.assertRaises(drafting.DraftError) as cm:
                     d.draft("w1-values-events", {"text": "x", "private": False})
@@ -85,15 +85,16 @@ class RoutePolicyTest(unittest.TestCase):
             for k in ("severity", "likelihood", "level", "id"):
                 self.assertNotIn(k, it)
         self.assertEqual(items[3]["criterion"], "integrity")
-        self.assertEqual(drafting.parse_items("no json here"), [])
-        self.assertEqual(drafting.parse_items('{"business_values": "x"}'), [])
+        for bad in ("no json here", '{"business_values": "x"}'):  # nothing usable: refused, never an empty draft
+            with self.assertRaises(drafting.Unusable):
+                drafting.parse_items(bad)
 
     def test_settings_file(self):
         d = tempfile.mkdtemp()
         try:
-            self.assertEqual(config.drafting_settings(d), {"backend": "off"})
+            self.assertEqual(config.drafting_settings(d), {"route": "off"})
             pathlib.Path(d, "drafting.json").write_text("{bad")
-            self.assertEqual(config.drafting_settings(d)["backend"], "off")
+            self.assertEqual(config.drafting_settings(d)["route"], "off")
             pathlib.Path(d, "drafting.json").write_text(json.dumps(settings("http://127.0.0.1:9/v1", "~/k")))
             s = config.drafting_settings(d)
             self.assertEqual(s["base_url"], "http://127.0.0.1:9/v1")
@@ -170,7 +171,9 @@ class DraftingAppTest(unittest.TestCase):
         sent = self.stub.requests[0]
         self.assertEqual(sent["path"], "/v1/chat/completions")
         self.assertEqual(sent["headers"].get("Authorization"), "Bearer " + self.key)
-        self.assertEqual(sent["json"]["messages"][1]["content"], "We take customer orders and buy from suppliers.")
+        user = sent["json"]["messages"][1]["content"]  # the study summary, then the pasted text
+        self.assertTrue(user.startswith("Study so far (ids you may refer to):\nStudy: "), user[:80])
+        self.assertTrue(user.endswith("[Pasted text]\nWe take customer orders and buy from suppliers."), user[-80:])
         d = self.drafts(sid)
         self.assertEqual([x["id"] for x in d["items"]], ["D1", "D2", "D3", "D4"])
         self.assertEqual(d["batches"][0]["model"], "stub-model-1")
@@ -287,7 +290,7 @@ class DraftingAppTest(unittest.TestCase):
         r = self.post(f"/s/{sid}/draft", {"text": "orders"})
         self.assertEqual(r.status, 303)
         self.assertEqual(self.drafts(sid)["batches"][0]["route"], "local")
-        self.assertIn("drafting may only use an endpoint on this machine", self.w1(sid))
+        self.assertIn("its documents and drafts may only go to the local route", self.w1(sid))
 
     def test_public_study_with_a_non_local_endpoint_goes_through(self):
         self.make(settings(REMOTE))
@@ -307,7 +310,7 @@ class DraftingAppTest(unittest.TestCase):
             r = self.post(f"/s/{sid}/draft", {"text": "orders"})
             post.assert_not_called()
         self.assertEqual(r.status, 400)
-        self.assertIn("drafting is off", self.c.text(r))
+        self.assertIn("Drafting is off; set a route in Settings", self.c.text(r))
 
     # --- the key ---
 

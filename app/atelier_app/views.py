@@ -45,7 +45,15 @@ FLASH = {
     "duplicated-cal": "This is the duplicate with the other calibration. The engine checked it against that calibration.",
     "confidential": "Marked confidential: drafting may only use an endpoint on this machine.",
     "not-confidential": "The confidential mark is removed. A private calibration still keeps the study private.",
-    "drafted": "Draft received. Nothing is in the study until you accept an item; you pick every severity.",
+    "drafted": "Draft received. Nothing is in the study until you accept an item; you pick every severity, "
+               "likelihood, decision and status.",
+    "drafted-nothing-new": "The model answered, but everything it proposed is already in the study or in the draft "
+                           "list. Nothing was added.",
+    "drafts-accepted-all": "Every text-only draft item of this workshop was accepted into the study. Items that "
+                           "need your pick stay in the draft list.",
+    "uploaded": "Document uploaded and its text extracted on this machine.",
+    "doc-deleted": "Document deleted.",
+    "settings-saved": "Settings saved (mode 600). Drafting panels now use this route.",
     "draft-accepted": "Accepted into the study. The checks below were recomputed by the engine.",
     "draft-rejected": "Draft item rejected.",
     "drafts-cleared": "All draft items rejected.",
@@ -143,7 +151,7 @@ def page(title, body, session=None, cal_id=None, flash=""):
 </head>
 <body>
 <header class="top"><a class="brand" href="/">Atelier</a><span class="sub">EBIOS Risk Manager workbench</span>
-<nav><a href="/">Studies</a>{logout}</nav></header>
+<nav><a href="/">Studies</a>{'<a href="/settings">Settings</a>' if session else ""}{logout}</nav></header>
 <main>
 {note}
 {body}
@@ -312,7 +320,7 @@ def checks_panel(sid, chk, idx):
 
 def study_shell(sid, st, chk, active, content, session, flash=""):
     meta = st.get("study") if isinstance(st.get("study"), dict) else {}
-    tabs = [("overview", "Overview", f"/s/{sid}")] + [
+    tabs = [("overview", "Overview", f"/s/{sid}"), ("documents", "Documents", f"/s/{sid}/docs")] + [
         (f"w{n}", f"W{n}", f"/s/{sid}/w{n}") for n in WORKSHOPS] + [
         ("register", "Register and grid", f"/s/{sid}/register")]
     cur = ' class="active" aria-current="page"'
@@ -518,7 +526,8 @@ def w1_page(sid, st, chk, session, flash="", form_error=None, hl=None, draft_ctx
     rev = {v: k for k, v in W1.items()}
     parts = [f"<h2 class=\"ws\">{esc(WORKSHOPS[1][0])}</h2>"]
     if draft_ctx is not None:
-        parts.append(draft_panel(sid, st, cal, session, draft_ctx))
+        from .views_draft import panel
+        parts.append(panel(sid, st, chk, session, draft_ctx, 1))
     for key in WORKSHOPS[1][1]:
         slug = rev[key]
 
@@ -552,93 +561,6 @@ def w1_edit(sid, st, chk, key, el, session, error="", errs=None, sticky=None):
 {w1_form_fields(key, sticky if sticky is not None else el, st, chk.get("cal"), errs)}
 <button>Save</button> <a href="/s/{sid}/w1#{anchor(el.get("id"))}">Cancel</a></form></section>"""
     return study_shell(sid, st, chk, "w1", content, session)
-
-
-# ---------- drafting (workshop 1) ----------
-
-def draft_panel(sid, st, cal, session, ctx):
-    """The "Draft from text" box and the pending draft items. A draft item is not in the study: it becomes an
-    element only when the user accepts it, and the user picks every severity (the draft has none)."""
-    info, state = ctx["info"], ctx.get("state") or {}
-    drafts = ctx.get("drafts") or {"items": [], "batches": []}
-    if info["backend"] == "off":
-        status = ("Drafting is off" + (f" ({esc(info['problem'])})" if info.get("problem") else "") +
-                  ". Nothing is sent anywhere. docs/app.md says how to set up an endpoint.")
-    else:
-        where = {"local": "on this machine", "remote": "not on this machine"}.get(info["route"], "refused for this study")
-        status = (f'Drafting with model <b>{esc(info["model"])}</b> at <b>{esc(info["host"])}</b> ({where}), '
-                  f'through an OpenAI-compatible API.')
-    priv = (f'<p class="hint"><span class="badge private">private</span> This study is private ({esc(ctx["why"])}): '
-            'drafting may only use an endpoint on this machine.</p>' if ctx["private"] else
-            '<p class="hint">This study is not private: any configured endpoint may be used.</p>')
-    refused = f'<p class="error" role="alert">{esc(info["refused"])}</p>' if info.get("refused") else ""
-    err = f'<p class="error" role="alert">{esc(state["error"])}</p>' if state.get("error") else ""
-    form = f"""<form method="post" action="/s/{sid}/draft" class="draft-form">{csrf_input(session)}
-<label class="wide">Text to draft from (paste; at most 20000 characters)
-<textarea name="text" rows="6" maxlength="20000" required>{esc(state.get("text", ""))}</textarea></label>
-<button>Draft business values and feared events</button></form>"""
-    items = [x for x in drafts.get("items") or [] if isinstance(x, dict)]
-    bvs = [(b["id"], f'{b["id"]} {b.get("label", "")}') for b in st.get("business_values") or []
-           if isinstance(b, dict) and b.get("id")]
-    by_label = {str(b.get("label", "")).strip().lower(): b["id"] for b in st.get("business_values") or []
-                if isinstance(b, dict) and b.get("id")}
-    sev = [(x["n"], f'{x.get("code", x["n"])} {x.get("label", "")}') for x in (cal or {}).get("severity", [])]
-    rows_bv, rows_fe = [], []
-    for it in items:
-        did = it.get("id")
-        mine = state.get("item") == did
-        errs = state.get("errs") if mine else None
-        typed = state.get("sticky") if mine else None
-        cur = typed if typed is not None else it
-        note = form_note(state.get("msg", ""), errs) if mine else ""
-        reject = (f'<form method="post" action="/s/{sid}/draft/{q(did)}/reject" class="inline">{csrf_input(session)}'
-                  f'<button class="link danger">Reject</button></form>')
-        # Reject inside the accept form (same CSRF field), so both buttons sit on one row
-        reject_btn = (f'<button class="link danger" formaction="/s/{sid}/draft/{q(did)}/reject" formnovalidate>'
-                      f'Reject</button>')
-        head = f'<span class="badge draft">draft</span> <b>{esc(did)}</b>'
-        if it.get("kind") == "business_value":
-            fields = f"""<label>Label <input name="label" value="{esc(cur.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
-<label>Nature {_select("nature", [(n, n) for n in NATURES], cur.get("nature"))}{ferr(errs, "nature")}</label>
-<label>Owner <input name="owner" value="{esc(cur.get("owner", ""))}" maxlength="200">{ferr(errs, "owner")}</label>"""
-            rows_bv.append(f"""<li class="draft-item" id="draft-{q(did)}">{head}{note}
-<form method="post" action="/s/{sid}/draft/{q(did)}/accept" class="grid-form">{csrf_input(session)}{fields}
-<div class="form-actions"><button>Accept as a business value</button> {reject_btn}</div></form></li>""")
-        elif it.get("kind") == "feared_event":
-            proposed = it.get("business_value_label")
-            pre = cur.get("business_value") if typed is not None else by_label.get(str(proposed or "").strip().lower())
-            about = (f'<p class="hint">The draft puts it on the business value "{esc(proposed)}".</p>' if proposed else "")
-            if not bvs:
-                rows_fe.append(f'<li class="draft-item" id="draft-{q(did)}">{head} {esc(it.get("label"))}{about}'
-                               '<p class="hint">Accept or add a business value first.</p>' + reject + "</li>")
-                continue
-            fields = f"""<label>Business value {_select("business_value", bvs, pre, required=True, pick="(pick a business value)")}{ferr(errs, "business_value")}</label>
-<label class="wide">Label <input name="label" value="{esc(cur.get("label", ""))}" required maxlength="500">{ferr(errs, "label")}</label>
-<label>Criterion <input name="criterion" list="criteria" value="{esc(cur.get("criterion", ""))}" maxlength="100">{ferr(errs, "criterion")}</label>
-<label>Severity (you pick it) {_select("severity", sev, cur.get("severity") if typed is not None else None, required=True, pick="(pick a severity)", unknown="not in the scale")}{ferr(errs, "severity")}</label>"""
-            rows_fe.append(f"""<li class="draft-item" id="draft-{q(did)}">{head}{about}{note}
-<form method="post" action="/s/{sid}/draft/{q(did)}/accept" class="grid-form">{csrf_input(session)}{fields}
-<div class="form-actions"><button>Accept as a feared event</button> {reject_btn}</div></form></li>""")
-    lists = ""
-    if rows_bv:
-        lists += f'<h3>Proposed business values <span class="count">{len(rows_bv)}</span></h3><ul class="drafts">{"".join(rows_bv)}</ul>'
-    if rows_fe:
-        lists += f'<h3>Proposed feared events <span class="count">{len(rows_fe)}</span></h3><ul class="drafts">{"".join(rows_fe)}</ul>'
-    if items:
-        b = (drafts.get("batches") or [{}])[-1]
-        src = (f'<p class="hint">Last draft: model {esc(b.get("model") or "?")}, route {esc(b.get("route") or "?")}, '
-               f'{esc(b.get("at") or "")}. A draft never sets a severity or a level: you pick the severity, the '
-               f'engine computes the rest.</p>')
-        raw = (f'<details class="raw"><summary>Model answer as received</summary><pre>{esc(b.get("text", ""))}</pre>'
-               f'</details>' if b.get("text") else "")
-        clear = (f'<form method="post" action="/s/{sid}/draft/clear" class="inline">{csrf_input(session)}'
-                 f'<button class="link danger">Reject all draft items</button></form>')
-        lists = src + lists + raw + clear
-    elif drafts.get("unreadable"):
-        lists = '<p class="error">The draft file of this study cannot be read.</p>'
-    open_ = " open" if items or state else ""
-    return f"""<section class="card draft-panel" id="draft"><details{open_}><summary><h2>Draft from text</h2></summary>
-<p class="hint">{status}</p>{priv}{refused}{err}{form}{lists}</details></section>"""
 
 
 # ---------- register and grid ----------

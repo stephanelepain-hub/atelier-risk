@@ -178,10 +178,12 @@ def _cal_scale(cal, axis):
     return [(x["n"], f'{x.get("code", x["n"])} {x.get("label", "")}') for x in (cal or {}).get(axis, [])]
 
 
-def form_fields(slug, el, st, chk, errs=None):
+def form_fields(slug, el, st, chk, errs=None, draft=False):
     """The fields of one editor form. `el` is the stored element, or after a refusal what the user typed
-    (editors.echo); `errs` holds the message about each field, shown next to it."""
+    (editors.echo); `errs` holds the message about each field, shown next to it. With draft=True (the accept form
+    of a draft item) every required choice starts empty, so the user must pick it: nothing is pre-selected."""
     el = el or {}
+    pick = (lambda what: f"(you pick the {what})") if draft else (lambda what: None)
     cal = chk.get("cal")
     fes = [(i, f'{i} {(editors.find(st, "feared_events", i) or {}).get("label", "")}') for i in editors.ids(st, "feared_events")]
 
@@ -191,9 +193,9 @@ def form_fields(slug, el, st, chk, errs=None):
         scales = "".join(f'<label>{k.capitalize()} {_select(k, SCALE_OPTS, el.get(k), unknown="not in the scale")}{e(k)}</label>'
                          for k in editors.RO_SCALES)
         return f"""<label>Risk origin <input name="origin" value="{esc(el.get("origin", ""))}" required maxlength="500">{e("origin")}</label>
-<label>Target objective <input name="objective" value="{esc(el.get("objective", ""))}" maxlength="1000">{e("objective")}</label>
+<label class="wide">Target objective <input name="objective" value="{esc(el.get("objective", ""))}" maxlength="1000">{e("objective")}</label>
 {scales}
-<label>Decision {_select("decision", [(d, d) for d in editors.DECISIONS], el.get("decision"), required=True)}{e("decision")}</label>
+<label>Decision {_select("decision", [(d, d) for d in editors.DECISIONS], el.get("decision"), required=True, pick=pick("decision"))}{e("decision")}</label>
 <fieldset><legend>Feared events it aims at</legend>{e("feared_events")}{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>"""
     if slug == "sh":
         cats = sorted({str(x.get("category")) for x in editors.items(st, "stakeholders") if x.get("category")})
@@ -232,7 +234,7 @@ def form_fields(slug, el, st, chk, errs=None):
     if slug == "os":
         target = el["_target"] if "_target" in el else editors.os_target_value(el)
         return f"""<label>Strategic scenario path {_grouped("target", editors.os_targets(st), target)}{e("target")}</label>
-<label>Likelihood {_select("likelihood", _cal_scale(cal, "likelihood"), el.get("likelihood"), required=True, unknown="not in the scale")}{e("likelihood")}</label>
+<label>Likelihood {_select("likelihood", _cal_scale(cal, "likelihood"), el.get("likelihood"), required=True, unknown="not in the scale", pick=pick("likelihood"))}{e("likelihood")}</label>
 <label class="wide">Description <textarea name="description" rows="3" maxlength="4000">{esc(el.get("description", ""))}</textarea>{e("description")}</label>"""
     if slug == "rk":
         lk = _cal_scale(cal, "likelihood")
@@ -253,7 +255,7 @@ def form_fields(slug, el, st, chk, errs=None):
         return f"""<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000">{e("label")}</label>
 <label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200">{e("owner")}</label>
 <label>Due date <input type="date" name="due" value="{esc(el.get("due", ""))}">{e("due")}</label>
-<label>Status {_select("status", [(s, s) for s in editors.MEASURE_STATUS], el.get("status"), required=True)}{e("status")}</label>
+<label>Status {_select("status", [(s, s) for s in editors.MEASURE_STATUS], el.get("status"), required=True, pick=pick("status"))}{e("status")}</label>
 <fieldset><legend>Risks it treats</legend>{e("risks")}{_boxes("risks", rks, el.get("risks"), "No risk yet.")}</fieldset>"""
     raise KeyError(slug)
 
@@ -271,11 +273,14 @@ def _needs(slug, st):
     return ""
 
 
-def workshop_page(sid, st, chk, n, session, flash="", hl=None, form_error=None, register=None):
+def workshop_page(sid, st, chk, n, session, flash="", hl=None, form_error=None, register=None, draft_ctx=None):
     from .views import element_index
     title, keys = WORKSHOPS[n]
     idx = element_index(st)
     parts = [f'<h2 class="ws">{esc(title)}</h2>']
+    if draft_ctx is not None:
+        from .views_draft import panel
+        parts.append(panel(sid, st, chk, session, draft_ctx, n))
     for key in keys:
         slug = editors.SLUG_OF[key]
         err, errs, sticky = "", None, None
