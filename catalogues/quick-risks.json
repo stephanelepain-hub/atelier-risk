@@ -1,0 +1,1694 @@
+{
+ "format": "atelier-quick-catalogue",
+ "version": "0.1",
+ "licence": "Public catalogue written for Atelier; free to reuse with the same notice. See catalogues/README.md.",
+ "sources": [
+  {
+   "id": "ebios-rm-1.5",
+   "name": "ANSSI, EBIOS Risk Manager guide v1.5 (September 2024), Licence Ouverte / Open Licence",
+   "used_for": "deliberate risks: risk origin and target objective categories"
+  },
+  {
+   "id": "nist-800-30r1",
+   "name": "NIST SP 800-30 Rev. 1, Appendix D, Table D-2 (taxonomy of threat sources), US government work",
+   "used_for": "accidental risks: accidental, structural and environmental families"
+  }
+ ],
+ "packs": [
+  {
+   "id": "all",
+   "en": "Every organisation",
+   "fr": "Toute organisation"
+  },
+  {
+   "id": "office-it",
+   "en": "Office IT (computers, email, local network)",
+   "fr": "Informatique de bureau (ordinateurs, messagerie, réseau local)"
+  },
+  {
+   "id": "cloud-service",
+   "en": "Cloud and outside services",
+   "fr": "Services en ligne et prestataires"
+  },
+  {
+   "id": "website-shop",
+   "en": "Website or online shop",
+   "fr": "Site web ou boutique en ligne"
+  },
+  {
+   "id": "industrial",
+   "en": "Machines and industrial equipment",
+   "fr": "Machines et équipements industriels"
+  }
+ ],
+ "tools": [
+  {
+   "id": "office",
+   "en": "Computers, email and a local network",
+   "fr": "Ordinateurs, messagerie et réseau local",
+   "example": {
+    "en": "Laptops, a file server, the office Wi-Fi",
+    "fr": "Portables, un serveur de fichiers, le Wi-Fi du bureau"
+   },
+   "packs": [
+    "office-it"
+   ]
+  },
+  {
+   "id": "remote",
+   "en": "People working from home or on the road",
+   "fr": "Personnes qui travaillent à domicile ou en déplacement",
+   "example": {
+    "en": "Remote access to the office, phones used for work",
+    "fr": "Accès à distance au bureau, téléphones utilisés pour le travail"
+   },
+   "packs": [
+    "office-it"
+   ]
+  },
+  {
+   "id": "cloud",
+   "en": "Online services for files, email or business software",
+   "fr": "Services en ligne pour les fichiers, la messagerie ou les logiciels métier",
+   "example": {
+    "en": "Online storage, online accounting, a hosted customer database",
+    "fr": "Stockage en ligne, comptabilité en ligne, base clients hébergée"
+   },
+   "packs": [
+    "cloud-service"
+   ]
+  },
+  {
+   "id": "provider",
+   "en": "An outside company that looks after our IT",
+   "fr": "Une entreprise extérieure qui s'occupe de notre informatique",
+   "example": {
+    "en": "An IT support contract, a hosting company",
+    "fr": "Un contrat de support informatique, un hébergeur"
+   },
+   "packs": [
+    "cloud-service"
+   ]
+  },
+  {
+   "id": "website",
+   "en": "A website that presents the organisation",
+   "fr": "Un site web qui présente l'organisation",
+   "example": {
+    "en": "A website with contact forms",
+    "fr": "Un site web avec des formulaires de contact"
+   },
+   "packs": [
+    "website-shop"
+   ]
+  },
+  {
+   "id": "shop",
+   "en": "An online shop or online payments",
+   "fr": "Une boutique en ligne ou des paiements en ligne",
+   "example": {
+    "en": "Customers order and pay on our site",
+    "fr": "Les clients commandent et paient sur notre site"
+   },
+   "packs": [
+    "website-shop"
+   ]
+  },
+  {
+   "id": "industrial",
+   "en": "Machines or equipment controlled by computers",
+   "fr": "Machines ou équipements pilotés par ordinateur",
+   "example": {
+    "en": "A production line, building controls, lab equipment",
+    "fr": "Une ligne de production, la gestion technique du bâtiment, du matériel de laboratoire"
+   },
+   "packs": [
+    "industrial"
+   ]
+  }
+ ],
+ "origins": [
+  {
+   "id": "state",
+   "en": "State-backed group",
+   "fr": "Organisme étatique"
+  },
+  {
+   "id": "activist",
+   "en": "Activist",
+   "fr": "Activiste"
+  },
+  {
+   "id": "competitor",
+   "en": "Competitor",
+   "fr": "Concurrent"
+  },
+  {
+   "id": "cybercriminal",
+   "en": "Cybercriminal",
+   "fr": "Cybercriminel"
+  },
+  {
+   "id": "insider",
+   "en": "Staff member (current or former)",
+   "fr": "Collaborateur (actuel ou ancien)"
+  }
+ ],
+ "objectives": [
+  {
+   "id": "financial_gain",
+   "en": "Make money (theft, fraud, ransom)",
+   "fr": "Gagner de l'argent (vol, fraude, rançon)"
+  },
+  {
+   "id": "espionage",
+   "en": "Steal information (industrial espionage)",
+   "fr": "Voler des informations (espionnage industriel)"
+  },
+  {
+   "id": "ideological_message",
+   "en": "Spread a message",
+   "fr": "Diffuser un message"
+  },
+  {
+   "id": "revenge",
+   "en": "Take revenge",
+   "fr": "Se venger"
+  },
+  {
+   "id": "disrupt",
+   "en": "Disrupt activity or create a crisis",
+   "fr": "Perturber l'activité ou provoquer une crise"
+  }
+ ],
+ "generic_measures": [
+  {
+   "id": "backup_offline",
+   "en": "Keep backups offline or in another place, and test that you can restore from them",
+   "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+  },
+  {
+   "id": "mfa",
+   "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+   "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+  },
+  {
+   "id": "updates",
+   "en": "Install updates quickly on computers, servers, phones and network equipment",
+   "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+  },
+  {
+   "id": "awareness",
+   "en": "Show people what fake messages look like, with short reminders every few months",
+   "fr": "Montrer aux personnes à quoi ressemblent les faux messages, avec de brefs rappels tous les quelques mois"
+  },
+  {
+   "id": "least_access",
+   "en": "Give people only the access their job needs",
+   "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+  },
+  {
+   "id": "incident_plan",
+   "en": "Write down who does what in an incident, with a phone list on paper",
+   "fr": "Écrire qui fait quoi en cas d'incident, avec une liste de téléphones sur papier"
+  }
+ ],
+ "risks": [
+  {
+   "id": "D01",
+   "family": "deliberate",
+   "title": {
+    "en": "Ransomware locks your files and systems",
+    "fr": "Un rançongiciel bloque vos fichiers et vos systèmes"
+   },
+   "description": {
+    "en": "Criminals lock your data and ask for money to unlock it, so work stops.",
+    "fr": "Des criminels bloquent vos données et demandent de l'argent pour les débloquer : le travail s'arrête."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service",
+    "industrial"
+   ],
+   "always_assessed": true,
+   "typical_severity": 4,
+   "typical_likelihood": 3,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    },
+    {
+     "id": "updates",
+     "en": "Install updates quickly on computers, servers, phones and network equipment",
+     "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "awareness",
+     "en": "Show people what fake messages look like, with short reminders every few months",
+     "fr": "Montrer aux personnes à quoi ressemblent les faux messages, avec de brefs rappels tous les quelques mois"
+    },
+    {
+     "id": "protection",
+     "en": "Run up-to-date protection software on every computer",
+     "fr": "Installer un logiciel de protection à jour sur chaque ordinateur"
+    },
+    {
+     "id": "incident_plan",
+     "en": "Write down who does what in an incident, with a phone list on paper",
+     "fr": "Écrire qui fait quoi en cas d'incident, avec une liste de téléphones sur papier"
+    }
+   ]
+  },
+  {
+   "id": "D02",
+   "family": "deliberate",
+   "title": {
+    "en": "Stolen email or online passwords",
+    "fr": "Vol de mots de passe de messagerie ou de services en ligne"
+   },
+   "description": {
+    "en": "A fake message tricks someone into giving their password, and the attacker reads or sends mail as them.",
+    "fr": "Un faux message amène quelqu'un à donner son mot de passe, et l'attaquant lit ou envoie des messages à sa place."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service"
+   ],
+   "always_assessed": true,
+   "typical_severity": 3,
+   "typical_likelihood": 4,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "awareness",
+     "en": "Show people what fake messages look like, with short reminders every few months",
+     "fr": "Montrer aux personnes à quoi ressemblent les faux messages, avec de brefs rappels tous les quelques mois"
+    },
+    {
+     "id": "password_manager",
+     "en": "Use a password manager with long, different passwords",
+     "fr": "Utiliser un gestionnaire de mots de passe avec des mots de passe longs et différents"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D03",
+   "family": "deliberate",
+   "title": {
+    "en": "Payment fraud with a fake invoice or a fake manager",
+    "fr": "Fraude au paiement par faux virement ou faux dirigeant"
+   },
+   "description": {
+    "en": "Someone pretends to be a supplier or your manager and gets money sent to the wrong account.",
+    "fr": "Quelqu'un se fait passer pour un fournisseur ou un dirigeant et obtient un virement vers un mauvais compte."
+   },
+   "criteria": [
+    "integrity"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "payment_check",
+     "en": "Check any change of bank details or urgent payment request by phone, on a number you already know",
+     "fr": "Vérifier par téléphone, sur un numéro déjà connu, tout changement de coordonnées bancaires ou demande de paiement urgente"
+    },
+    {
+     "id": "awareness",
+     "en": "Show people what fake messages look like, with short reminders every few months",
+     "fr": "Montrer aux personnes à quoi ressemblent les faux messages, avec de brefs rappels tous les quelques mois"
+    },
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    }
+   ]
+  },
+  {
+   "id": "D04",
+   "family": "deliberate",
+   "title": {
+    "en": "Theft of customer or personal data",
+    "fr": "Vol de données clients ou de données personnelles"
+   },
+   "description": {
+    "en": "Attackers copy lists of customers, staff or patients and sell them or threaten to publish them.",
+    "fr": "Des attaquants copient des fichiers de clients, de personnel ou de patients et les revendent ou menacent de les publier."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service",
+    "website-shop"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "updates",
+     "en": "Install updates quickly on computers, servers, phones and network equipment",
+     "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+    },
+    {
+     "id": "data_minimise",
+     "en": "Keep only the personal data you need, and delete the rest",
+     "fr": "Ne conserver que les données personnelles nécessaires et supprimer le reste"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D05",
+   "family": "deliberate",
+   "title": {
+    "en": "Online shop or payment page tampered with",
+    "fr": "Boutique en ligne ou page de paiement piégée"
+   },
+   "description": {
+    "en": "An attacker changes the shop so that it captures customers' card details or redirects payments.",
+    "fr": "Un attaquant modifie la boutique pour capter les données de carte des clients ou détourner les paiements."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity"
+   ],
+   "packs": [
+    "website-shop"
+   ],
+   "always_assessed": true,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "payment_provider",
+     "en": "Let a certified payment provider handle card details, so they never pass through your site",
+     "fr": "Confier les données de carte à un prestataire de paiement certifié, pour qu'elles ne passent jamais par votre site"
+    },
+    {
+     "id": "site_updates",
+     "en": "Keep the website software and its add-ons up to date",
+     "fr": "Maintenir à jour le logiciel du site web et ses extensions"
+    },
+    {
+     "id": "site_checks",
+     "en": "Watch the website for unexpected changes and test the checkout regularly",
+     "fr": "Surveiller le site pour repérer les changements inattendus et tester régulièrement le paiement"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    }
+   ]
+  },
+  {
+   "id": "D06",
+   "family": "deliberate",
+   "title": {
+    "en": "Website defaced or taken over",
+    "fr": "Site web défiguré ou pris en main par un tiers"
+   },
+   "description": {
+    "en": "Someone changes your website to show their own message or hijacks it, which harms your image.",
+    "fr": "Quelqu'un modifie votre site pour y afficher son message ou le détourne, ce qui nuit à votre image."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "website-shop"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "origin": "activist",
+   "objective": "ideological_message",
+   "measures": [
+    {
+     "id": "site_updates",
+     "en": "Keep the website software and its add-ons up to date",
+     "fr": "Maintenir à jour le logiciel du site web et ses extensions"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "site_checks",
+     "en": "Watch the website for unexpected changes and test the checkout regularly",
+     "fr": "Surveiller le site pour repérer les changements inattendus et tester régulièrement le paiement"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    }
+   ]
+  },
+  {
+   "id": "D07",
+   "family": "deliberate",
+   "title": {
+    "en": "Website or online service knocked offline by traffic",
+    "fr": "Site ou service en ligne saturé par un flot de trafic"
+   },
+   "description": {
+    "en": "A flood of fake traffic makes your website or online service too slow or unreachable.",
+    "fr": "Un flot de faux trafic rend votre site ou service en ligne trop lent ou inaccessible."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "website-shop",
+    "cloud-service"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "origin": "activist",
+   "objective": "disrupt",
+   "measures": [
+    {
+     "id": "traffic_filter",
+     "en": "Put a traffic-filtering service in front of the website",
+     "fr": "Placer un service de filtrage du trafic devant le site web"
+    },
+    {
+     "id": "contract_outage",
+     "en": "Agree in the contract how fast a provider must restore service after an outage",
+     "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
+    },
+    {
+     "id": "incident_plan",
+     "en": "Write down who does what in an incident, with a phone list on paper",
+     "fr": "Écrire qui fait quoi en cas d'incident, avec une liste de téléphones sur papier"
+    }
+   ]
+  },
+  {
+   "id": "D08",
+   "family": "deliberate",
+   "title": {
+    "en": "A competitor gets hold of your know-how",
+    "fr": "Un concurrent récupère votre savoir-faire"
+   },
+   "description": {
+    "en": "Designs, price lists or customer lists are copied to give a competitor an advantage.",
+    "fr": "Des plans, des tarifs ou des listes de clients sont copiés pour donner un avantage à un concurrent."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "competitor",
+   "objective": "espionage",
+   "measures": [
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "data_rules",
+     "en": "Give staff clear rules on what may leave the organisation and how",
+     "fr": "Donner au personnel des règles claires sur ce qui peut sortir de l'organisation et comment"
+    },
+    {
+     "id": "encrypt_devices",
+     "en": "Encrypt laptops and phones",
+     "fr": "Chiffrer les ordinateurs portables et les téléphones"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D09",
+   "family": "deliberate",
+   "title": {
+    "en": "A former or unhappy colleague deletes or leaks data",
+    "fr": "Un ancien collaborateur ou un collaborateur mécontent supprime ou divulgue des données"
+   },
+   "description": {
+    "en": "Someone with access takes revenge by deleting, changing or publishing important information.",
+    "fr": "Une personne ayant des accès se venge en supprimant, modifiant ou publiant des informations importantes."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "insider",
+   "objective": "revenge",
+   "measures": [
+    {
+     "id": "offboarding",
+     "en": "Remove accounts, keys and access on the day someone leaves",
+     "fr": "Supprimer comptes, clés et accès le jour du départ d'une personne"
+    },
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D10",
+   "family": "deliberate",
+   "title": {
+    "en": "Targeted spying on sensitive information",
+    "fr": "Espionnage ciblé d'informations sensibles"
+   },
+   "description": {
+    "en": "A well-resourced group quietly reads sensitive work over a long time.",
+    "fr": "Un groupe disposant de gros moyens lit discrètement des informations sensibles pendant longtemps."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service"
+   ],
+   "always_assessed": false,
+   "typical_severity": 4,
+   "typical_likelihood": 1,
+   "origin": "state",
+   "objective": "espionage",
+   "measures": [
+    {
+     "id": "segmentation",
+     "en": "Keep the most important systems on a separate network",
+     "fr": "Placer les systèmes les plus importants sur un réseau séparé"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    },
+    {
+     "id": "updates",
+     "en": "Install updates quickly on computers, servers, phones and network equipment",
+     "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    }
+   ]
+  },
+  {
+   "id": "D11",
+   "family": "deliberate",
+   "title": {
+    "en": "Online account or admin console taken over",
+    "fr": "Compte en ligne ou console d'administration pris en main"
+   },
+   "description": {
+    "en": "An attacker gets into the main account of an online service and can read, change or delete everything in it.",
+    "fr": "Un attaquant entre dans le compte principal d'un service en ligne et peut tout lire, modifier ou supprimer."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-service"
+   ],
+   "always_assessed": true,
+   "typical_severity": 4,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "share_review",
+     "en": "Review sharing and access settings of online storage every few months",
+     "fr": "Revoir tous les quelques mois les réglages de partage et d'accès du stockage en ligne"
+    },
+    {
+     "id": "own_copy",
+     "en": "Keep your own copy of the data you hold in online services",
+     "fr": "Garder votre propre copie des données conservées dans les services en ligne"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    },
+    {
+     "id": "password_manager",
+     "en": "Use a password manager with long, different passwords",
+     "fr": "Utiliser un gestionnaire de mots de passe avec des mots de passe longs et différents"
+    }
+   ]
+  },
+  {
+   "id": "D12",
+   "family": "deliberate",
+   "title": {
+    "en": "Attackers use your remote access",
+    "fr": "Des attaquants utilisent votre accès à distance"
+   },
+   "description": {
+    "en": "Remote access to the office is found open or weakly protected and used to get in.",
+    "fr": "L'accès à distance au bureau est trouvé ouvert ou mal protégé et sert à entrer."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "office-it"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "remote_access",
+     "en": "Protect remote access with a second sign-in step and keep it up to date",
+     "fr": "Protéger l'accès à distance par une seconde étape de connexion et le maintenir à jour"
+    },
+    {
+     "id": "updates",
+     "en": "Install updates quickly on computers, servers, phones and network equipment",
+     "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D13",
+   "family": "deliberate",
+   "title": {
+    "en": "A supplier is hacked and the attacker reaches you through them",
+    "fr": "Un fournisseur est piraté et l'attaquant vous atteint par son intermédiaire"
+   },
+   "description": {
+    "en": "A supplier or service provider with access to your systems is compromised and the attacker follows that access.",
+    "fr": "Un fournisseur ou prestataire ayant accès à vos systèmes est compromis et l'attaquant suit cet accès."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-service",
+    "office-it"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "vendor_access",
+     "en": "Give suppliers access only when needed, with named accounts",
+     "fr": "Donner un accès aux fournisseurs seulement quand il le faut, avec des comptes nominatifs"
+    },
+    {
+     "id": "contract_outage",
+     "en": "Agree in the contract how fast a provider must restore service after an outage",
+     "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    },
+    {
+     "id": "segmentation",
+     "en": "Keep the most important systems on a separate network",
+     "fr": "Placer les systèmes les plus importants sur un réseau séparé"
+    },
+    {
+     "id": "exit_plan",
+     "en": "Know your alternatives and how to move away from a supplier if needed",
+     "fr": "Connaître les solutions de remplacement et comment quitter un fournisseur si besoin"
+    }
+   ]
+  },
+  {
+   "id": "D14",
+   "family": "deliberate",
+   "title": {
+    "en": "Machines or building controls tampered with",
+    "fr": "Machines ou commandes du bâtiment manipulées"
+   },
+   "description": {
+    "en": "Someone interferes with the controls of machines or building systems to stop or damage production.",
+    "fr": "Quelqu'un perturbe les commandes de machines ou de systèmes du bâtiment pour arrêter ou endommager la production."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "industrial"
+   ],
+   "always_assessed": true,
+   "typical_severity": 4,
+   "typical_likelihood": 1,
+   "origin": "activist",
+   "objective": "disrupt",
+   "measures": [
+    {
+     "id": "ics_isolation",
+     "en": "Keep machine controls off the office network and off the internet",
+     "fr": "Séparer les commandes des machines du réseau de bureau et d'internet"
+    },
+    {
+     "id": "remote_access",
+     "en": "Protect remote access with a second sign-in step and keep it up to date",
+     "fr": "Protéger l'accès à distance par une seconde étape de connexion et le maintenir à jour"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "D15",
+   "family": "deliberate",
+   "title": {
+    "en": "Machine network infected through a USB stick or a visitor's laptop",
+    "fr": "Réseau des machines infecté par une clé USB ou l'ordinateur d'un visiteur"
+   },
+   "description": {
+    "en": "Malware enters the machine network on a USB stick or a supplier's laptop and spreads.",
+    "fr": "Un logiciel malveillant entre dans le réseau des machines par une clé USB ou l'ordinateur d'un fournisseur et se propage."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "industrial"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "usb_scan",
+     "en": "Scan USB sticks and suppliers' laptops before they are connected",
+     "fr": "Analyser les clés USB et les ordinateurs des fournisseurs avant de les connecter"
+    },
+    {
+     "id": "ics_isolation",
+     "en": "Keep machine controls off the office network and off the internet",
+     "fr": "Séparer les commandes des machines du réseau de bureau et d'internet"
+    },
+    {
+     "id": "protection",
+     "en": "Run up-to-date protection software on every computer",
+     "fr": "Installer un logiciel de protection à jour sur chaque ordinateur"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    }
+   ]
+  },
+  {
+   "id": "A01",
+   "family": "accidental",
+   "title": {
+    "en": "Important files deleted or overwritten by mistake",
+    "fr": "Fichiers importants supprimés ou écrasés par erreur"
+   },
+   "description": {
+    "en": "Someone deletes, overwrites or edits the wrong file and the work is lost.",
+    "fr": "Quelqu'un supprime, écrase ou modifie le mauvais fichier et le travail est perdu."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 4,
+   "nist_source": "accidental / user",
+   "measures": [
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "restore_test",
+     "en": "Test a full restore once a year",
+     "fr": "Tester une restauration complète une fois par an"
+    }
+   ]
+  },
+  {
+   "id": "A02",
+   "family": "accidental",
+   "title": {
+    "en": "Data cannot be restored from backups",
+    "fr": "Les données ne peuvent pas être restaurées depuis les sauvegardes"
+   },
+   "description": {
+    "en": "Backups do not exist, are old, are kept next to the originals or have never been tested.",
+    "fr": "Les sauvegardes n'existent pas, sont anciennes, sont rangées à côté des originaux ou n'ont jamais été testées."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": true,
+   "typical_severity": 4,
+   "typical_likelihood": 2,
+   "nist_source": "accidental / process error",
+   "measures": [
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    },
+    {
+     "id": "restore_test",
+     "en": "Test a full restore once a year",
+     "fr": "Tester une restauration complète une fois par an"
+    },
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    }
+   ]
+  },
+  {
+   "id": "A03",
+   "family": "accidental",
+   "title": {
+    "en": "Message or files sent to the wrong people",
+    "fr": "Message ou fichiers envoyés aux mauvaises personnes"
+   },
+   "description": {
+    "en": "A message, attachment or shared link reaches someone who should not see it.",
+    "fr": "Un message, une pièce jointe ou un lien de partage parvient à quelqu'un qui ne devrait pas le voir."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / user",
+   "measures": [
+    {
+     "id": "recipient_check",
+     "en": "Check the recipient before sending, and use shared links with limited access",
+     "fr": "Vérifier le destinataire avant l'envoi et utiliser des liens de partage à accès limité"
+    },
+    {
+     "id": "data_rules",
+     "en": "Give staff clear rules on what may leave the organisation and how",
+     "fr": "Donner au personnel des règles claires sur ce qui peut sortir de l'organisation et comment"
+    },
+    {
+     "id": "share_review",
+     "en": "Review sharing and access settings of online storage every few months",
+     "fr": "Revoir tous les quelques mois les réglages de partage et d'accès du stockage en ligne"
+    }
+   ]
+  },
+  {
+   "id": "A04",
+   "family": "accidental",
+   "title": {
+    "en": "A change or update breaks a system",
+    "fr": "Un changement ou une mise à jour casse un système"
+   },
+   "description": {
+    "en": "A change made by an administrator or supplier has an unexpected effect and a system stops working.",
+    "fr": "Un changement fait par un administrateur ou un fournisseur a un effet inattendu et un système cesse de fonctionner."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "office-it",
+    "cloud-service",
+    "website-shop"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / privileged user",
+   "measures": [
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    }
+   ]
+  },
+  {
+   "id": "A05",
+   "family": "accidental",
+   "title": {
+    "en": "Online storage or database left open by mistake",
+    "fr": "Stockage en ligne ou base de données laissé ouvert par erreur"
+   },
+   "description": {
+    "en": "A wrong setting makes files or a database visible to anyone who finds the address.",
+    "fr": "Un mauvais réglage rend des fichiers ou une base de données visibles par quiconque trouve l'adresse."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "cloud-service",
+    "website-shop"
+   ],
+   "always_assessed": true,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "nist_source": "accidental / privileged user",
+   "measures": [
+    {
+     "id": "share_review",
+     "en": "Review sharing and access settings of online storage every few months",
+     "fr": "Revoir tous les quelques mois les réglages de partage et d'accès du stockage en ligne"
+    },
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    },
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ]
+  },
+  {
+   "id": "A06",
+   "family": "accidental",
+   "title": {
+    "en": "A computer, server or disk breaks down",
+    "fr": "Un ordinateur, un serveur ou un disque tombe en panne"
+   },
+   "description": {
+    "en": "Equipment wears out or fails, and the data or the service on it is unavailable or lost.",
+    "fr": "Un équipement s'use ou tombe en panne, et les données ou le service qu'il porte sont indisponibles ou perdus."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "office-it",
+    "industrial"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "nist_source": "structural / IT equipment",
+   "measures": [
+    {
+     "id": "spares",
+     "en": "Keep a spare or a quick replacement for critical equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "battery",
+     "en": "Use a battery backup for critical equipment",
+     "fr": "Équiper le matériel critique d'une alimentation de secours sur batterie"
+    },
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    }
+   ]
+  },
+  {
+   "id": "A07",
+   "family": "accidental",
+   "title": {
+    "en": "Internet or network down for a long time",
+    "fr": "Internet ou réseau coupé pendant longtemps"
+   },
+   "description": {
+    "en": "The connection or the network fails for hours or days and online work stops.",
+    "fr": "La connexion ou le réseau tombe en panne pendant des heures ou des jours et le travail en ligne s'arrête."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "environmental / infrastructure failure (telecommunications)",
+   "measures": [
+    {
+     "id": "dual_link",
+     "en": "Have a second internet connection or a phone hotspot as a back-up",
+     "fr": "Disposer d'une seconde connexion internet ou d'un partage de connexion mobile de secours"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    },
+    {
+     "id": "contract_outage",
+     "en": "Agree in the contract how fast a provider must restore service after an outage",
+     "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
+    }
+   ]
+  },
+  {
+   "id": "A08",
+   "family": "accidental",
+   "title": {
+    "en": "Power cut or power surge",
+    "fr": "Coupure ou surtension électrique"
+   },
+   "description": {
+    "en": "A power cut stops work, or a surge damages equipment.",
+    "fr": "Une coupure de courant arrête le travail, ou une surtension abîme le matériel."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "office-it",
+    "industrial"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "environmental / infrastructure failure (electrical power)",
+   "measures": [
+    {
+     "id": "battery",
+     "en": "Use a battery backup for critical equipment",
+     "fr": "Équiper le matériel critique d'une alimentation de secours sur batterie"
+    },
+    {
+     "id": "spares",
+     "en": "Keep a spare or a quick replacement for critical equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    }
+   ]
+  },
+  {
+   "id": "A09",
+   "family": "accidental",
+   "title": {
+    "en": "An online provider has a long outage or closes your account",
+    "fr": "Un prestataire en ligne subit une longue panne ou ferme votre compte"
+   },
+   "description": {
+    "en": "A service you depend on is down for a long time, or your account is blocked or closed.",
+    "fr": "Un service dont vous dépendez est en panne longtemps, ou votre compte est bloqué ou fermé."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "cloud-service"
+   ],
+   "always_assessed": true,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "nist_source": "structural / supplier and software failure",
+   "measures": [
+    {
+     "id": "own_copy",
+     "en": "Keep your own copy of the data you hold in online services",
+     "fr": "Garder votre propre copie des données conservées dans les services en ligne"
+    },
+    {
+     "id": "contract_outage",
+     "en": "Agree in the contract how fast a provider must restore service after an outage",
+     "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
+    },
+    {
+     "id": "exit_plan",
+     "en": "Know your alternatives and how to move away from a supplier if needed",
+     "fr": "Connaître les solutions de remplacement et comment quitter un fournisseur si besoin"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    }
+   ]
+  },
+  {
+   "id": "A10",
+   "family": "accidental",
+   "title": {
+    "en": "A key supplier or IT provider stops serving you",
+    "fr": "Un fournisseur clé ou un prestataire informatique cesse de vous servir"
+   },
+   "description": {
+    "en": "A supplier closes, has a problem or ends the contract, and you cannot get the service elsewhere quickly.",
+    "fr": "Un fournisseur ferme, rencontre un problème ou met fin au contrat, et vous ne pouvez pas obtenir le service ailleurs rapidement."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "nist_source": "structural / supplier failure",
+   "measures": [
+    {
+     "id": "exit_plan",
+     "en": "Know your alternatives and how to move away from a supplier if needed",
+     "fr": "Connaître les solutions de remplacement et comment quitter un fournisseur si besoin"
+    },
+    {
+     "id": "contract_outage",
+     "en": "Agree in the contract how fast a provider must restore service after an outage",
+     "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
+    },
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    },
+    {
+     "id": "own_copy",
+     "en": "Keep your own copy of the data you hold in online services",
+     "fr": "Garder votre propre copie des données conservées dans les services en ligne"
+    }
+   ]
+  },
+  {
+   "id": "A11",
+   "family": "accidental",
+   "title": {
+    "en": "Laptop, phone or USB drive lost",
+    "fr": "Ordinateur portable, téléphone ou clé USB perdu"
+   },
+   "description": {
+    "en": "A device with work data is left on a train or in a taxi and can be found by anyone.",
+    "fr": "Un appareil contenant des données de travail est oublié dans un train ou un taxi et peut être trouvé par n'importe qui."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "office-it"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / user (loss of equipment)",
+   "measures": [
+    {
+     "id": "encrypt_devices",
+     "en": "Encrypt laptops and phones",
+     "fr": "Chiffrer les ordinateurs portables et les téléphones"
+    },
+    {
+     "id": "device_wipe",
+     "en": "Be able to lock or erase a lost phone or laptop from a distance",
+     "fr": "Pouvoir verrouiller ou effacer à distance un téléphone ou un portable perdu"
+    },
+    {
+     "id": "data_rules",
+     "en": "Give staff clear rules on what may leave the organisation and how",
+     "fr": "Donner au personnel des règles claires sur ce qui peut sortir de l'organisation et comment"
+    }
+   ]
+  },
+  {
+   "id": "A12",
+   "family": "accidental",
+   "title": {
+    "en": "Equipment stolen from the premises or a car",
+    "fr": "Matériel volé dans les locaux ou dans une voiture"
+   },
+   "description": {
+    "en": "Computers or machines are stolen, so the equipment and the data on it are gone.",
+    "fr": "Des ordinateurs ou des machines sont volés : le matériel et les données qu'il contient disparaissent."
+   },
+   "criteria": [
+    "confidentiality",
+    "availability"
+   ],
+   "packs": [
+    "office-it",
+    "industrial"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 2,
+   "nist_source": "adversarial / outsider (theft of equipment)",
+   "measures": [
+    {
+     "id": "physical",
+     "en": "Lock rooms and cabinets that hold equipment and escort visitors",
+     "fr": "Fermer à clé les locaux et armoires qui contiennent du matériel et accompagner les visiteurs"
+    },
+    {
+     "id": "encrypt_devices",
+     "en": "Encrypt laptops and phones",
+     "fr": "Chiffrer les ordinateurs portables et les téléphones"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "insurance",
+     "en": "Check what your insurance covers for the main events",
+     "fr": "Vérifier ce que votre assurance couvre pour les événements principaux"
+    }
+   ]
+  },
+  {
+   "id": "A13",
+   "family": "accidental",
+   "title": {
+    "en": "Fire or water damage in the building",
+    "fr": "Incendie ou dégât des eaux dans le bâtiment"
+   },
+   "description": {
+    "en": "A fire or a leak damages the rooms, the equipment and the paper files.",
+    "fr": "Un incendie ou une fuite abîme les locaux, le matériel et les dossiers papier."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 4,
+   "typical_likelihood": 1,
+   "nist_source": "environmental / natural or man-made disaster",
+   "measures": [
+    {
+     "id": "fire_safety",
+     "en": "Install fire detection and keep a copy of your data outside the building",
+     "fr": "Installer une détection incendie et garder une copie des données hors du bâtiment"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    },
+    {
+     "id": "alt_site",
+     "en": "Have a plan to work from another place or from home",
+     "fr": "Avoir un plan pour travailler depuis un autre lieu ou depuis le domicile"
+    },
+    {
+     "id": "insurance",
+     "en": "Check what your insurance covers for the main events",
+     "fr": "Vérifier ce que votre assurance couvre pour les événements principaux"
+    },
+    {
+     "id": "surge_flood",
+     "en": "Keep equipment off the floor and away from water pipes",
+     "fr": "Garder le matériel hors du sol et à l'écart des canalisations"
+    }
+   ]
+  },
+  {
+   "id": "A14",
+   "family": "accidental",
+   "title": {
+    "en": "Storm, flood or another natural event closes the site",
+    "fr": "Tempête, inondation ou autre événement naturel qui ferme le site"
+   },
+   "description": {
+    "en": "A natural event makes it impossible to reach or use your premises for days.",
+    "fr": "Un événement naturel rend vos locaux inaccessibles ou inutilisables pendant plusieurs jours."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 3,
+   "typical_likelihood": 1,
+   "nist_source": "environmental / natural disaster",
+   "measures": [
+    {
+     "id": "alt_site",
+     "en": "Have a plan to work from another place or from home",
+     "fr": "Avoir un plan pour travailler depuis un autre lieu ou depuis le domicile"
+    },
+    {
+     "id": "insurance",
+     "en": "Check what your insurance covers for the main events",
+     "fr": "Vérifier ce que votre assurance couvre pour les événements principaux"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    }
+   ]
+  },
+  {
+   "id": "A15",
+   "family": "accidental",
+   "title": {
+    "en": "Only one person knows how something works",
+    "fr": "Une seule personne sait comment fonctionne un élément essentiel"
+   },
+   "description": {
+    "en": "A key person is ill or leaves, and nobody else knows the passwords, the steps or the contacts.",
+    "fr": "Une personne clé est malade ou part, et personne d'autre ne connaît les mots de passe, les étapes ou les contacts."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "all"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / process error",
+   "measures": [
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    },
+    {
+     "id": "password_manager",
+     "en": "Use a password manager with long, different passwords",
+     "fr": "Utiliser un gestionnaire de mots de passe avec des mots de passe longs et différents"
+    },
+    {
+     "id": "offboarding",
+     "en": "Remove accounts, keys and access on the day someone leaves",
+     "fr": "Supprimer comptes, clés et accès le jour du départ d'une personne"
+    }
+   ]
+  },
+  {
+   "id": "A16",
+   "family": "accidental",
+   "title": {
+    "en": "A machine runs wrongly after an operator or software error",
+    "fr": "Une machine fonctionne mal après une erreur d'opérateur ou de logiciel"
+   },
+   "description": {
+    "en": "A wrong setting or a software fault makes a machine stop or produce faulty output.",
+    "fr": "Un mauvais réglage ou un défaut logiciel arrête une machine ou produit des pièces défectueuses."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "industrial"
+   ],
+   "always_assessed": true,
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "nist_source": "structural / controller and software",
+   "measures": [
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    },
+    {
+     "id": "manual_fallback",
+     "en": "Know how to run key tasks by hand for a few days",
+     "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
+    },
+    {
+     "id": "spares",
+     "en": "Keep a spare or a quick replacement for critical equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+    },
+    {
+     "id": "documentation",
+     "en": "Write down how critical tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+    }
+   ]
+  },
+  {
+   "id": "A17",
+   "family": "accidental",
+   "title": {
+    "en": "Website or shop errors after a change",
+    "fr": "Erreurs sur le site ou la boutique après un changement"
+   },
+   "description": {
+    "en": "After a change, the checkout does not work or prices and stock are wrong.",
+    "fr": "Après un changement, le paiement ne fonctionne pas ou les prix et les stocks sont faux."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "website-shop"
+   ],
+   "always_assessed": false,
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / privileged user",
+   "measures": [
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    },
+    {
+     "id": "site_checks",
+     "en": "Watch the website for unexpected changes and test the checkout regularly",
+     "fr": "Surveiller le site pour repérer les changements inattendus et tester régulièrement le paiement"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    }
+   ]
+  }
+ ]
+}
