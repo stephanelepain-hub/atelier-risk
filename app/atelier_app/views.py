@@ -43,6 +43,8 @@ FLASH = {
     "renamed": "Saved.",
     "duplicated": "Duplicate created.",
     "removed": "Study moved to the trash folder.",
+    "synced": "Severities taken from the engine. The checks below were recomputed.",
+    "unchanged": "The engine's severities were already stored; nothing changed.",
 }
 TOKEN_RE = re.compile(r"[A-Za-z0-9_.\-/]+")
 
@@ -223,12 +225,52 @@ def find_target(msg, idx):
     return None
 
 
+def message_target(msg, idx):
+    """(element id or None, workshop number or None) for one engine message.
+
+    Messages name their element first ("SS1: ..."); a path is "SS1/SS1-P2: ...". Messages about a whole
+    collection ("risks: element without id") point at its workshop; header messages at the overview (None).
+    """
+    t = find_target(msg, idx)
+    if t:
+        return t, idx[t][1]
+    head = msg.split(":", 1)[0].strip()
+    if head in WORKSHOP_OF:
+        return None, WORKSHOP_OF[head]
+    return None, None
+
+
+def locate_url(sid, eid, n):
+    if n is None:
+        return f"/s/{sid}"
+    if eid is None:
+        return f"/s/{sid}/w{n}"
+    return f"/s/{sid}/w{n}?hl={q(eid)}#{anchor(eid)}"
+
+
+def progress(st, chk, idx):
+    """Per workshop: number of objects, and the engine's errors and warnings that point into it."""
+    out = {n: {"objects": sum(len([x for x in st.get(k) or [] if isinstance(x, dict)]) for k in keys),
+               "errors": 0, "warnings": 0} for n, (_, keys) in WORKSHOPS.items()}
+    out["other"] = {"objects": 0, "errors": 0, "warnings": 0}
+    for kind, msgs in (("errors", chk["errors"]), ("warnings", chk["warnings"])):
+        for m in msgs:
+            _, n = message_target(m, idx)
+            out[n if n in out else "other"][kind] += 1
+    return out
+
+
 def checks_panel(sid, chk, idx):
     def items(msgs, cls):
         out = []
         for m in msgs:
-            t = find_target(m, idx)
-            link = f' <a class="goto" href="/s/{sid}/el/{q(t)}">{esc(t)}</a>' if t else ""
+            t, n = message_target(m, idx)
+            if t:
+                link = f' <a class="goto" href="/s/{sid}/el/{q(t)}">{esc(t)} in W{n}</a>'
+            elif n:
+                link = f' <a class="goto" href="/s/{sid}/w{n}">W{n}</a>'
+            else:
+                link = f' <a class="goto" href="/s/{sid}">overview</a>'
             out.append(f'<li class="{cls}">{esc(m)}{link}</li>')
         return "".join(out)
     if not chk["errors"] and not chk["warnings"]:
@@ -258,9 +300,24 @@ def overview(sid, st, chk, mtime, session, flash=""):
     meta = st.get("study") if isinstance(st.get("study"), dict) else {}
     counts = "".join(f"<tr><td>W{WORKSHOP_OF[k]}</td><td>{esc(TITLES[k])}</td><td>{len(st.get(k) or [])}</td></tr>"
                      for k in engine.COLLECTIONS)
+    prog = progress(st, chk, element_index(st))
+    cells = []
+    for n in WORKSHOPS:
+        p = prog[n]
+        state = "bad" if p["errors"] else ("warn" if p["warnings"] else ("ok" if p["objects"] else "none"))
+        cells.append(f'<li class="ps-{state}"><a href="/s/{sid}/w{n}"><b>W{n}</b>'
+                     f'<span class="ps-n">{p["objects"]} object{"s" if p["objects"] != 1 else ""}</span>'
+                     f'<span class="ps-c">{p["errors"]} error{"s" if p["errors"] != 1 else ""}, '
+                     f'{p["warnings"]} warning{"s" if p["warnings"] != 1 else ""}</span></a></li>')
+    o = prog["other"]
+    other = (f'<p class="hint">Not tied to a workshop: {o["errors"]} error(s), {o["warnings"]} warning(s).</p>'
+             if o["errors"] or o["warnings"] else "")
+    strip = (f'<section class="card"><h2>Study progress</h2><ol class="progress" id="progress">{"".join(cells)}</ol>'
+             f'{other}<p class="hint">Errors and warnings are the engine\'s checks, counted by the workshop of the '
+             f'element they name.</p></section>')
     extra = "".join(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>" for k, v in meta.items()
                     if k not in ("name", "scope", "calibration"))
-    content = f"""<section class="card">
+    content = f"""{strip}<section class="card">
 <h2>Study</h2>
 <table class="kv"><tr><th>Scope</th><td class="pre">{esc(meta.get("scope", ""))}</td></tr>
 <tr><th>Calibration</th><td>{esc(chk["calibration"])}</td></tr>
@@ -311,7 +368,7 @@ def cell(key, v, sid, idx, cal):
     return esc(v)
 
 
-def read_table(sid, st, key, cal, idx, actions=None):
+def read_table(sid, st, key, cal, idx, actions=None, hl=None):
     items = [x for x in st.get(key) or [] if isinstance(x, dict)]
     if not items:
         return '<p class="empty">None.</p>'
@@ -322,20 +379,9 @@ def read_table(sid, st, key, cal, idx, actions=None):
     for x in items:
         tds = "".join(f"<td>{cell(c, x.get(c), sid, idx, cal)}</td>" for c in cols)
         act = f'<td class="actions">{actions(x)}</td>' if actions else ""
-        trs.append(f'<tr id="{anchor(x.get("id", ""))}">{tds}{act}</tr>')
+        cls = ' class="hl"' if hl is not None and x.get("id") == hl else ""
+        trs.append(f'<tr id="{anchor(x.get("id", ""))}"{cls}>{tds}{act}</tr>')
     return f'<div class="scroll"><table class="list"><thead><tr>{head}</tr></thead><tbody>{"".join(trs)}</tbody></table></div>'
-
-
-def workshop_ro(sid, st, chk, n, session):
-    title, keys = WORKSHOPS[n]
-    idx = element_index(st)
-    parts = [f'<p class="hint">Read-only in this version: the content comes from the study file '
-             f'(import or edit the JSON). Editors for workshops 2 to 5 come next.</p>']
-    for key in keys:
-        parts.append(f'<section class="card"><h2>{esc(TITLES[key])} '
-                     f'<span class="count">{len(st.get(key) or [])}</span></h2>'
-                     f'{read_table(sid, st, key, chk.get("cal"), idx)}</section>')
-    return study_shell(sid, st, chk, f"w{n}", f"<h2 class=\"ws\">{esc(title)}</h2>" + "".join(parts), session)
 
 
 # ---------- workshop 1 editor ----------
@@ -386,7 +432,7 @@ def w1_form_fields(key, el, st, cal):
     raise KeyError(key)
 
 
-def w1_page(sid, st, chk, session, flash="", form_error=None):
+def w1_page(sid, st, chk, session, flash="", form_error=None, hl=None):
     idx = element_index(st)
     cal = chk.get("cal")
     rev = {v: k for k, v in W1.items()}
@@ -410,7 +456,7 @@ def w1_page(sid, st, chk, session, flash="", form_error=None):
 {w1_form_fields(key, None, st, cal)}<button>Add</button></form></details>""")
         parts.append(f'<section class="card" id="sec-{slug}"><h2>{esc(TITLES[key])} '
                      f'<span class="count">{len(st.get(key) or [])}</span></h2>{err}'
-                     f'{read_table(sid, st, key, cal, idx, actions)}{add}</section>')
+                     f'{read_table(sid, st, key, cal, idx, actions, hl)}{add}</section>')
     return study_shell(sid, st, chk, "w1", "".join(parts), session, flash)
 
 
@@ -451,8 +497,8 @@ def grid_table(cal, rows, key_l, key_level, title, sid):
 <div class="axis-x">Likelihood</div></figure>"""
 
 
-def register_page(sid, st, chk, rows, summary, session):
-    cal = chk["cal"]
+def grids_block(cal, rows, summary, sid):
+    """The engine's register on two grids side by side: now, and at target (risks with a target likelihood)."""
     cls = level_classes(cal)
 
     def lvl(name):
@@ -460,6 +506,26 @@ def register_page(sid, st, chk, rows, summary, session):
 
     def counts(d):
         return " ".join(f'{lvl(k)} {v}' for k, v in d.items()) or "none"
+    with_target = [r for r in rows if r.get("likelihood_target")]
+    without = [r.get("id") for r in rows if not r.get("likelihood_target")]
+    grids = grid_table(cal, rows, "likelihood", "level", "Now", sid)
+    grids += grid_table(cal, with_target, "likelihood_target", "level_target", "At target", sid)
+    note = (f'<p class="hint">No target likelihood yet for {esc(", ".join(str(x) for x in without))}, so '
+            f'{"it is" if len(without) == 1 else "they are"} not on the target grid.</p>') if without else ""
+    legend = "".join(f'<li>{lvl(l["name"])} {esc(l.get("acceptability", ""))}</li>'
+                     for l in sorted(cal["levels"], key=lambda l: -l["rank"]))
+    return f"""<p class="hint">Levels, acceptability and counts are the engine's register for calibration {esc(cal["id"])}.</p>
+<p>Now: {counts(summary.get("now", {}))}. At target: {counts(summary.get("target", {}))}.</p>
+<div class="grids">{grids}</div>{note}
+<ul class="legend">{legend}</ul>"""
+
+
+def register_page(sid, st, chk, rows, summary, session):
+    cal = chk["cal"]
+    cls = level_classes(cal)
+
+    def lvl(name):
+        return f'<span class="lvl {cls.get(name, "")}">{esc(name)}</span>' if name else ""
     cols = [("id", "Id", lambda r: f'<b>{esc(r.get("id"))}</b>'),
             ("label", "Risk", lambda r: esc(r.get("label"))),
             ("severity", "Severity", lambda r: scale_text(cal, "severity", r.get("severity"))),
@@ -482,17 +548,8 @@ def register_page(sid, st, chk, rows, summary, session):
     table = ('<p class="empty">The study has no risk yet (risks are workshop 5).</p>' if not rows else
              '<div class="scroll"><table class="list register"><thead><tr>'
              + "".join(f"<th>{esc(t)}</th>" for _, t, _ in cols) + f'</tr></thead><tbody>{"".join(trs)}</tbody></table></div>{note}')
-    grids = grid_table(cal, rows, "likelihood", "level", "Now", sid)
-    if any(r.get("level_target") for r in rows):
-        grids += grid_table(cal, [r for r in rows if r.get("likelihood_target")], "likelihood_target", "level_target",
-                            "At target", sid)
-    legend = "".join(f'<li>{lvl(l["name"])} {esc(l.get("acceptability", ""))}</li>'
-                     for l in sorted(cal["levels"], key=lambda l: -l["rank"]))
-    content = f"""<section class="card"><h2>Risk grid</h2>
-<p class="hint">Levels, acceptability and counts are the engine's output for calibration {esc(cal["id"])}.</p>
-<p>Now: {counts(summary.get("now", {}))}. At target: {counts(summary.get("target", {}))}.</p>
-<div class="grids">{grids}</div>
-<ul class="legend">{legend}</ul></section>
+    content = f"""<section class="card"><h2>Risk grid, now and at target</h2>
+{grids_block(cal, rows, summary, sid)}</section>
 <section class="card"><h2>Risk register <span class="count">{len(rows)}</span></h2>
 {table}</section>"""
     return study_shell(sid, st, chk, "register", content, session)

@@ -1,4 +1,5 @@
 """The application: routes, authentication and CSRF gates, security headers, study handlers."""
+import copy
 import json
 import os
 import pathlib
@@ -8,7 +9,7 @@ import threading
 import traceback
 import urllib.parse
 
-from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, engine, views
+from . import REPO_DIR, STATIC_DIR, auth, calibrations, config, editors, engine, views, views_ws
 from .storage import NotFound, Store
 from .web import HTTPError, Request, Response, Router, redirect
 
@@ -93,6 +94,11 @@ class App:
         r.add("POST", rf"/s/{SID}/delete", self.delete)
         r.add("GET", rf"/s/{SID}/w1", self.w1)
         r.add("GET", rf"/s/{SID}/w([2-5])", self.workshop)
+        r.add("POST", rf"/s/{SID}/w([2-5])/{editors.SLUG_RE}/add", self.ws_add)
+        r.add("GET", rf"/s/{SID}/w([2-5])/{editors.SLUG_RE}/([^/]+)", self.ws_edit_form)
+        r.add("POST", rf"/s/{SID}/w([2-5])/{editors.SLUG_RE}/([^/]+)/delete", self.ws_delete)
+        r.add("POST", rf"/s/{SID}/w([2-5])/{editors.SLUG_RE}/([^/]+)", self.ws_save)
+        r.add("POST", rf"/s/{SID}/severities", self.take_severities)
         r.add("GET", rf"/s/{SID}/el/([^/]+)", self.locate)
         r.add("GET", rf"/s/{SID}/register", self.register)
         r.add("GET", rf"/s/{SID}/export\.json", self.export_json)
@@ -304,18 +310,25 @@ class App:
 
     def w1(self, req, sid):
         st = self._load(req, sid)
-        return Response(views.w1_page(sid, st, engine.check(st), req.session, req.arg("f")))
+        return Response(views.w1_page(sid, st, engine.check(st), req.session, req.arg("f"), hl=req.arg("hl") or None))
+
+    def _ws_page(self, req, sid, st, n, flash="", form_error=None, status=200):
+        chk = engine.check(st)
+        reg = None
+        if n == 5 and not chk["errors"] and chk["cal"]:
+            reg = engine.register(st, chk["cal"])
+        return Response(views_ws.workshop_page(sid, st, chk, n, req.session, flash, req.arg("hl") or None,
+                                               form_error, reg), status)
 
     def workshop(self, req, sid, n):
-        st = self._load(req, sid)
-        return Response(views.workshop_ro(sid, st, engine.check(st), int(n), req.session))
+        return self._ws_page(req, sid, self._load(req, sid), int(n), req.arg("f"))
 
     def locate(self, req, sid, eid):
         st = self._load(req, sid)
         idx = views.element_index(st)
         if eid not in idx:
             raise HTTPError(404, "no such element in this study")
-        return redirect(f"/s/{sid}/w{idx[eid][1]}#{views.anchor(eid)}")
+        return redirect(views.locate_url(sid, eid, idx[eid][1]))
 
     def register(self, req, sid):
         st = self._load(req, sid)
@@ -434,7 +447,7 @@ class App:
                 st[key] = []
             st[key].append(el)
             self.store_for(req.session).save(sid, st)
-        return redirect(f"/s/{sid}/w1?f=added#{views.anchor(el['id'])}")
+        return redirect(f"/s/{sid}/w1?f=added&hl={urllib.parse.quote(el['id'], safe='')}#{views.anchor(el['id'])}")
 
     def _find(self, st, key, eid):
         for x in st.get(key) or []:
@@ -459,7 +472,7 @@ class App:
                 return Response(views.w1_edit(sid, st, chk, key, el, req.session, str(e)), 400)
             self._apply(el, fields)
             self.store_for(req.session).save(sid, st)
-        return redirect(f"/s/{sid}/w1?f=saved#{views.anchor(eid)}")
+        return redirect(f"/s/{sid}/w1?f=saved&hl={urllib.parse.quote(eid, safe='')}#{views.anchor(eid)}")
 
     def w1_delete(self, req, sid, slug, eid):
         key = views.W1[slug]
@@ -469,3 +482,92 @@ class App:
             st[key] = [x for x in st[key] if x is not el]
             self.store_for(req.session).save(sid, st)
         return redirect(f"/s/{sid}/w1?f=deleted#sec-{urllib.parse.quote(slug)}")
+
+    # ---------- workshop 2 to 5 editors ----------
+
+    @staticmethod
+    def _spec(n, slug):
+        key, ws, prefix = editors.SPECS[slug]
+        if ws != int(n):
+            raise HTTPError(404, "not found")
+        return key, ws, prefix
+
+    def _commit(self, req, sid, n, slug, eid=None):
+        """Add (eid None) or update one element. Returns a Response. The file changes only on success."""
+        key, ws, prefix = self._spec(n, slug)
+        with self.edit_lock:
+            st = self._load(req, sid)
+            before = engine.check(st)
+            el = None if eid is None else self._find(st, key, eid)
+
+            def refuse(msg):
+                if el is None:
+                    return self._ws_page(req, sid, st, ws, form_error=(slug, msg), status=400)
+                return Response(views_ws.edit_page(sid, st, before, slug, el, req.session, msg), 400)
+            try:
+                fields = editors.parse(slug, req, st, el)
+                paths = editors.parse_paths(req, st, el) if slug == "ss" else None
+            except editors.FormError as e:
+                return refuse(str(e))
+            cand = copy.deepcopy(st)
+            if not isinstance(cand.get(key), list):
+                cand[key] = []
+            if el is None:
+                target = {"id": editors.next_id(cand, prefix)}
+                cand[key].append(target)
+            else:
+                target = next(x for x in cand[key] if isinstance(x, dict) and str(x.get("id")) == eid)
+            editors.apply(target, fields)
+            if paths is not None:
+                taken = {p.get("id") for p in paths if p.get("id")}
+                for p in paths:
+                    if p.get("id") is None:
+                        p["id"] = editors.next_path_id(cand, target["id"], taken)
+                        taken.add(p["id"])
+                if paths:
+                    target["paths"] = paths
+                else:
+                    target.pop("paths", None)
+            if key in engine.DERIVED_SEVERITY and before.get("cal"):
+                engine.take_severities(cand, before["cal"], only=target["id"])
+            refused = editors.scale_refusals(before, engine.check(cand), target["id"])
+            if refused:
+                return refuse("The engine refused the value: " + "; ".join(refused))
+            self.store_for(req.session).save(sid, cand)
+        flag = "added" if el is None else "saved"
+        return redirect(f"/s/{sid}/w{ws}?f={flag}&hl={urllib.parse.quote(target['id'], safe='')}"
+                        f"#{views.anchor(target['id'])}")
+
+    def ws_add(self, req, sid, n, slug):
+        return self._commit(req, sid, n, slug)
+
+    def ws_save(self, req, sid, n, slug, eid):
+        return self._commit(req, sid, n, slug, eid)
+
+    def ws_edit_form(self, req, sid, n, slug, eid):
+        key, _, _ = self._spec(n, slug)
+        st = self._load(req, sid)
+        return Response(views_ws.edit_page(sid, st, engine.check(st), slug, self._find(st, key, eid), req.session))
+
+    def ws_delete(self, req, sid, n, slug, eid):
+        key, ws, _ = self._spec(n, slug)
+        with self.edit_lock:
+            st = self._load(req, sid)
+            el = self._find(st, key, eid)
+            st[key] = [x for x in st[key] if x is not el]
+            self.store_for(req.session).save(sid, st)
+        return redirect(f"/s/{sid}/w{ws}?f=deleted#sec-{slug}")
+
+    def take_severities(self, req, sid):
+        back = req.field("back")
+        if back not in ("w3", "w5"):
+            raise HTTPError(400, "unknown return page")
+        with self.edit_lock:
+            st = self._load(req, sid)
+            chk = engine.check(st)
+            if not chk.get("cal"):
+                raise HTTPError(409, "the study's calibration could not be loaded")
+            changed = engine.take_severities(st, chk["cal"])
+            if changed:
+                self.store_for(req.session).save(sid, st)
+        return redirect(f"/s/{sid}/{back}?f={'synced' if changed else 'unchanged'}")
