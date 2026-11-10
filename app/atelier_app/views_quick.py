@@ -29,7 +29,9 @@ T = {
         "q_values_ex": "For example: taking orders, our customer list, the payroll, the production line.",
         "q_tools": "What do you use?", "q_tools_ex": "Tick everything that applies. This decides which risks we suggest.",
         "q_downtime": "If your main tools stopped, how soon would it really hurt?",
+        "q_downtime_ex": "For example: email, orders and the till all stop at once.",
         "q_sensitivity": "How sensitive is the information you hold?",
+        "q_sensitivity_ex": "For example: would a customer, a patient or a regulator be upset to see it?",
         "q_doc": "Do you have a document about your systems or risks?",
         "q_doc_ex": "For example an architecture description, a business impact analysis or a security baseline. It is stored and flagged as provided. Atelier does not read it yet, so it does not change the results.",
         "doc_kind": "What is it?", "doc_file": "File (Word, PDF or text, 20 MB at most)",
@@ -73,14 +75,14 @@ T = {
         "band_low": "low", "band_medium": "medium", "band_high": "high",
         "conf_cap": "Without a document, confidence never goes above {n}%.",
         "top5": "Your top actions", "top5_empty": "No action yet. Go back to “Now and after” and tick the measures you would add.",
-        "top5_for": "Helps with", "assumptions": "What we assumed", "assumptions_lead": "Please check these. Each one is a place where we used a typical value instead of your answer.",
-        "assumptions_none": "No assumption: every input came from you.", "assumptions_kept": "Typical values you kept (show)",
+        "top5_for": "Helps with", "assumptions": "What we assumed", "assumptions_lead": "Please check these. Each one is a place where we used a typical value instead of your answer, or kept the value we proposed.",
+        "assumptions_none": "Every question was answered by you.", "assumptions_kept": "Typical values you kept (show)",
         "kind_default": "Not answered", "kind_dont_know": "You did not know", "kind_catalogue": "Typical value kept",
         "facts_docs": "Documents", "facts_none": "none", "facts_missing": "Not provided", "facts_answers": "Answers",
         "facts_assumptions": "Assumptions to confirm", "doc_note": "A document is stored but has not been read yet: it does not raise the confidence.",
         "doc_architecture_short": "architecture document", "doc_business-impact_short": "business impact analysis",
         "doc_security-baseline_short": "security baseline", "doc_other_short": "other document",
-        "export": "Download Excel", "export_json": "Download the study file", "expert": "Open in expert mode",
+        "export": "Download Excel", "xlsx_missing": "The Excel download needs the openpyxl package, which is not installed here. The study file download works.", "export_json": "Download the study file", "expert": "Open in expert mode",
         "expert_hint": "Expert mode shows the full method (workshops 1 to 5) on the same study. Changes made there are not carried back into these screens: saving a screen here rebuilds the study from your answers.",
         "edited": "This study was changed in expert mode. Saving this screen rebuilds the study from your quick answers and replaces those changes (the previous version is kept as a .bak file).",
         "edit_answers": "Change my answers",
@@ -106,7 +108,9 @@ T = {
         "q_values_ex": "Par exemple : prendre les commandes, notre fichier clients, la paie, la ligne de production.",
         "q_tools": "Qu'utilisez-vous ?", "q_tools_ex": "Cochez tout ce qui s'applique. Cela détermine les risques proposés.",
         "q_downtime": "Si vos outils principaux s'arrêtaient, au bout de combien de temps cela ferait-il vraiment mal ?",
+        "q_downtime_ex": "Par exemple : la messagerie, les commandes et la caisse s'arrêtent en même temps.",
         "q_sensitivity": "Quelle est la sensibilité des informations que vous détenez ?",
+        "q_sensitivity_ex": "Par exemple : un client, un patient ou une autorité serait-il contrarié de les voir ?",
         "q_doc": "Avez-vous un document sur vos systèmes ou vos risques ?",
         "q_doc_ex": "Par exemple une description d'architecture, une analyse d'impact sur l'activité ou un socle de sécurité. Il est conservé et signalé comme fourni. Atelier ne le lit pas encore : il ne change donc pas les résultats.",
         "doc_kind": "De quoi s'agit-il ?", "doc_file": "Fichier (Word, PDF ou texte, 20 Mo au plus)",
@@ -150,14 +154,14 @@ T = {
         "band_low": "faible", "band_medium": "moyenne", "band_high": "élevée",
         "conf_cap": "Sans document, la confiance ne dépasse jamais {n} %.",
         "top5": "Vos actions prioritaires", "top5_empty": "Aucune action pour l'instant. Retournez à « Maintenant et après » et cochez les mesures que vous ajouteriez.",
-        "top5_for": "Aide pour", "assumptions": "Ce que nous avons supposé", "assumptions_lead": "Merci de les vérifier. Chacune est un endroit où nous avons utilisé une valeur typique à la place de votre réponse.",
-        "assumptions_none": "Aucune hypothèse : tout vient de vous.", "assumptions_kept": "Valeurs typiques que vous avez gardées (afficher)",
+        "top5_for": "Aide pour", "assumptions": "Ce que nous avons supposé", "assumptions_lead": "Merci de les vérifier. Chacune est un endroit où nous avons utilisé une valeur typique à la place de votre réponse, ou gardé la valeur que nous proposions.",
+        "assumptions_none": "Vous avez répondu à toutes les questions.", "assumptions_kept": "Valeurs typiques que vous avez gardées (afficher)",
         "kind_default": "Sans réponse", "kind_dont_know": "Vous ne saviez pas", "kind_catalogue": "Valeur typique conservée",
         "facts_docs": "Documents", "facts_none": "aucun", "facts_missing": "Non fournis", "facts_answers": "Réponses",
         "facts_assumptions": "Hypothèses à confirmer", "doc_note": "Un document est conservé mais n'a pas encore été lu : il n'augmente pas la confiance.",
         "doc_architecture_short": "document d'architecture", "doc_business-impact_short": "analyse d'impact sur l'activité",
         "doc_security-baseline_short": "socle de sécurité", "doc_other_short": "autre document",
-        "export": "Télécharger Excel", "export_json": "Télécharger le fichier d'étude", "expert": "Ouvrir en mode expert",
+        "export": "Télécharger Excel", "xlsx_missing": "Le téléchargement Excel nécessite le paquet openpyxl, qui n'est pas installé ici. Le téléchargement du fichier d'étude fonctionne.", "export_json": "Télécharger le fichier d'étude", "expert": "Ouvrir en mode expert",
         "expert_hint": "Le mode expert montre la méthode complète (ateliers 1 à 5) sur la même étude. Les changements faits là-bas ne reviennent pas dans ces écrans : enregistrer un écran ici reconstruit l'étude à partir de vos réponses.",
         "edited": "Cette étude a été modifiée en mode expert. Enregistrer cet écran reconstruit l'étude à partir de vos réponses rapides et remplace ces modifications (la version précédente est gardée dans un fichier .bak).",
         "edit_answers": "Modifier mes réponses",
@@ -284,9 +288,9 @@ def about(session, sid, lang, cat, state, errors=None, doc_open=False, edited=Fa
 {dk("values", slot("values").get("dont_know"))}</section>
 <fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_tools"))}</span><span class="example">{esc(tr(lang, "q_tools_ex"))}</span></legend>
 <div class="choice-grid">{tool_boxes}</div>{dk("tools", slot("tools").get("dont_know"))}</fieldset>
-<fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_downtime"))}</span></legend>
+<fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_downtime"))}</span><span class="example">{esc(tr(lang, "q_downtime_ex"))}</span></legend>
 <div class="choice-grid">{radios("downtime", engine.DOWNTIME_KEYS, "downtime_", cur_down)}</div></fieldset>
-<fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_sensitivity"))}</span></legend>
+<fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_sensitivity"))}</span><span class="example">{esc(tr(lang, "q_sensitivity_ex"))}</span></legend>
 <div class="choice-grid">{radios("sensitivity", engine.SENSITIVITY_KEYS, "sens_", cur_sens)}</div></fieldset>
 <details class="q doc"{doc_attr}><summary><span class="q-t">{esc(tr(lang, "q_doc"))}</span> <span class="opt">({esc(tr(lang, "optional"))})</span></summary>
 <p class="example">{esc(tr(lang, "q_doc_ex"))}</p>{have}
@@ -503,7 +507,8 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
     ass = (f'<ul class="assumptions">{"".join(li(a) for a in main_ass)}</ul>' if main_ass else f'<p class="ok">{esc(tr(lang, "assumptions_none"))}</p>')
     if cat_ass:
         ass += f'<details><summary>{esc(tr(lang, "assumptions_kept"))} ({len(cat_ass)})</summary><ul class="assumptions">{"".join(li(a) for a in cat_ass)}</ul></details>'
-    export = (f'<a class="button primary" href="/s/{sid}/export.xlsx">{esc(tr(lang, "export"))}</a>' if can_xlsx else "")
+    export = (f'<a class="button primary" href="/s/{sid}/export.xlsx">{esc(tr(lang, "export"))}</a>' if can_xlsx else
+              f'<p class="notice" role="note">{esc(tr(lang, "xlsx_missing"))}</p>')
     body = f"""{stepper(sid, "results", lang)}
 <h1>{esc(tr(lang, "res_title"))}</h1><p class="lead">{esc(tr(lang, "res_lead"))}</p>
 {_edited_banner(lang, edited)}

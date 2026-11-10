@@ -181,7 +181,11 @@ class WalkTest(Base):
         self.assertIn("What we assumed", t)
         self.assertIn(f'href="/s/{sid}"', t)                                   # open in expert mode
         self.assertIn("Open in expert mode", t)
-        self.assertIn(f'href="/s/{sid}/export.xlsx"', t)
+        if HAVE_OPENPYXL:
+            self.assertIn(f'href="/s/{sid}/export.xlsx"', t)
+        else:
+            self.assertNotIn("export.xlsx", t)
+            self.assertIn("needs the openpyxl package", t)
         conf = engine.quick_confidence(st["quick"], self.cat)
         self.assertLessEqual(conf, 75)
         self.assertIn(f'<span class="big-n">{conf}%</span>', t)
@@ -751,6 +755,12 @@ class ContrastTest(unittest.TestCase):
                  ("#1d2a55", "#e8eefc")]
         for fg, bg in pairs:
             self.assertGreaterEqual(contrast(fg, bg), 4.5, (fg, bg))
+
+    def test_legacy_badge_pairs_reach_aa(self):
+        v, css = self.vars()
+        for sel, fg, bg in ((".badge.ok", "ok", "#dff1e5"), (".badge.warn", "warn", "#fdeccc"), (".badge.bad", "bad", "#fadad7")):
+            self.assertIn(f"{sel} {{ background: {bg}; color: var(--{fg}); }}", css)
+            self.assertGreaterEqual(contrast(v[fg], bg), 4.5, sel)
 
     def test_focus_ring_is_visible(self):
         v, _ = self.vars()

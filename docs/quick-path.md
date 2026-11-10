@@ -18,7 +18,8 @@ are in `engine/atelier_engine/quick.py`; the web app never computes a level.
 | 4 Results | `/quick/<study>/results` | Before and after maps, top 5 actions, assumptions, confidence, honesty statement, Excel download, link to expert mode. | nothing |
 
 Every POST saves and rebuilds the study from the quick answers (`quick.build_study`), so the study file is always a
-valid study. Language: `?lang=en|fr` (kept in the `atelier_lang` cookie); the forms carry it and it is stored in
+valid study. Saving screen 1 again re-suggests the risks: earlier keep/discard decisions are kept, new suggestions are
+added as kept, and a catalogue risk that no longer applies to the new answers is dropped with its ratings. Language: `?lang=en|fr` (kept in the `atelier_lang` cookie); the forms carry it and it is stored in
 `quick.lang`, which is also the language of the generated study text.
 
 Documents: a file sent with screen 1 is stored in the study's documents (same store and limits as the Documents tab)
@@ -105,6 +106,7 @@ apart in the assumptions list.
   A document that is stored but not read does not raise it (nothing in the study comes from it).
 - **Top actions**: each extra measure's priority is the sum, over the risks it is ticked on, of
   (100 x levels the risk gains + severity x likelihood now), shared among that risk's extra measures. At most 5.
+- **Facts line**: "Assumptions to confirm" counts every entry of the assumptions list, typical values kept included.
 - **Assumptions**: every About-you question not answered, every severity or likelihood that is a `default`, every
   proposed severity kept as is (`catalogue`), and every risk whose measures in place were not reviewed. About-you
   first, then by risk level, highest first.

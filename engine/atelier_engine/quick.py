@@ -459,7 +459,7 @@ def facts(quick, cal, catalogue=None):
     conf = confidence(quick, catalogue)
     return {"documents": given, "document_provided": bool(doc.get("provided")),
             "not_provided": [k for k in MISSING_DOCUMENTS if k not in given],
-            "answers": n_answers, "assumptions": len([a for a in ass if a["kind"] != "catalogue"]),
+            "answers": n_answers, "assumptions": len(ass),
             "catalogue_values": len([a for a in ass if a["kind"] == "catalogue"]),
             "confidence": conf, "band": confidence_band(conf), "risks": len(rows)}
 
