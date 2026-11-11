@@ -9,6 +9,9 @@ T = {
     "en": {
         "card_h": "Want a deeper look?",
         "card_p": "Send your study to CPLT. We reply by email with a fuller strategy.",
+        "service_intro": "Atelier is free. If you want help putting these actions in place, ",
+        "service_link": "see what I do at CPLT",
+        "service_url": "https://cplt.tech/services",
         "email": "Your email address",
         "message": "A message (optional, up to 500 characters)",
         "consent": "I agree to send my answers, including the text I typed, to CPLT, who keeps them for 12 months to reply to me.",
@@ -30,6 +33,9 @@ T = {
     "fr": {
         "card_h": "Envie d'aller plus loin ?",
         "card_p": "Envoyez votre étude à CPLT. Nous répondons par e-mail avec une stratégie plus complète.",
+        "service_intro": "Atelier est gratuit. Pour de l’aide sur ces actions, ",
+        "service_link": "voyez ce que je fais chez CPLT",
+        "service_url": "https://cplt.tech/fr",
         "email": "Votre adresse e-mail",
         "message": "Un message (facultatif, 500 caractères au plus)",
         "consent": "J'accepte d'envoyer mes réponses, y compris les textes saisis, à CPLT, qui les conserve 12 mois pour me répondre.",
@@ -60,6 +66,7 @@ def card(session, sid, lang):
     return f"""<section class="card share-card">
 <h2>{esc(t(lang, "card_h"))}</h2>
 <p>{esc(t(lang, "card_p"))}</p>
+<p>{esc(t(lang, "service_intro"))}<a href="{esc(t(lang, "service_url"))}">{esc(t(lang, "service_link"))}</a>.</p>
 <form method="post" action="/quick/{esc(sid)}/share" class="share-form">
 {csrf_input(session)}<input type="hidden" name="lang" value="{esc(lang)}">
 <label>{esc(t(lang, "email"))} <input type="email" name="email" autocomplete="email" required maxlength="254"></label>
