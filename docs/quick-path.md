@@ -1,8 +1,8 @@
 # Quick path (`atelier_engine.quick`, web app `/quick/...`)
 
-The quick path is the "known risks list" shape of docs/design/guided-path.md section 17: four screens, a public
-catalogue of typical risks, and a result with two risk maps (now, after extra measures). It produces a normal
-`atelier-study` (docs/study-format.md), so the existing workshop screens ("expert mode") open the same study.
+The quick path is a "known risks list": four screens, a public catalogue of typical risks, and a result with two
+risk maps (now, after extra measures). It produces a normal `atelier-study` (docs/study-format.md), which the engine
+checks and exports like any other study.
 
 Rules that the ANSSI guide does not print are "Atelier rules, beyond the guide" (docs/rules.md, rule 5). All of them
 are in `engine/atelier_engine/quick.py`; the web app never computes a level.
@@ -11,11 +11,11 @@ are in `engine/atelier_engine/quick.py`; the web app never computes a level.
 
 | Screen | Route | What the person does | Saved as |
 |---|---|---|---|
-| Home | `GET /` | Reads the honesty statement, picks a way in: scratch (`/quick/new`), with a document (`/quick/new?doc=1`), or an existing risk analysis (`/reviews`). The study list is at `/studies`. | nothing |
-| 1 About you | `/quick/new`, `/quick/<study>/about` | 7 questions (name, what the organisation does, what matters most, what is used, how soon a stop hurts, how sensitive the information is, optional document). Each has an example and "I don't know". | `quick.profile` |
+| Home | `GET /` | Reads the honesty statement, picks a way in: from scratch (`/quick/new`) or with a document (`/quick/new?doc=1`, which only pre-selects "yes" on the document question). The list of saved studies is at `/studies` (reopen, delete). | nothing |
+| 1 About you | `/quick/new`, `/quick/<study>/about` | 7 questions (name, what the organisation does, what matters most, what is used, how soon a stop hurts, how sensitive the information is, optional yes/no: do you have a document). Each has an example and "I don't know". | `quick.profile` |
 | 2 Risks | `/quick/<study>/risks` | Keeps or discards the proposed risks, adds risks in their own words. An always-assessed risk needs a reason to be discarded. | `quick.risks[]` |
 | 3 Now and after | `/quick/<study>/now` | Per kept risk: severity (proposed, with an override and a reason), likelihood (plain question), measures in place, extra measures. | `quick.risks[]` |
-| 4 Results | `/quick/<study>/results` | Before and after maps, top 5 actions, assumptions, confidence, honesty statement, Excel download, link to expert mode. | nothing |
+| 4 Results | `/quick/<study>/results` | Before and after maps, top 5 actions, assumptions, confidence, honesty statement, Excel download, study-file download. | nothing |
 
 Every POST saves and rebuilds the study from the quick answers (`quick.build_study`), so the study file is always a
 valid study. Screen 2 pre-ticks only the short list (`quick.shortlist`, see "Short list" below); the other risks that
@@ -25,9 +25,9 @@ when it is in the short list and unticked otherwise, and a catalogue risk that n
 dropped with its ratings. Language: `?lang=en|fr` (kept in the `atelier_lang` cookie); the forms carry it and it is stored in
 `quick.lang`, which is also the language of the generated study text.
 
-Documents: a file sent with screen 1 is stored in the study's documents (same store and limits as the Documents tab)
-and flagged as provided, with its type. It is **not read**: no answer or element comes from it, so it does not change
-any level. The results page says so. (Document reading is out of scope of this first draft.)
+Document: screen 1 asks "Do you have a document about your systems or risks?" as a plain yes/no. Nothing is uploaded,
+stored or read: the answer is kept as a flag (`profile.document`) and the results page lists it as "document
+mentioned, not read". No answer or element comes from a document, so it does not change any level.
 
 ## Quick answers (JSON)
 
@@ -45,7 +45,7 @@ Stored in the study file under the key `quick` (the engine's checks ignore it), 
     "tools":       {"value": ["office", "shop"], "dont_know": false},
     "downtime":    {"answer": "day"},
     "sensitivity": {"answer": "confidential"},
-    "document":    {"provided": true, "doc_id": "d0123456789ab", "filename": "notes.txt", "kind": "architecture", "status": "stored, not read"}
+    "document":    {"provided": true, "status": "mentioned, not read"}
   },
   "risks": [
     {"id": "D01", "decision": "keep",
@@ -67,7 +67,7 @@ Stored in the study file under the key `quick` (the engine's checks ignore it), 
 | `profile.activity`, `.values`, `.tools` | `{"value": ..., "dont_know": bool}` | `values`: at most 5 labels, most important first. `tools`: ids of the catalogue's `tools`. |
 | `profile.downtime` | `hours`, `day`, `days`, `week`, `dont_know` | How soon a stop of the main tools really hurts: levels 4, 3, 2, 1. |
 | `profile.sensitivity` | `public`, `internal`, `confidential`, `critical`, `dont_know` | Levels 1, 2, 3, 4. |
-| `profile.document` | `{"provided": bool, "kind": "architecture"\|"business-impact"\|"security-baseline"\|"other", ...}` | Flag only. |
+| `profile.document` | `{"provided": bool, "status": "mentioned, not read"}` | Flag only. Studies saved earlier may also carry a `kind` (`architecture`, `business-impact`, `security-baseline`, `other`); the engine lists it, and nothing is read. |
 | `risks[].id` | catalogue id, or `C<n>` for the person's own | Order is the order of the suggestions. |
 | `risks[].decision` | `keep`, `discard` | A discarded always-assessed risk needs a non-empty `reason`. |
 | `risks[].severity` | `{"value": 1..4, "reason": text}` | Absent = keep the proposal. A value different from the proposal needs a `reason`. |
@@ -106,7 +106,7 @@ apart in the assumptions list.
   0.5 x severity weight + 0.5 x likelihood weight; study confidence = the mean of the risks', times
   `0.8 + 0.2 x` the share of the five About-you questions answered, rounded to a whole percent. With no document
   provided the result never exceeds 75. No kept risk: 0. Bands: high 80 and up, medium 50-79, low under 50.
-  A document that is stored but not read does not raise it (nothing in the study comes from it).
+  A document that is only mentioned does not raise it (nothing in the study comes from it).
 - **Top actions**: each extra measure's priority is the sum, over the risks it is ticked on, of
   (100 x levels the risk gains + severity x likelihood now), shared among that risk's extra measures. At most 5.
 - **Facts line**: "Assumptions to confirm" counts every entry of the assumptions list, typical values kept included.
@@ -126,14 +126,10 @@ apart in the assumptions list.
 | `in_place` | `baseline` `BL-<measure>`, status applied (one per measure, shared by risks) |
 | `extra` | `measures` `M-<measure>`, status planned, `risks` = the risks it is ticked on (no owner or date: the checks warn) |
 
-An accidental risk has no risk origin or scenario (design s.17), so the expert checks list a warning for each
-feared event of severity 3 or 4 ("no scenario targets it"). These are warnings, not errors; the study validates.
+An accidental risk has no risk origin or scenario, so the engine's checks list a warning for each feared event of
+severity 3 or 4 ("no scenario targets it"). These are warnings, not errors; the study validates.
 
-## Expert mode
-
-"Open in expert mode" links to `/s/<study>`. Changes made there are not carried back: saving a quick screen rebuilds
-the study from the quick answers, and the previous file is kept as `.bak`. The quick screens show a notice when the
-stored study differs from what the quick answers build.
+Saving a quick screen rebuilds the study from the quick answers, and the previous file is kept as `.bak`.
 
 ## Honesty statement
 
@@ -167,17 +163,16 @@ originals (`label`, `name`, ...) stay the reference and the level `name` stays t
 new keys (a non-empty text when present) and a calibration without them falls back to the original text.
 `calibration.label(cal, axis, n, lang)` and `calibration.level_name(cal, name, lang)` give the text for `lang="en"`;
 any other language, or none, gives the original. The quick-path screens, result maps and table and the quick Excel
-export follow the page language; expert mode is unchanged. In the Excel export the object sheets keep their raw
+export follow the page language. In the Excel export the object sheets keep their raw
 column names.
 
 ### Brand logo
 
-If `app/static/brand/logo.svg` exists, the page header shows it (30 px high, alt text "CPLT") to the left of the app
-name, and `/static/brand/logo.svg` serves it. Without the file nothing extra is shown. No logo file is shipped.
+If `app/static/brand/logo.svg` exists, the page header shows it (30 px high, alt text set in `views.logo_html`) to the
+left of the app name, and `/static/brand/logo.svg` serves it. Without the file nothing extra is shown. No logo file is shipped.
 
-## Not done in this draft
+## Not done
 
-- Reading documents (the upload is stored and flagged only).
-- French text beyond the quick-path screens and the honesty statement (other pages stay English).
-- Expert mode and the other pages show the calibration's own (French) level names.
+- Reading documents (the question is a yes/no flag only).
+- French text beyond the quick-path screens and the honesty statement (the study list and the login page stay English).
 - Several users or accounts.
