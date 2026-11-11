@@ -25,8 +25,12 @@ The app shows this text on the home page, on every results page and at the top o
    not read".
 3. **Risks.** Keep the typical risks that fit, discard the others, add your own.
 4. **Now and after.** For each kept risk: how bad, how likely, what you already do, what you could add.
-5. **Results.** Two maps, the top 5 actions, the assumptions, the confidence, the honesty statement. Download the
-   Excel workbook or the study file. Saved studies are listed under "Studies": reopen or delete.
+5. **Results.** What is already in place, the top 5 actions and each risk in three short lines, two maps, the
+   confidence, the honesty statement, the assumptions, and a closing line. Download the Excel workbook or the study
+   file. Saved studies are listed under "Studies": reopen or delete.
+
+"How it works" (in the header) explains the method and where the numbers come from. The **Expert** switch in the
+header (off by default) shows the full method on the same study: overview, workshops 1 to 5, register.
 
 English and French are both available (the EN / FR switch in the header). Everything is saved after each step.
 

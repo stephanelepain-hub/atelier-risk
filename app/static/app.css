@@ -399,3 +399,10 @@ button.switch[aria-checked="true"] .track::after { left: 1.1rem; background: var
 .a-how { color: var(--muted); font-weight: 400; }
 article.how { max-width: 52rem; }
 article.how h3 { font-size: 1.05rem; margin: 1rem 0 .4rem; }
+.finding p { margin: .15rem 0; }
+.finding p b { display: inline-block; min-width: 8.5rem; color: var(--accent-dark); font-weight: 650; }
+.risk-finding { border-top: 1px solid var(--line); padding: .7rem 0; }
+.risk-finding:first-of-type { border-top: 0; }
+.risk-finding h3 { font-size: 1.05rem; margin: 0 0 .3rem; }
+p.closing { margin: 1.2rem 0 0; padding: .9rem 1.2rem; background: #e6f4ea; border: 1px solid #a9d6b7; border-radius: var(--radius-sm);
+  color: #14502b; font-weight: 650; font-size: 1.1rem; }

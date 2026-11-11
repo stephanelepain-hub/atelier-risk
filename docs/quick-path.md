@@ -12,7 +12,7 @@ are in `engine/atelier_engine/quick.py`; the web app never computes a level.
 | Screen | Route | What the person does | Saved as |
 |---|---|---|---|
 | Home | `GET /` | Reads the honesty statement, picks a way in: from scratch (`/quick/new`) or with a document (`/quick/new?doc=1`, which only pre-selects "yes" on the document question). The list of saved studies is at `/studies` (reopen, delete). | nothing |
-| 1 About you | `/quick/new`, `/quick/<study>/about` | 7 questions (name, what the organisation does, what matters most, what is used, how soon a stop hurts, how sensitive the information is, optional yes/no: do you have a document). Each has an example and "I don't know". | `quick.profile` |
+| 1 About you | `/quick/new`, `/quick/<study>/about` | 7 questions (name, what the organisation does, what matters most, what is used, how soon a stop hurts, how sensitive the information is, optional yes/no: do you have a document). Each has an example and "Not sure". | `quick.profile` |
 | 2 Risks | `/quick/<study>/risks` | Keeps or discards the proposed risks, adds risks in their own words. An always-assessed risk needs a reason to be discarded. | `quick.risks[]` |
 | 3 Now and after | `/quick/<study>/now` | Per kept risk: severity (proposed, with an override and a reason), likelihood (plain question), measures in place, extra measures. | `quick.risks[]` |
 | 4 Results | `/quick/<study>/results` | Before and after maps, top 5 actions, assumptions, confidence, honesty statement, Excel download, study-file download. | nothing |

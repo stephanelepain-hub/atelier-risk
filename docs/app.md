@@ -88,8 +88,20 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 - **The four screens** (`/quick/new`, then `/quick/<study>/about|risks|now|results`), described in
   docs/quick-path.md: About you, Risks, Now and after, Results. Each saves what you entered and builds a normal
   study that the engine checks.
-- **Results**: two risk maps (now, and after your extra measures), the top 5 actions, the assumptions, the
-  confidence, the honesty statement, the Excel download and the study-file download.
+- **Results**: what is already in place, then the top 5 actions and each kept risk in three short lines
+  (To strengthen / Based on / Next step, `findings.py`), two risk maps (now, and after your extra measures), the
+  confidence, the honesty statement, the assumptions, the downloads, and one closing line computed from the real
+  before and after levels. Levels and severities appear in plain words (`labels.py`: Low / Moderate / High;
+  Minor / Noticeable / Serious / Very serious). The engine and the calibration keep the ANSSI terms; the mapping
+  lives in the app and changes no number.
+- **How it works** (`/how`, EN and FR, linked from every page): the method, the screens and the workshops, where
+  the numbers come from, the confidence figure, the honesty statement, your data, the independence notice.
+- **Expert switch** (page header, off by default): `POST /expert` (CSRF token, field `on` = `1` or `0`, optional
+  `next`) sets the cookie `expert` (path `/`, HttpOnly, SameSite=Lax) and redirects back. On: an "Expert mode on"
+  badge, "Open in expert view" on the results page and a link to the overview in the studies list. Off: no link to
+  the expert screens anywhere. The expert screens themselves (`/s/<study>`, `/s/<study>/w1` to `w5`, `/register`,
+  `/el/<id>`, `/severities`, rename, duplicate) answer either way, and a quick study changed there shows a note on
+  the quick screens.
 - **The document question** is a yes/no flag. Nothing is uploaded or read; a "yes" is listed in the results as
   "document mentioned, not read" and does not change any level.
 - **Saved studies** (`/studies`): reopen a study where you stopped, or delete it (it moves to the trash folder).
@@ -101,7 +113,7 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 
 - Binds `127.0.0.1:8770` by default. A non-loopback address is refused unless `--allow-remote` is given.
 - Requests whose `Host` header is not `127.0.0.1:<port>` or `localhost:<port>` are refused (DNS rebinding).
-- Every page except the login needs the session cookie. Every form carries a CSRF token, checked on each POST.
+- Every page except the login and `/how` needs the session cookie. Every form carries a CSRF token, checked on each POST.
 - Wrong tokens are refused; ten failures within a minute lock the login for that minute.
 - Strict Content-Security-Policy (`default-src 'none'`, scripts and styles from the app only, no inline code),
   `X-Frame-Options: DENY`, `nosniff`, no referrer, no caching.
@@ -119,7 +131,10 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 | `app/atelier.py` | launcher: start, stop, status, token --new |
 | `app/atelier_app/app.py` | routes, login and CSRF gates, security headers, study list, downloads |
 | `app/atelier_app/quick_routes.py`, `views_quick.py` | quick-path handlers and pages (home, four screens, EN and FR text) |
-| `app/atelier_app/views.py` | shared page shell, login page, study list, delete confirmation |
+| `app/atelier_app/views.py` | shared page shell (header with the Expert switch), login page, study list, delete confirmation, the expert study pages |
+| `app/atelier_app/expert_routes.py`, `editors.py`, `views_ws.py` | expert mode: study overview, workshops 1 to 5, register, severities, locate, rename, duplicate |
+| `app/atelier_app/views_how.py` | the "How it works" page |
+| `app/atelier_app/labels.py`, `findings.py` | plain names for severities and levels, one-line "how long, who" per measure, the three-line findings and the closing line |
 | `app/atelier_app/engine.py` | the only module that calls the engine |
 | `app/atelier_app/calibrations.py` | calibration lookup: the published calibration only |
 | `app/atelier_app/storage.py` | study files |

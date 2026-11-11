@@ -150,9 +150,9 @@ class App(ExpertRoutes, QuickRoutes):
             return self.login_form(req, "The login form expired. Paste the token again.", 403)
         res = self.auth.check_token(req.field("token").strip())
         if res == "locked":
-            return self.login_form(req, "Too many wrong tokens. Wait a minute.", 429)
+            return self.login_form(req, "Please wait a minute, then try the token again.", 429)
         if res != "ok":
-            return self.login_form(req, "Wrong token.", 403)
+            return self.login_form(req, "Check the token and try again.", 403)
         return self._start_session("/")
 
     def _start_session(self, next_path):
@@ -165,7 +165,7 @@ class App(ExpertRoutes, QuickRoutes):
     def login_once(self, req):
         nxt = self.auth.use_once(req.arg("n"))
         if nxt is None:
-            return self.login_form(req, "That login link was already used or has expired.", 403)
+            return self.login_form(req, "Ask for a fresh login link; each one works once.", 403)
         return self._start_session(nxt)
 
     def logout(self, req):
@@ -288,6 +288,8 @@ class App(ExpertRoutes, QuickRoutes):
                 rows = engine.quick_compute(quick, chk["cal"], cat)
                 fnd = findings.build(quick, cat, chk["cal"], rows, engine.quick_actions(quick, chk["cal"], cat, 5), lang)
                 sheets = self._finding_sheets(engine.quick_sheets(quick, chk["cal"], cat), fnd, lang)
+                if fnd["closing"]:
+                    notice = notice + [fnd["closing"]]  # the summary at the top of the workbook closes on it
                 cal = labels.display_cal(chk["cal"], lang)  # plain level and severity names, same numbers
             except engine.QuickError:
                 notice = sheets = lang = None

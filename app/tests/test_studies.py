@@ -32,7 +32,7 @@ class StudyListTest(unittest.TestCase):
 
     def test_empty_list_points_to_the_quick_path(self):
         t = self.page("/studies")
-        self.assertIn("No study yet", t)
+        self.assertIn("Your studies will be listed here", t)
         self.assertIn('href="/quick/new"', t)
 
     def test_list_reopen_and_delete(self):

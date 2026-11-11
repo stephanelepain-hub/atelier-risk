@@ -165,9 +165,27 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
 """
 
 
+FRIENDLY = {
+    400: "That request needs another look. Go back, check it and try again.",
+    403: "Reload the page or log in again, then try once more.",
+    404: "That page is unavailable. The home page is a good place to restart.",
+    405: "That address answers to another kind of request. The home page is a good place to restart.",
+    409: "This study needs a small fix before it can be shown. Your answers are safe.",
+    413: "That request is larger than the limit. A smaller one works.",
+    415: "That kind of content is unavailable here. A plain form works.",
+    421: "Open Atelier at its own address on this computer.",
+    429: "Please wait a minute, then try again.",
+    500: "Something went wrong on our side. Your studies are safe; the server log has the details.",
+    501: "Add the openpyxl package to enable the Excel download. The study file download is ready now.",
+}
+
+
 def error_page(status, message, session=None):
-    body = f'<h1>{status}</h1><p>{esc(message)}</p><p><a href="/">Back to the home page</a></p>'
-    return page(f"Error {status}", body, session)
+    friendly = FRIENDLY.get(status, "Something went wrong. The home page is a good place to restart.")
+    body = (f'<h1>{status}</h1><p>{esc(friendly)}</p>'
+            f'<details class="hint"><summary>Details</summary><p>{esc(message)}</p></details>'
+            f'<p><a href="/">Back to the home page</a></p>')
+    return page(f"Page {status}", body, session)
 
 
 def login_page(pre, message=""):
@@ -214,7 +232,7 @@ def study_list(rows, session, flash=""):
 <td class="nowrap">{when(mtime)}</td>
 <td class="actions">{opener}<a href="/s/{sid}/delete" class="danger">Delete</a></td>
 </tr>""")
-    table = ("<p class=\"empty\">No study yet. <a href=\"/quick/new\">Start one</a>.</p>" if not trs else
+    table = ("<p class=\"empty\">Your studies will be listed here. <a href=\"/quick/new\">Start your first one</a>.</p>" if not trs else
              "<table class=\"list\"><thead><tr><th>Name</th><th>Where you stopped</th><th>Last modified</th>"
              "<th>Actions</th></tr></thead><tbody>" + "".join(trs) + "</tbody></table>")
     body = f"""<h1>Studies</h1>
@@ -635,7 +653,7 @@ def confirm_delete(sid, st, session):
     meta = st.get("study") if isinstance(st.get("study"), dict) else {}
     body = f"""<section class="card narrow"><h1>Delete this study?</h1>
 <p><b>{esc(meta.get("name") or "(no name)")}</b></p>
-<p>The file moves to the trash folder of the data directory; nothing else is removed.</p>
+<p>The file moves to the trash folder of the data directory; everything else stays.</p>
 <form method="post" action="/s/{sid}/delete">{csrf_input(session)}<button class="danger">Delete</button>
 <a href="/studies">Cancel</a></form></section>"""
     return page("Delete study", body, session)

@@ -448,8 +448,8 @@
    "measures": [
     {
      "id": "payment_provider",
-     "en": "Let a certified payment provider handle card details, so they never pass through your site",
-     "fr": "Confier les données de carte à un prestataire de paiement certifié, pour qu'elles ne passent jamais par votre site"
+     "en": "Let a certified payment provider handle card details, so they stay away from your site",
+     "fr": "Confier les données de carte à un prestataire de paiement certifié, pour qu'elles restent hors de votre site"
     },
     {
      "id": "site_updates",
@@ -1018,12 +1018,12 @@
    "id": "A02",
    "family": "accidental",
    "title": {
-    "en": "Data cannot be restored from backups",
-    "fr": "Les données ne peuvent pas être restaurées depuis les sauvegardes"
+    "en": "A restore from backups turns out incomplete",
+    "fr": "Une restauration depuis les sauvegardes s'avère incomplète"
    },
    "description": {
-    "en": "Backups do not exist, are old, are kept next to the originals or have never been tested.",
-    "fr": "Les sauvegardes n'existent pas, sont anciennes, sont rangées à côté des originaux ou n'ont jamais été testées."
+    "en": "Backups are missing, old, kept next to the originals or still untested.",
+    "fr": "Les sauvegardes manquent, sont anciennes, sont rangées à côté des originaux ou restent à tester."
    },
    "criteria": [
     "integrity",
@@ -1068,8 +1068,8 @@
     "fr": "Message ou fichiers envoyés aux mauvaises personnes"
    },
    "description": {
-    "en": "A message, attachment or shared link reaches someone who should not see it.",
-    "fr": "Un message, une pièce jointe ou un lien de partage parvient à quelqu'un qui ne devrait pas le voir."
+    "en": "A message, attachment or shared link reaches someone outside the intended audience.",
+    "fr": "Un message, une pièce jointe ou un lien de partage parvient à quelqu'un hors du public prévu."
    },
    "criteria": [
     "confidentiality"
@@ -1375,8 +1375,8 @@
     "fr": "Un fournisseur clé ou un prestataire informatique cesse de vous servir"
    },
    "description": {
-    "en": "A supplier closes, has a problem or ends the contract, and you cannot get the service elsewhere quickly.",
-    "fr": "Un fournisseur ferme, rencontre un problème ou met fin au contrat, et vous ne pouvez pas obtenir le service ailleurs rapidement."
+    "en": "A supplier closes, has a problem or ends the contract, and replacing the service takes time.",
+    "fr": "Un fournisseur ferme, rencontre un problème ou met fin au contrat, et remplacer le service prend du temps."
    },
    "criteria": [
     "availability"
@@ -1689,8 +1689,8 @@
     "fr": "Erreurs sur le site ou la boutique après un changement"
    },
    "description": {
-    "en": "After a change, the checkout does not work or prices and stock are wrong.",
-    "fr": "Après un changement, le paiement ne fonctionne pas ou les prix et les stocks sont faux."
+    "en": "After a change, the checkout misbehaves or prices and stock show errors.",
+    "fr": "Après un changement, le paiement se comporte mal ou les prix et les stocks affichent des erreurs."
    },
    "criteria": [
     "integrity",

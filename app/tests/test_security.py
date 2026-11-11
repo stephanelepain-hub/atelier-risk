@@ -43,7 +43,7 @@ class AuthTest(unittest.TestCase):
         r = self.c.post("/login", {"pre": pre, "token": "not-the-token"})
         self.assertEqual(r.status, 403)
         self.assertNotIn("atelier_session", self.c.cookies)
-        self.assertIn("Wrong token", self.c.text(r))
+        self.assertIn("Check the token and try again", self.c.text(r))
         self.assertEqual(self.c.get("/").status, 303)
 
     def test_lockout_after_repeated_failures(self):

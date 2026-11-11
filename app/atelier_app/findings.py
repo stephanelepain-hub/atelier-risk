@@ -35,10 +35,10 @@ TXT = {
         "gap_open": "{k} mesures utiles sur {m} restent à ajouter.",
         "gap_done": "Les {m} mesures utiles sont en place.",
         "ev_lik_deliberate": "Vous avez répondu « {x} » pour la probabilité.",
-        "ev_lik_accidental": "Vous avez répondu « {x} » à la question « est-ce arrivé ? ».",
+        "ev_lik_accidental": "Vous avez répondu « {x} » : est-ce arrivé ?",
         "ev_sev": "Vous l'avez noté « {x} », avec cette remarque : {why}",
-        "ev_sens": "Vous avez dit que vos informations sont : « {x} ».",
-        "ev_down": "Vous avez dit qu'un arrêt compterait « {x} ».",
+        "ev_sens": "Selon vous, vos informations sont « {x} ».",
+        "ev_down": "Selon vous, un arrêt compterait « {x} ».",
         "ev_tools": "Vous avez dit utiliser : {x}.",
         "ev_typical": "Une valeur typique pour des entreprises comme la vôtre.",
         "fix_done": "Revoir vos mesures chaque année : une heure, un responsable.",
@@ -54,7 +54,8 @@ TXT = {
 
 
 def wc(text):
-    return len(str(text).split())
+    """Words in a line: whitespace-separated tokens that hold a letter or a digit (a lone ":" is no word)."""
+    return len([w for w in str(text).split() if any(c.isalnum() for c in w)])
 
 
 def _pick(d, lang):
