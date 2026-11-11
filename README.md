@@ -16,7 +16,7 @@ people who help them.
 
 1. Open [atelier.cplt.online](https://atelier.cplt.online) and enter the invite code `cplt-cqe0vg`.
 2. Answer the questions. It takes about 15 minutes, in English or French, and you need no account.
-3. Tell us what felt unclear, slow or missing, with the "Share it" link at the bottom of every page or in an issue
+3. Tell us what felt unclear, slow or missing: hello@cplt.tech, the "Share it" link at the bottom of every page, or an issue
    here.
 
 Your answers stay in a private space that only your browser can open. It is cleared after 30 days without a visit,
