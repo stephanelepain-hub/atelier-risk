@@ -1040,36 +1040,36 @@ class RoundTwoLayoutTest(Base):
 
 
 class RoundTwoLogoTest(Base):
-    """F4: a logo slot. app/static/brand/logo.svg is shown when it exists; nothing extra otherwise."""
+    """The CPLT mark (app/static/brand/logo.svg) sits left of the app name; the CPLT icon is the favicon."""
+
+    def test_logo_is_shown_left_of_the_app_name(self):
+        logo = (STATIC / "brand" / "logo.svg").read_bytes()
+        self.assertIn(b'fill="hsl(36 68% 66%)"', logo)        # the gold dot of the canonical mark, unchanged
+        self.assertIn(b'stroke="currentColor"', logo)
+        for path in ("/", "/studies", "/quick/new"):
+            head = self.page(path).split("</header>")[0]
+            m = re.search(r'<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="28">', head)
+            self.assertIsNotNone(m, path)
+            self.assertLess(m.start(), head.index("Atelier</a>"))
+            self.assertIn('<link rel="icon" type="image/svg+xml" href="/static/brand/favicon.svg">', self.page(path))
+        r = self.c.get("/static/brand/logo.svg")
+        self.assertEqual((r.status, r.get("Content-Type")), (200, "image/svg+xml"))
+        self.assertEqual(r.body, logo)
+        r = self.c.get("/static/brand/favicon.svg")
+        self.assertEqual((r.status, r.get("Content-Type")), (200, "image/svg+xml"))
+        self.assertIn("/static/brand/logo.svg", self.c.text(Client(self.app).get("/login")))  # public pages too
 
     def test_no_logo_file_shows_nothing_extra(self):
-        self.assertFalse((STATIC / "brand" / "logo.svg").exists())  # no logo file is created by this change
-        for path in ("/", "/studies", "/quick/new"):
-            t = self.page(path)
-            self.assertNotIn("<img", t.split("</header>")[0])
-            self.assertNotIn("logo.svg", t)
-        self.assertEqual(self.c.get("/static/brand/logo.svg").status, 404)
-        self.assertIn('<a class="brand" href="/">Atelier</a>', self.page("/"))
-
-    def test_logo_file_is_shown_left_of_the_app_name(self):
         import atelier_app
         import tempfile
         from unittest import mock
         with tempfile.TemporaryDirectory() as d:
-            (pathlib.Path(d) / "brand").mkdir()
-            svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'
-            (pathlib.Path(d) / "brand" / "logo.svg").write_bytes(svg)
             with mock.patch.object(atelier_app, "STATIC_DIR", pathlib.Path(d)):
                 for path in ("/", "/studies", "/quick/new"):
-                    head = self.page(path).split("</header>")[0]
-                    m = re.search(r'<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="30">', head)
-                    self.assertIsNotNone(m, path)
-                    self.assertLess(m.start(), head.index("Atelier</a>"))
-                r = self.c.get("/static/brand/logo.svg")
-                self.assertEqual((r.status, r.get("Content-Type")), (200, "image/svg+xml"))
-                self.assertEqual(r.body, svg)
-                self.assertIn("/static/brand/logo.svg", self.c.text(Client(self.app).get("/login")))  # public pages too
-        self.assertNotIn("<img", self.page("/").split("</header>")[0])  # and gone again when the file is gone
+                    t = self.page(path)
+                    self.assertNotIn("<img", t.split("</header>")[0])
+                    self.assertNotIn("favicon.svg", t)
+                self.assertEqual(self.c.get("/static/brand/logo.svg").status, 404)
 
     def test_logo_css_height_is_28_to_32_px(self):
         css = (STATIC / "app.css").read_text(encoding="utf-8")

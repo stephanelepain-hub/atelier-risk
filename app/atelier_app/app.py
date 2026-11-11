@@ -77,6 +77,7 @@ class App(ExpertRoutes, QuickRoutes):
         self.tmp_dir.mkdir(exist_ok=True, mode=0o700)
         os.chmod(self.tmp_dir, 0o700)
         self.token_path = self.data_dir / "token"
+        views.NOINDEX = bool(self.public)
         if self.public:   # no login token, no shared study store: every visitor has a workspace of their own
             self.store, self.token_created, self.auth = None, False, auth.Auth("")
             self.workspaces = workspaces.Workspaces(self.data_dir)
@@ -144,6 +145,9 @@ class App(ExpertRoutes, QuickRoutes):
             r.add("POST", r"/login/link", self.login_link)
         r.add("GET", r"/static/([a-z]+\.(?:css|js))", self.static, public=True)
         r.add("GET", r"/static/brand/logo\.svg", self.brand_logo, public=True)
+        r.add("GET", r"/static/brand/favicon\.svg", self.brand_favicon, public=True)
+        r.add("GET", r"/favicon\.ico", self.brand_favicon, public=True)
+        r.add("GET", r"/robots\.txt", self.robots_txt, public=True)
         r.add("GET", r"/studies", self.index)
         r.add("GET", r"/cal/([A-Za-z0-9._%-]+)\.css", self.cal_css)
         r.add("GET", rf"/s/{SID}/delete", self.delete_confirm)
@@ -185,6 +189,8 @@ class App(ExpertRoutes, QuickRoutes):
         except Exception:
             traceback.print_exc(file=sys.stderr)
             resp = Response(views.error_page(500, "internal error (details in the server log)", req.session), 500)
+        if self.public:
+            resp.header("X-Robots-Tag", "noindex, nofollow")
         return self.secure(resp)
 
     def too_large(self, path=""):
@@ -333,6 +339,16 @@ class App(ExpertRoutes, QuickRoutes):
         if not p.is_file():
             raise HTTPError(404, "not found")
         return Response(p.read_bytes(), 200, "image/svg+xml")
+
+    def brand_favicon(self, req):
+        p = views.logo_path().parent / "favicon.svg"
+        if not p.is_file():
+            raise HTTPError(404, "not found")
+        return Response(p.read_bytes(), 200, "image/svg+xml")
+
+    def robots_txt(self, req):
+        """Crawling stays allowed so search engines can read the noindex signal (a Disallow would hide it)."""
+        return Response(b"User-agent: *\nAllow: /\n", 200, "text/plain; charset=utf-8")
 
     def cal_css(self, req, cal_id):
         if cal_id not in calibrations.available():

@@ -15,3 +15,6 @@ It includes material reproduced or adapted from:
   These have been translated into English and restructured; ANSSI does not endorse this product.
 
 EBIOS is a registered trademark of the Secrétariat général de la défense et de la sécurité nationale.
+
+The CPLT name, mark and icon (app/static/brand/) are CPLT brand assets and are not covered by the EUPL licence of the
+code. Remove that folder in your own copy; the app then shows no logo.

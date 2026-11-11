@@ -1004,5 +1004,33 @@ class PublisherFooter(unittest.TestCase):
             self.assertNotIn('class="publisher"', self._body(content), content)
 
 
+class SearchEngines(unittest.TestCase):
+    """Public mode asks search engines to leave the app out of results; local mode adds nothing."""
+
+    def test_public_noindex_and_robots(self):
+        app, d = helpers.make_app(public=True, invite_code=None)
+        try:
+            c = helpers.Client(app)
+            r = c.get("/join")
+            self.assertEqual(r.get("X-Robots-Tag"), "noindex, nofollow")
+            self.assertIn('<meta name="robots" content="noindex, nofollow">', c.text(r))
+            r = c.get("/robots.txt")
+            self.assertEqual(r.status, 200)
+            self.assertNotIn("Disallow", c.text(r))   # crawlers must be able to read the noindex signal
+            self.assertEqual(c.get("/favicon.ico").status, 200)
+        finally:
+            helpers.cleanup(d)
+
+    def test_local_mode_has_no_noindex(self):
+        app, d = helpers.make_app()
+        try:
+            c = helpers.Client(app); c.login()
+            r = c.get("/")
+            self.assertIsNone(r.get("X-Robots-Tag"))
+            self.assertNotIn('name="robots"', c.text(r))
+        finally:
+            helpers.cleanup(d)
+
+
 if __name__ == "__main__":
     unittest.main()

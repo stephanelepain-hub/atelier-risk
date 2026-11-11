@@ -109,6 +109,9 @@ NAV = {"en": {"home": "Home", "list": "Studies", "logout": "Log out", "how": "Ho
               "offered": "Atelier est proposé par", "feedback": "Vos retours font grandir Atelier.",
               "feedback_link": "Partagez-les"}}
 
+# Public mode: ask search engines to leave the app out of their results (the publisher's own page is the one to find).
+NOINDEX = False
+
 # Who offers this instance, shown in a footer on every page: {"name", "url", "feedback_url"} (https URLs only).
 # Set by App from `<data_dir>/publisher.json`; None shows no footer.
 PUBLISHER = None
@@ -121,10 +124,10 @@ def logo_path():
 
 
 def logo_html():
-    """The header logo (alt text CPLT, 30 px high) when the logo file exists, else nothing."""
+    """The header logo (alt text CPLT, 28 px high, the size cplt.tech uses) when the logo file exists, else nothing."""
     if not logo_path().is_file():
         return ""
-    return '<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="30">'
+    return '<img class="logo" src="/static/brand/logo.svg" alt="CPLT" height="28">'
 
 
 def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=None):
@@ -157,6 +160,9 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
                   f'<input type="hidden" name="on" value="{0 if on else 1}"><input type="hidden" name="next" value="{esc(nxt)}">'
                   f'<button type="submit" class="switch" role="switch" aria-checked="{"true" if on else "false"}">'
                   f'<span class="track" aria-hidden="true"></span>{esc(n["expert"])}</button></form>')
+    favicon = ('<link rel="icon" type="image/svg+xml" href="/static/brand/favicon.svg">\n'
+               if (logo_path().parent / "favicon.svg").is_file() else "")
+    robots = '<meta name="robots" content="noindex, nofollow">\n' if NOINDEX else ""
     footer = ""
     if PUBLISHER:
         pub = PUBLISHER
@@ -174,7 +180,7 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)} - Atelier</title>
 <link rel="stylesheet" href="/static/app.css">
-{cal_css}
+{favicon}{robots}{cal_css}
 <script src="/static/app.js" defer></script>
 </head>
 <body>

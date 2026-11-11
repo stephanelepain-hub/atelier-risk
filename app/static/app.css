@@ -23,7 +23,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.2
   background: linear-gradient(100deg, #1a2b63, #27458f); color: #fff; }
 header.top a { color: #fff; text-decoration: none; }
 header.top .brand { font-weight: 750; font-size: 1.3rem; letter-spacing: .01em; display: inline-flex; align-items: center; gap: .6rem; }
-header.top .brand img.logo { height: 30px; width: auto; display: block; }
+header.top .brand img.logo { height: 28px; width: auto; display: block; }
 header.top .sub { color: #dbe4ff; font-size: .95rem; }
 header.top nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; align-items: center; }
 header.top nav a { padding: .3rem .1rem; border-bottom: 2px solid transparent; }
