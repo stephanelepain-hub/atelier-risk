@@ -600,6 +600,13 @@ class CatalogueReasons(unittest.TestCase):
                 self.assertTrue(r["why"][lang].strip(), (r["id"], lang))
                 self.assertLessEqual(len(r["why"][lang].split()), 14, (r["id"], lang))
 
+    def test_the_reasons_use_positive_wording(self):
+        en = re.compile(r"\b(do not|don't|cannot|can't|won't|must not|never|does not|did not|is not|are not|not|no)\b", re.I)
+        fr = re.compile(r"\bne\b|\bn['’]\w+|\bpas\b|\bjamais\b", re.I)
+        for r in quick.load_catalogue()["risks"]:
+            self.assertIsNone(en.search(r["why"]["en"]), r["id"])
+            self.assertIsNone(fr.search(r["why"]["fr"]), r["id"])
+
     def test_a_risk_without_a_reason_is_refused(self):
         cat = quick.load_catalogue()
         del cat["risks"][0]["why"]

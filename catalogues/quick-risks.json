@@ -1083,7 +1083,7 @@
    "family": "accidental",
    "why": {
     "en": "A backup helps only when it restores well.",
-    "fr": "Une sauvegarde ne sert que si elle se restaure bien."
+    "fr": "Une sauvegarde aide quand elle se restaure bien."
    },
    "title": {
     "en": "A restore from backups turns out incomplete",
