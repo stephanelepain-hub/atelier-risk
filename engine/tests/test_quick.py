@@ -33,11 +33,11 @@ class Catalogue(unittest.TestCase):
         self.cat = quick.load_catalogue()
 
     def test_loads_and_is_in_range(self):
-        self.assertTrue(25 <= len(self.cat["risks"]) <= 35, len(self.cat["risks"]))
+        self.assertTrue(25 <= len(self.cat["risks"]) <= 45, len(self.cat["risks"]))
         fams = {r["family"] for r in self.cat["risks"]}
         self.assertEqual(fams, {"deliberate", "accidental"})
         self.assertEqual({p["id"] for p in self.cat["packs"]},
-                         {"all", "office-it", "cloud-service", "website-shop", "industrial"})
+                         {"all", "office-it", "cloud-service", "cloud-infra", "website-shop", "industrial"})
 
     def test_each_risk_has_the_required_fields(self):
         for r in self.cat["risks"]:
@@ -53,7 +53,7 @@ class Catalogue(unittest.TestCase):
                 self.assertIn(r["objective"], {o["id"] for o in self.cat["objectives"]})
 
     def test_every_pack_has_risks_and_some_always_assessed_exist(self):
-        for p in ("office-it", "cloud-service", "website-shop", "industrial"):
+        for p in ("office-it", "cloud-service", "cloud-infra", "website-shop", "industrial"):
             self.assertTrue([r for r in self.cat["risks"] if p in r["packs"]], p)
         self.assertTrue([r for r in self.cat["risks"] if r["always_assessed"]])
         fam_acc = [r for r in self.cat["risks"] if r["family"] == "accidental"]
@@ -62,7 +62,10 @@ class Catalogue(unittest.TestCase):
             self.assertIn(word, text, word)
 
     def test_no_vendor_or_company_names(self):
-        blob = json.dumps(self.cat, ensure_ascii=False).lower()
+        # the three cloud providers are named only in the label and example of the `cloud_infra` tool
+        cat = copy.deepcopy(self.cat)
+        cat["tools"] = [t for t in cat["tools"] if t["id"] != "cloud_infra"]
+        blob = json.dumps(cat, ensure_ascii=False).lower()
         for name in ("microsoft", "google", "amazon", "aws", "azure", "oracle", "sap ", "cisco", "apple", "meta ",
                      "facebook", "linkedin", "paypal", "stripe", "zoom", "dropbox", "office 365", "windows"):
             self.assertNotIn(name, blob, name)
@@ -831,6 +834,108 @@ class EnglishLabels(unittest.TestCase):
                     self.assertNotIn("Tolérable sous contrôle", cells)
                 if lang == "fr":
                     self.assertIn("Registre des risques", wb.sheetnames)
+
+
+class CloudInfra(unittest.TestCase):
+    """Round 5: the cloud-infra pack is catalogue content only, in the same shape as every other pack."""
+    NEW = ["D16", "D17", "D18", "D19", "D20", "A18", "A19", "A20", "A21"]
+    REUSED = ["D11", "A05", "A09", "D13", "D07"]
+
+    def setUp(self):
+        self.cat = quick.load_catalogue()
+        self.by = {r["id"]: r for r in self.cat["risks"]}
+
+    def test_pack_and_tool(self):
+        pack = next(p for p in self.cat["packs"] if p["id"] == "cloud-infra")
+        self.assertEqual((pack["en"], pack["fr"]), ("Cloud infrastructure", "Infrastructure cloud"))
+        tool = next(t for t in self.cat["tools"] if t["id"] == "cloud_infra")
+        self.assertEqual(tool["en"], "Servers, apps or data on AWS, Google Cloud or Microsoft Azure")
+        self.assertEqual(tool["fr"], "Serveurs, applications ou données sur AWS, Google Cloud ou Microsoft Azure")
+        self.assertEqual(tool["packs"], ["cloud-infra"])
+        self.assertTrue(tool["example"]["en"] and tool["example"]["fr"])
+        self.assertEqual(quick.packs_for(profile(tools={"value": ["cloud_infra"]})), ["all", "cloud-infra"])
+
+    def test_provider_names_only_in_the_tool(self):
+        cat = copy.deepcopy(self.cat)
+        tool = next(t for t in cat["tools"] if t["id"] == "cloud_infra")
+        cat["tools"].remove(tool)
+        blob = json.dumps(cat, ensure_ascii=False).lower()
+        for name in ("aws", "google", "microsoft", "azure", "amazon"):
+            self.assertNotIn(name, blob, name)
+        self.assertEqual([n for n in ("aws", "google", "microsoft", "azure") if n in json.dumps(tool).lower()],
+                         ["aws", "google", "microsoft", "azure"])
+
+    def test_nine_new_risks_with_every_field(self):
+        new = [r for r in self.cat["risks"] if r["packs"] == ["cloud-infra"]]
+        self.assertEqual(sorted(r["id"] for r in new), sorted(self.NEW))
+        self.assertTrue(8 <= len(new) <= 10)
+        origins = {o["id"] for o in self.cat["origins"]}
+        objectives = {o["id"] for o in self.cat["objectives"]}
+        for r in new:
+            for k in ("title", "description", "why"):
+                self.assertTrue(r[k]["en"] and r[k]["fr"], (r["id"], k))
+            self.assertTrue(r["criteria"] and set(r["criteria"]) <= set(quick.CRITERIA))
+            self.assertIn(r["audience"], quick.AUDIENCES)
+            self.assertIsInstance(r["always_assessed"], bool)
+            self.assertTrue(1 <= r["typical_severity"] <= 4 and 1 <= r["typical_likelihood"] <= 4)
+            self.assertTrue(3 <= len(r["measures"]) <= 6, r["id"])
+            if r["family"] == "deliberate":
+                self.assertIn(r["origin"], origins)
+                self.assertIn(r["objective"], objectives)
+                self.assertTrue(r["id"].startswith("D"))
+            else:
+                self.assertTrue(r["nist_source"].strip(), r["id"])
+                self.assertTrue(r["id"].startswith("A"))
+        self.assertEqual({r["id"] for r in new if r["family"] == "deliberate"}, {"D16", "D17", "D18", "D19", "D20"})
+
+    def test_the_required_topics_are_covered(self):
+        topics = {"D16": "leaked access key", "D17": "second sign-in step", "A18": "full rights", "D18": "forgotten server",
+                  "A19": "same cloud account", "A20": "activity history", "D19": "costly work", "A21": "runaway cloud bill",
+                  "D20": "law of another country"}
+        for rid, words in topics.items():
+            title = self.by[rid]["title"]["en"].lower()
+            self.assertTrue(all(w in title for w in words.split()) or words in title, (rid, title))
+        for rid in self.REUSED:
+            self.assertIn("cloud-infra", self.by[rid]["packs"], rid)
+
+    def test_refs_are_numbers_of_the_cited_report_and_the_source_is_listed(self):
+        for rid in self.NEW:
+            refs = self.by[rid]["refs"]
+            self.assertTrue(refs and len(refs) == len(set(refs)), rid)
+            for ref in refs:
+                self.assertRegex(ref, r"^R([1-9]|1[0-7])$", rid)       # recommendations for cloud customers: R1 to R17
+        ids = {s["id"] for s in self.cat["sources"]}
+        self.assertIn("certfr-2025-cti-001", ids)
+        readme = (ROOT / "catalogues" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("CERTFR-2025-CTI-001", readme)
+        self.assertIn("cited, not copied; check the publication's terms", readme)
+
+    def test_the_check_needs_refs_on_a_cloud_risk(self):
+        for bad in (None, [], ["9"], "R9", ["R9", 3]):
+            c = copy.deepcopy(self.cat)
+            r = next(x for x in c["risks"] if x["id"] == "D16")
+            if bad is None:
+                r.pop("refs")
+            else:
+                r["refs"] = bad
+            with self.assertRaises(quick.QuickError, msg=bad):
+                quick.check_catalogue(c)
+        c = copy.deepcopy(self.cat)
+        next(x for x in c["risks"] if x["id"] == "A18").pop("nist_source")
+        with self.assertRaises(quick.QuickError):
+            quick.check_catalogue(c)
+
+    def test_a_cloud_study_builds_with_no_error(self):
+        prof = profile(tools={"value": ["cloud_infra"]})
+        ids = quick.suggest(prof)
+        self.assertTrue(set(self.NEW + self.REUSED) <= set(ids))
+        self.assertTrue(set(quick.shortlist(prof)) <= set(ids))
+        q = answers(prof)
+        q["risks"][0]["extra"] = ["secrets_vault", "mfa"]
+        st = quick.build_study(q, CAL)
+        self.assertEqual(study.validate(st, CAL)["errors"], [])
+        self.assertEqual(len(study.register(st, CAL)), len(ids))
+        self.assertIn("Servers, apps or data on AWS", st["supporting_assets"][0]["label"])
 
 
 class WorkedExample(unittest.TestCase):

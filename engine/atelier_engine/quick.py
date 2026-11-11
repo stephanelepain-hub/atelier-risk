@@ -15,6 +15,7 @@ Severity and likelihood are levels 1..4 of the calibration. Levels are computed 
 import copy
 import json
 import pathlib
+import re
 
 from . import calibration as cal_mod
 
@@ -29,6 +30,7 @@ HIGHEST_SENSITIVITY = "critical"        # "Secrets, health or legal data" on the
 SENSITIVE_TOOL = "industrial"
 CRITERIA = ("confidentiality", "integrity", "availability")
 MAX_VALUES = 5
+REF_RE = re.compile(r"R[1-9][0-9]?")      # a recommendation number of a cited report, such as R9
 
 # The honesty statement. This is the only place the text is written; pages and exports read these constants.
 HONESTY = {
@@ -107,9 +109,16 @@ def check_catalogue(cat):
             errs.append(f"risk {rid}: audience must be one of {AUDIENCES}")
         elif r.get("audience") == "sensitive" and r.get("always_assessed") is True:
             errs.append(f"risk {rid}: an always-assessed risk cannot have the audience 'sensitive'")
+        refs = r.get("refs")
+        if refs is not None and not (isinstance(refs, list) and all(isinstance(x, str) and REF_RE.fullmatch(x) for x in refs)):
+            errs.append(f"risk {rid}: refs must be a list of recommendation numbers such as R9")
+        elif not refs and r.get("packs") == ["cloud-infra"]:
+            errs.append(f"risk {rid}: a risk of the cloud-infra pack needs refs (recommendation numbers of the CERT-FR report)")
         for k in ("typical_severity", "typical_likelihood"):
             if not cal_mod_scale(r.get(k)):
                 errs.append(f"risk {rid}: {k} must be 1 to 4")
+        if r.get("family") == "accidental" and not (isinstance(r.get("nist_source"), str) and r["nist_source"].strip()):
+            errs.append(f"risk {rid}: accidental risks need nist_source")
         if r.get("family") == "deliberate":
             if r.get("origin") not in origins or r.get("objective") not in objectives:
                 errs.append(f"risk {rid}: deliberate risks need a known origin and objective")

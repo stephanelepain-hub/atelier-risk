@@ -152,6 +152,18 @@ EFFORT = {
     "fire_safety": ("Add fire detection and an outside copy", "Détection incendie et copie externe", "small one-off cost", "petit achat unique", "premises"),
     "alt_site": ("Plan to work from another place", "Prévoir de travailler ailleurs", "a few hours", "quelques heures", "manager"),
     "surge_flood": ("Keep equipment off floors and pipes", "Surélever le matériel, loin des canalisations", "under an hour", "moins d'une heure", "premises"),
+    "secrets_vault": ("Keep keys and secrets in a safe store", "Garder clés et secrets dans un coffre", "a few hours", "quelques heures", "it"),
+    "key_rotation": ("Replace access keys on a schedule", "Remplacer les clés d'accès régulièrement", "an hour or two", "une heure ou deux", "it"),
+    "admin_device": ("Manage the cloud from a dedicated computer", "Gérer le cloud depuis un ordinateur dédié", "a few hours", "quelques heures", "it"),
+    "resource_inventory": ("List what you run and switch off the rest", "Lister ce qui tourne, éteindre le reste", "an hour or two", "une heure ou deux", "it"),
+    "exposure_review": ("Check what is open to the internet", "Vérifier ce qui est ouvert sur internet", "an hour or two", "une heure ou deux", "it"),
+    "separate_backup": ("Keep backups in a separate account", "Garder les sauvegardes dans un compte séparé", "a few hours", "quelques heures", "it"),
+    "activity_logs": ("Switch on the cloud activity log", "Activer le journal d'activité du cloud", "an hour or two", "une heure ou deux", "it"),
+    "ir_help": ("Note who to call for an investigation", "Noter qui appeler pour une investigation", "a short call", "un court appel", "manager"),
+    "cost_limits": ("Set a spending limit and a bill alert", "Fixer un plafond et une alerte de facture", "under an hour", "moins d'une heure", "it"),
+    "data_location": ("Choose where your data is kept", "Choisir où vos données sont conservées", "a few hours", "quelques heures", "manager"),
+    "encrypt_own_keys": ("Encrypt sensitive data with your own keys", "Chiffrer les données sensibles avec vos clés", "a day or two", "un jour ou deux", "it"),
+    "qualified_provider": ("Choose a qualified provider for sensitive data", "Choisir un prestataire qualifié pour les données sensibles", "a short call", "un court appel", "manager"),
 }
 
 
@@ -181,15 +193,17 @@ GROUP_TITLE = {
 MEASURE_GROUP = {
     "mfa": "access", "password_manager": "access", "least_access": "access", "admin_accounts": "access", "offboarding": "access",
     "remote_access": "access", "vendor_access": "access", "share_review": "access", "monitoring": "access",
+    "secrets_vault": "access", "key_rotation": "access", "activity_logs": "access",
     "updates": "devices", "protection": "devices", "encrypt_devices": "devices", "device_wipe": "devices", "usb_scan": "devices",
     "segmentation": "devices", "ics_isolation": "devices", "change_control": "devices", "traffic_filter": "devices",
+    "admin_device": "devices", "resource_inventory": "devices", "exposure_review": "devices", "encrypt_own_keys": "devices",
     "backup_offline": "recovery", "backup_auto": "recovery", "restore_test": "recovery", "own_copy": "recovery",
-    "incident_plan": "recovery", "manual_fallback": "recovery", "alt_site": "recovery", "spares": "recovery",
+    "incident_plan": "recovery", "ir_help": "recovery", "separate_backup": "recovery", "manual_fallback": "recovery", "alt_site": "recovery", "spares": "recovery",
     "battery": "recovery", "dual_link": "recovery",
     "awareness": "people", "payment_check": "people", "recipient_check": "people", "data_minimise": "people",
     "data_rules": "people", "key_tasks": "people",
     "payment_provider": "outside", "site_updates": "outside", "site_checks": "outside", "contract_outage": "outside",
-    "exit_plan": "outside", "physical": "outside", "fire_safety": "outside", "surge_flood": "outside", "insurance": "outside",
+    "exit_plan": "outside", "cost_limits": "outside", "data_location": "outside", "qualified_provider": "outside", "physical": "outside", "fire_safety": "outside", "surge_flood": "outside", "insurance": "outside",
 }
 
 

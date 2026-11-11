@@ -12,6 +12,11 @@
    "id": "nist-800-30r1",
    "name": "NIST SP 800-30 Rev. 1, Appendix D, Table D-2 (taxonomy of threat sources), US government work",
    "used_for": "accidental risks: accidental, structural and environmental families"
+  },
+  {
+   "id": "certfr-2025-cti-001",
+   "name": "ANSSI / CERT-FR, Cloud computing, état de la menace informatique (CERTFR-2025-CTI-001, v1.0, 19 February 2025), sections 7.1 and 8; cited, not copied; check the publication's terms",
+   "used_for": "cloud infrastructure risks: `refs` lists the numbers of the recommendations for cloud customers (R1 to R17) that each risk relates to"
   }
  ],
  "packs": [
@@ -29,6 +34,11 @@
    "id": "cloud-service",
    "en": "Cloud and outside services",
    "fr": "Services en ligne et prestataires"
+  },
+  {
+   "id": "cloud-infra",
+   "en": "Cloud infrastructure",
+   "fr": "Infrastructure cloud"
   },
   {
    "id": "website-shop",
@@ -88,6 +98,18 @@
    },
    "packs": [
     "cloud-service"
+   ]
+  },
+  {
+   "id": "cloud_infra",
+   "en": "Servers, apps or data on AWS, Google Cloud or Microsoft Azure",
+   "fr": "Serveurs, applications ou données sur AWS, Google Cloud ou Microsoft Azure",
+   "example": {
+    "en": "A virtual server, a hosted company application, a cloud database",
+    "fr": "Un serveur virtuel, une application d'entreprise hébergée, une base de données dans le cloud"
+   },
+   "packs": [
+    "cloud-infra"
    ]
   },
   {
@@ -569,7 +591,8 @@
    ],
    "packs": [
     "website-shop",
-    "cloud-service"
+    "cloud-service",
+    "cloud-infra"
    ],
    "always_assessed": false,
    "audience": "all",
@@ -593,6 +616,9 @@
      "en": "Write down who does what in an incident, with a phone list on paper",
      "fr": "Écrire qui fait quoi en cas d'incident, avec une liste de téléphones sur papier"
     }
+   ],
+   "refs": [
+    "R7"
    ]
   },
   {
@@ -775,7 +801,8 @@
     "availability"
    ],
    "packs": [
-    "cloud-service"
+    "cloud-service",
+    "cloud-infra"
    ],
    "always_assessed": true,
    "audience": "all",
@@ -814,6 +841,10 @@
      "en": "Use a password manager with long, different passwords",
      "fr": "Utiliser un gestionnaire de mots de passe avec des mots de passe longs et différents"
     }
+   ],
+   "refs": [
+    "R9",
+    "R11"
    ]
   },
   {
@@ -890,7 +921,8 @@
    ],
    "packs": [
     "cloud-service",
-    "office-it"
+    "office-it",
+    "cloud-infra"
    ],
    "always_assessed": false,
    "audience": "all",
@@ -1031,6 +1063,299 @@
      "en": "Keep backups offline or in another place, and test that you can restore from them",
      "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
     }
+   ]
+  },
+  {
+   "id": "D16",
+   "family": "deliberate",
+   "why": {
+    "en": "Keys are easy to copy into places many people can see.",
+    "fr": "Une clé se copie facilement dans des lieux que beaucoup de personnes voient."
+   },
+   "title": {
+    "en": "Cloud account taken over through a leaked access key or secret",
+    "fr": "Compte cloud pris en main via une clé d'accès ou un secret divulgué"
+   },
+   "description": {
+    "en": "An access key or password of your cloud account ends up in a shared file, a code repository or a chat. Someone finds it and uses your servers and data as if they were you.",
+    "fr": "Une clé d'accès ou un mot de passe de votre compte cloud se retrouve dans un fichier partagé, un dépôt de code ou une messagerie. Quelqu'un le trouve et utilise vos serveurs et vos données comme si c'était vous."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": true,
+   "audience": "all",
+   "typical_severity": 4,
+   "typical_likelihood": 3,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "secrets_vault",
+     "en": "Keep access keys and secrets in a secrets store, out of code, files and chat, and replace any that were shared",
+     "fr": "Garder les clés d'accès et les secrets dans un coffre prévu pour cela, hors du code, des fichiers et des messageries, et remplacer ceux qui ont été partagés"
+    },
+    {
+     "id": "key_rotation",
+     "en": "Replace access keys on a schedule and delete the ones nobody uses",
+     "fr": "Remplacer les clés d'accès à intervalles réguliers et supprimer celles que personne n'utilise"
+    },
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ],
+   "refs": [
+    "R4",
+    "R9",
+    "R13"
+   ]
+  },
+  {
+   "id": "D17",
+   "family": "deliberate",
+   "why": {
+    "en": "One password can open the whole cloud account.",
+    "fr": "Un seul mot de passe peut ouvrir tout le compte cloud."
+   },
+   "title": {
+    "en": "Cloud admin account without a second sign-in step",
+    "fr": "Compte administrateur cloud sans seconde étape de connexion"
+   },
+   "description": {
+    "en": "The account that manages your cloud needs only a password. If the password is guessed or stolen, someone controls everything you run there.",
+    "fr": "Le compte qui gère votre cloud n'a besoin que d'un mot de passe. S'il est deviné ou volé, quelqu'un contrôle tout ce que vous y faites tourner."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 4,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "admin_device",
+     "en": "Manage the cloud account from a dedicated, up-to-date computer",
+     "fr": "Gérer le compte cloud depuis un ordinateur dédié et à jour"
+    },
+    {
+     "id": "password_manager",
+     "en": "Use a password manager with long, different passwords",
+     "fr": "Utiliser un gestionnaire de mots de passe avec des mots de passe longs et différents"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ],
+   "refs": [
+    "R9",
+    "R11"
+   ]
+  },
+  {
+   "id": "D18",
+   "family": "deliberate",
+   "why": {
+    "en": "Cloud services start fast and are easy to forget.",
+    "fr": "Un service cloud se lance vite et s'oublie facilement."
+   },
+   "title": {
+    "en": "Forgotten server or service left running and open to the internet",
+    "fr": "Serveur ou service oublié, resté en marche et ouvert sur internet"
+   },
+   "description": {
+    "en": "A test server or an old service keeps running after its job is done. Nobody updates it, and someone scanning the internet finds it and uses it to get in.",
+    "fr": "Un serveur de test ou un ancien service continue de tourner une fois son rôle terminé. Personne ne le met à jour ; quelqu'un qui balaie internet le trouve et s'en sert pour entrer."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "resource_inventory",
+     "en": "List every server and service you run, with its owner, and switch off what is finished",
+     "fr": "Lister chaque serveur et service en marche, avec son responsable, et éteindre ce qui est terminé"
+    },
+    {
+     "id": "exposure_review",
+     "en": "Every few months, check what can be reached from the internet and close the rest",
+     "fr": "Tous les quelques mois, vérifier ce qui est accessible depuis internet et fermer le reste"
+    },
+    {
+     "id": "updates",
+     "en": "Install updates quickly on computers, servers, phones and network equipment",
+     "fr": "Installer rapidement les mises à jour des ordinateurs, serveurs, téléphones et équipements réseau"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    }
+   ],
+   "refs": [
+    "R4",
+    "R14"
+   ]
+  },
+  {
+   "id": "D19",
+   "family": "deliberate",
+   "why": {
+    "en": "A stolen account can start costly servers within minutes.",
+    "fr": "Un compte volé peut lancer des serveurs coûteux en quelques minutes."
+   },
+   "title": {
+    "en": "Your cloud account used to run costly work for someone else",
+    "fr": "Votre compte cloud utilisé pour faire tourner des calculs coûteux pour quelqu'un d'autre"
+   },
+   "description": {
+    "en": "Someone with access to your account starts many powerful servers, for example to produce digital coins. You find out when the bill arrives.",
+    "fr": "Quelqu'un qui a accès à votre compte lance de nombreux serveurs puissants, par exemple pour produire de la cryptomonnaie. Vous le découvrez à l'arrivée de la facture."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 3,
+   "typical_likelihood": 2,
+   "origin": "cybercriminal",
+   "objective": "financial_gain",
+   "measures": [
+    {
+     "id": "cost_limits",
+     "en": "Set a spending limit and a bill alert on the cloud account",
+     "fr": "Fixer un plafond de dépenses et une alerte de facture sur le compte cloud"
+    },
+    {
+     "id": "mfa",
+     "en": "Turn on a second sign-in step (a code on the phone) for email and online services",
+     "fr": "Activer une seconde étape de connexion (un code sur le téléphone) pour la messagerie et les services en ligne"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    },
+    {
+     "id": "secrets_vault",
+     "en": "Keep access keys and secrets in a secrets store, out of code, files and chat, and replace any that were shared",
+     "fr": "Garder les clés d'accès et les secrets dans un coffre prévu pour cela, hors du code, des fichiers et des messageries, et remplacer ceux qui ont été partagés"
+    }
+   ],
+   "refs": [
+    "R4",
+    "R7"
+   ]
+  },
+  {
+   "id": "D20",
+   "family": "deliberate",
+   "why": {
+    "en": "Some providers answer to authorities abroad.",
+    "fr": "Certains prestataires répondent à des autorités étrangères."
+   },
+   "title": {
+    "en": "Your data reachable under the law of another country",
+    "fr": "Vos données accessibles en vertu de la loi d'un autre pays"
+   },
+   "description": {
+    "en": "A provider based in another country, or owned from there, can be required by its own authorities to hand over the data it hosts, sometimes without telling you. Encryption protects less when the keys sit in the same cloud.",
+    "fr": "Un prestataire installé dans un autre pays, ou détenu depuis ce pays, peut devoir remettre à ses autorités les données qu'il héberge, parfois sans vous en informer. Le chiffrement protège moins quand les clés se trouvent dans le même cloud."
+   },
+   "criteria": [
+    "confidentiality"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "sensitive",
+   "typical_severity": 3,
+   "typical_likelihood": 1,
+   "origin": "state",
+   "objective": "espionage",
+   "measures": [
+    {
+     "id": "data_location",
+     "en": "Choose where your data is kept and which country's rules apply, and write it in the contract",
+     "fr": "Choisir où vos données sont conservées et quelles règles nationales s'appliquent, et l'écrire dans le contrat"
+    },
+    {
+     "id": "encrypt_own_keys",
+     "en": "Encrypt sensitive data before it goes online, with keys you control",
+     "fr": "Chiffrer les données sensibles avant de les envoyer en ligne, avec des clés que vous maîtrisez"
+    },
+    {
+     "id": "qualified_provider",
+     "en": "For sensitive data, choose a provider with a recognised qualification, such as SecNumCloud",
+     "fr": "Pour les données sensibles, choisir un prestataire disposant d'une qualification reconnue, comme SecNumCloud"
+    },
+    {
+     "id": "exit_plan",
+     "en": "Know your alternatives and how to move away from a supplier if needed",
+     "fr": "Connaître les solutions de remplacement et comment quitter un fournisseur si besoin"
+    },
+    {
+     "id": "data_rules",
+     "en": "Give staff clear rules on what may leave the organisation and how",
+     "fr": "Donner au personnel des règles claires sur ce qui peut sortir de l'organisation et comment"
+    }
+   ],
+   "refs": [
+    "R5",
+    "R12"
    ]
   },
   {
@@ -1244,7 +1569,8 @@
    ],
    "packs": [
     "cloud-service",
-    "website-shop"
+    "website-shop",
+    "cloud-infra"
    ],
    "always_assessed": true,
    "audience": "all",
@@ -1272,6 +1598,9 @@
      "en": "Switch on sign-in alerts and look at unusual activity",
      "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
     }
+   ],
+   "refs": [
+    "R4"
    ]
   },
   {
@@ -1433,7 +1762,8 @@
     "availability"
    ],
    "packs": [
-    "cloud-service"
+    "cloud-service",
+    "cloud-infra"
    ],
    "always_assessed": true,
    "audience": "all",
@@ -1461,6 +1791,10 @@
      "en": "Know how to run key tasks by hand for a few days",
      "fr": "Savoir faire fonctionner les tâches clés à la main pendant quelques jours"
     }
+   ],
+   "refs": [
+    "R6",
+    "R8"
    ]
   },
   {
@@ -1848,6 +2182,222 @@
      "en": "Make backups automatic and check every week that they ran",
      "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
     }
+   ]
+  },
+  {
+   "id": "A18",
+   "family": "accidental",
+   "why": {
+    "en": "Full rights spread easily when teams are in a hurry.",
+    "fr": "Les droits complets se multiplient facilement quand on est pressé."
+   },
+   "title": {
+    "en": "Too many people with full rights in the cloud account",
+    "fr": "Trop de personnes avec tous les droits sur le compte cloud"
+   },
+   "description": {
+    "en": "Many people can change or delete anything. One slip, or one stolen account, reaches every server and every file.",
+    "fr": "Beaucoup de personnes peuvent tout modifier ou supprimer. Une erreur, ou un compte volé, touche tous les serveurs et tous les fichiers."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 3,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / privileged user",
+   "measures": [
+    {
+     "id": "least_access",
+     "en": "Give people only the access their job needs",
+     "fr": "Donner aux personnes uniquement les accès dont leur travail a besoin"
+    },
+    {
+     "id": "admin_accounts",
+     "en": "Keep few administrator accounts, used only for administration",
+     "fr": "Limiter les comptes administrateur et ne les utiliser que pour l'administration"
+    },
+    {
+     "id": "offboarding",
+     "en": "Remove accounts, keys and access on the day someone leaves",
+     "fr": "Supprimer comptes, clés et accès le jour du départ d'une personne"
+    },
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    }
+   ],
+   "refs": [
+    "R4",
+    "R9",
+    "R11"
+   ]
+  },
+  {
+   "id": "A19",
+   "family": "accidental",
+   "why": {
+    "en": "One account holds the data and its only copy.",
+    "fr": "Un seul compte contient les données et leur unique copie."
+   },
+   "title": {
+    "en": "Backups kept in the same cloud account as the data",
+    "fr": "Sauvegardes conservées dans le même compte cloud que les données"
+   },
+   "description": {
+    "en": "If the account is taken over or closed, the data and its backups can disappear together.",
+    "fr": "Si le compte est pris en main ou fermé, les données et leurs sauvegardes peuvent disparaître ensemble."
+   },
+   "criteria": [
+    "integrity",
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 4,
+   "typical_likelihood": 2,
+   "nist_source": "accidental / process error",
+   "measures": [
+    {
+     "id": "separate_backup",
+     "en": "Keep backups in a separate account with its own sign-in",
+     "fr": "Garder les sauvegardes dans un compte séparé, avec sa propre connexion"
+    },
+    {
+     "id": "backup_offline",
+     "en": "Keep backups offline or in another place, and test that you can restore from them",
+     "fr": "Conserver des sauvegardes hors ligne ou dans un autre lieu, et tester qu'on sait les restaurer"
+    },
+    {
+     "id": "restore_test",
+     "en": "Test a full restore once a year",
+     "fr": "Tester une restauration complète une fois par an"
+    },
+    {
+     "id": "backup_auto",
+     "en": "Make backups automatic and check every week that they ran",
+     "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
+    },
+    {
+     "id": "own_copy",
+     "en": "Keep your own copy of the data you hold in online services",
+     "fr": "Garder votre propre copie des données conservées dans les services en ligne"
+    }
+   ],
+   "refs": [
+    "R8"
+   ]
+  },
+  {
+   "id": "A20",
+   "family": "accidental",
+   "why": {
+    "en": "Logs are often off until the day they are needed.",
+    "fr": "Les journaux sont souvent désactivés jusqu'au jour où l'on en a besoin."
+   },
+   "title": {
+    "en": "Too little activity history to understand an incident",
+    "fr": "Trop peu d'historique d'activité pour comprendre un incident"
+   },
+   "description": {
+    "en": "The activity log is switched off or kept for a few days only. After an incident, it is hard to tell what was reached or changed.",
+    "fr": "Le journal d'activité est désactivé ou gardé quelques jours seulement. Après un incident, il est difficile de savoir ce qui a été touché ou modifié."
+   },
+   "criteria": [
+    "confidentiality",
+    "integrity"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / process error",
+   "measures": [
+    {
+     "id": "activity_logs",
+     "en": "Switch on the activity log of the cloud account and keep it for several months",
+     "fr": "Activer le journal d'activité du compte cloud et le conserver plusieurs mois"
+    },
+    {
+     "id": "monitoring",
+     "en": "Switch on sign-in alerts and look at unusual activity",
+     "fr": "Activer les alertes de connexion et examiner les activités inhabituelles"
+    },
+    {
+     "id": "incident_plan",
+     "en": "Write down who does what in an incident, with a phone list on paper",
+     "fr": "Écrire qui fait quoi en cas d'incident, avec une liste de téléphones sur papier"
+    },
+    {
+     "id": "ir_help",
+     "en": "Know whom to call for an investigation, such as a qualified incident response company",
+     "fr": "Savoir qui appeler pour une investigation, par exemple une entreprise qualifiée de réponse aux incidents"
+    }
+   ],
+   "refs": [
+    "R4",
+    "R14",
+    "R17"
+   ]
+  },
+  {
+   "id": "A21",
+   "family": "accidental",
+   "why": {
+    "en": "Cloud costs follow usage, so a slip shows on the bill.",
+    "fr": "Les coûts du cloud suivent l'usage : une erreur se voit sur la facture."
+   },
+   "title": {
+    "en": "A runaway cloud bill after a mistake",
+    "fr": "Une facture cloud qui s'envole après une erreur"
+   },
+   "description": {
+    "en": "A forgotten test, a wrong setting or an endless loop uses far more than planned. The bill grows fast before anyone looks.",
+    "fr": "Un test oublié, un mauvais réglage ou une boucle sans fin consomme bien plus que prévu. La facture grimpe vite avant que quelqu'un regarde."
+   },
+   "criteria": [
+    "availability"
+   ],
+   "packs": [
+    "cloud-infra"
+   ],
+   "always_assessed": false,
+   "audience": "all",
+   "typical_severity": 2,
+   "typical_likelihood": 3,
+   "nist_source": "accidental / user",
+   "measures": [
+    {
+     "id": "cost_limits",
+     "en": "Set a spending limit and a bill alert on the cloud account",
+     "fr": "Fixer un plafond de dépenses et une alerte de facture sur le compte cloud"
+    },
+    {
+     "id": "resource_inventory",
+     "en": "List every server and service you run, with its owner, and switch off what is finished",
+     "fr": "Lister chaque serveur et service en marche, avec son responsable, et éteindre ce qui est terminé"
+    },
+    {
+     "id": "change_control",
+     "en": "Test changes first, make them at quiet times and keep a way back",
+     "fr": "Tester les changements d'abord, les faire aux heures calmes et garder un moyen de revenir en arrière"
+    }
+   ],
+   "refs": [
+    "R7"
    ]
   }
  ]
