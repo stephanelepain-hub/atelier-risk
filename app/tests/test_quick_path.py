@@ -928,11 +928,26 @@ class RoundTwoShortlistTest(Base):
         self.assertEqual(sum(1 for v in decisions.values() if v == "keep"), 9)
 
 
+class MapWordsMatchTheQuestion(Base):
+    def test_map_axis_uses_the_likelihood_question_words(self):
+        from atelier_app import labels
+        for lang in ("en", "fr"):
+            sid = self.start(lang=lang)
+            self.keep_all(sid, lang=lang)
+            self.rate_all(sid, lang=lang)
+            now = self.page(f"/quick/{sid}/now?lang={lang}")
+            res = self.page(f"/quick/{sid}/results?lang={lang}")
+            for n in (1, 2, 3, 4):
+                w = labels.LIKELIHOOD_LABEL[lang][n]
+                self.assertIn(w, res, (lang, n))
+                self.assertIn(w, now, (lang, n))
+
+
 class RoundTwoLanguageTest(Base):
     """F2: English pages carry English level and axis names; French pages French; the quick xlsx follows."""
 
-    FRENCH_LEVELS = ("Élevé", "Modéré", "Faible", "Peu vraisemblable", "Quasi certain", "Très vraisemblable", "Très sérieux", "Mineur", "Notable")
-    ENGLISH_LEVELS = ("Low", "Moderate", "High", "Unlikely", "Almost certain", "Very serious", "Minor")
+    FRENCH_LEVELS = ("Élevé", "Modéré", "Faible", "Peu probable", "Très probable", "Probable", "Très sérieux", "Mineur", "Notable")
+    ENGLISH_LEVELS = ("Low", "Moderate", "High", "Unlikely", "Very likely", "Very serious", "Minor")
 
     def walk(self, lang):
         sid = self.start(lang=lang)
@@ -948,17 +963,18 @@ class RoundTwoLanguageTest(Base):
             for w in self.FRENCH_LEVELS:
                 self.assertNotIn(w, body, (path, w))
         res = self.page(f"/quick/{sid}/results?lang=en")
-        for w in ("Very serious", "Unlikely", "Almost certain", "Likelihood", "Severity"):
+        for w in ("Very serious", "Unlikely", "Very likely", "Likelihood", "Severity"):
             self.assertIn(w, res)
+        self.assertNotIn("Almost certain", res)   # the map uses the words of the likelihood question
         self.assertRegex(res, r'<span class="lvl lvl-i\d">(High|Moderate|Low)</span>')
 
     def test_french_pages_keep_the_french_names_and_french_axes(self):
         sid = self.walk("fr")
         res = self.page(f"/quick/{sid}/results?lang=fr")
         body = res.split("<main", 1)[1]
-        for w in ("Très sérieux", "Peu vraisemblable", "Quasi certain", "Gravité", "Vraisemblance"):
+        for w in ("Très sérieux", "Peu probable", "Très probable", "Gravité", "Vraisemblance"):
             self.assertIn(w, body)
-        for w in ("Very serious", "Unlikely", "Almost certain", ">Severity<", ">Likelihood<"):
+        for w in ("Very serious", "Unlikely", "Very likely", "Quasi certain", ">Severity<", ">Likelihood<"):
             self.assertNotIn(w, body)
         self.assertRegex(res, r'<span class="lvl lvl-i\d">(Élevé|Modéré|Faible)</span>')
 

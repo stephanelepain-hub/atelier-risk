@@ -30,7 +30,7 @@ T = {
                     "complete the method."],
         "h_scales": "The scales, in plain words",
         "sev": "How much it would matter", "lik": "How likely", "lvl": "Level of the risk",
-        "lik_words": ["Unlikely", "Likely", "Very likely", "Almost certain"],
+        "lik_words": [labels.LIKELIHOOD_LABEL["en"][n] for n in (1, 2, 3, 4)],
         "grid": "The grid crosses the two: the more it would matter and the more likely it is, the higher the level.",
         "h_conf": "What the confidence figure means",
         "conf": "It shows how much of the picture rests on your own answers rather than on typical values. Each answer "
@@ -66,7 +66,7 @@ T = {
                     "d'Atelier qui complètent la méthode."],
         "h_scales": "Les échelles, en mots simples",
         "sev": "L'importance que cela aurait", "lik": "La vraisemblance", "lvl": "Le niveau du risque",
-        "lik_words": ["Peu vraisemblable", "Vraisemblable", "Très vraisemblable", "Quasi certain"],
+        "lik_words": [labels.LIKELIHOOD_LABEL["fr"][n] for n in (1, 2, 3, 4)],
         "grid": "La grille croise les deux : plus c'est important et plus c'est vraisemblable, plus le niveau monte.",
         "h_conf": "Ce que veut dire le chiffre de confiance",
         "conf": "Il montre la part de la vue d'ensemble qui repose sur vos réponses plutôt que sur des valeurs typiques. "

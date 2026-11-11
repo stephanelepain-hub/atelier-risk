@@ -21,6 +21,11 @@ SEVERITY_WORDS = {
     "fr": {1: "Mineur : une gêne", 2: "Notable : cela pèse pendant quelques jours",
            3: "Sérieux : dégâts durables ou coût élevé", 4: "Très sérieux : l'organisation aurait du mal à continuer"},
 }
+# Likelihood (vraisemblance), 1 to 4: the same words as the quick-path question, so the maps and the question agree.
+LIKELIHOOD_LABEL = {
+    "en": {1: "Unlikely", 2: "Possible", 3: "Likely", 4: "Very likely"},
+    "fr": {1: "Peu probable", 2: "Possible", 3: "Probable", 4: "Très probable"},
+}
 # Risk levels of the calibration, keyed by the calibration's English level name (`name_en`).
 LEVEL_LABEL = {
     "en": {"Low": "Low", "Medium": "Moderate", "High": "High"},
@@ -32,10 +37,10 @@ LEVEL_ACCEPTABILITY = {
     "fr": {"Low": "Acceptable en l'état", "Medium": "Tolérable sous contrôle", "High": "À réduire à court terme"},
 }
 LEVEL_ACTION = {
-    "en": {"Low": "No action is needed",
+    "en": {"Low": "Keep it as it is",
            "Medium": "Follow the risk, and put actions in place as part of continuous improvement over the medium and long term",
            "High": "Put risk-reduction measures in place in the short term"},
-    "fr": {"Low": "Aucune action n'est à entreprendre",
+    "fr": {"Low": "À garder en l'état",
            "Medium": "Suivre le risque et mettre des actions en place dans une démarche d'amélioration continue à moyen et long terme",
            "High": "Mettre en place des mesures de réduction du risque à court terme"},
 }
@@ -76,6 +81,10 @@ def display_cal(cal, lang):
         if x["n"] in SEVERITY_LABEL[lang]:
             x["label"] = SEVERITY_LABEL["fr"][x["n"]]
             x["label_en"] = SEVERITY_LABEL["en"][x["n"]]
+    for x in out["likelihood"]:
+        if x["n"] in LIKELIHOOD_LABEL[lang]:
+            x["label"] = LIKELIHOOD_LABEL["fr"][x["n"]]
+            x["label_en"] = LIKELIHOOD_LABEL["en"][x["n"]]
     return out
 
 
