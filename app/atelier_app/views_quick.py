@@ -14,11 +14,10 @@ T = {
         "home_lead": "Answer a few simple questions, tick the risks that apply to you, and get a clear picture of where "
                      "you stand and what to do first. No security background needed.",
         "way1": "Start from scratch", "way1_text": "Answer simple questions (about 30 minutes).", "way1_go": "Start",
-        "way2": "I have documents", "way2_text": "Upload a document too (Word, PDF or text). It is stored and flagged; reading it comes later.",
-        "way2_go": "Start with a document",
-        "way3": "I already have a risk analysis", "way3_text": "Import your Excel workbook and review it.", "way3_go": "Import a workbook",
+        "way2": "I have a document", "way2_text": "Tell us you have one (architecture, business impact analysis, security baseline). It is noted, not read.",
+        "way2_go": "Start, with a document",
         "continue": "Pick up where you left off", "continue_none": "Nothing here yet. Your analyses will appear here so you can come back to them.",
-        "all_studies": "All studies, the guide example and file import", "step_of": "Step {n} of 4",
+        "all_studies": "All your saved studies", "step_of": "Step {n} of 4",
         "step_about": "About you", "step_risks": "Risks that apply", "step_now": "Now and after", "step_results": "Results",
         "steps_label": "Your progress", "saved": "Saved.", "back": "Back", "continue_btn": "Save and continue",
         "save_btn": "Save", "optional": "optional", "dk": "I don't know",
@@ -33,17 +32,14 @@ T = {
         "q_sensitivity": "How sensitive is the information you hold?",
         "q_sensitivity_ex": "For example: would a customer, a patient or a regulator be upset to see it?",
         "q_doc": "Do you have a document about your systems or risks?",
-        "q_doc_ex": "For example an architecture description, a business impact analysis or a security baseline. It is stored and flagged as provided. Atelier does not read it yet, so it does not change the results.",
-        "doc_kind": "What is it?", "doc_file": "File (Word, PDF or text, 20 MB at most)",
-        "doc_architecture": "Architecture document", "doc_business-impact": "Business impact analysis",
-        "doc_security-baseline": "Security baseline", "doc_other": "Something else",
-        "doc_have": "Document stored: {name}. It is flagged as provided and has not been read.", "doc_replace": "Upload another to replace it",
+        "q_doc_ex": "For example an architecture description, a business impact analysis or a security baseline. Atelier does not read documents: your answer is only noted in the results as \"document mentioned, not read\", and it does not change them.",
+        "doc_yes": "Yes, I have one", "doc_no": "No",
+        "doc_mentioned": "document mentioned, not read",
         "downtime_hours": "Within a few hours", "downtime_day": "Within a day or two", "downtime_days": "Within a week",
         "downtime_week": "We could manage for more than a week",
         "sens_public": "Mostly public, or of little interest to others", "sens_internal": "Internal, but harmless if it leaked",
         "sens_confidential": "Customer, personal or financial data", "sens_critical": "Secrets, health or legal data: a leak would be serious",
         "err_name": "Give the analysis a name (up to 200 characters).", "err_values": "Up to 5 things; each at most 200 characters.",
-        "err_doc": "The document was not accepted: {why}",
         "risks_title": "Risks that typically apply to you",
         "risks_lead": "These come from a public list, chosen from your answers. Keep the ones that fit, discard the ones that do not, and add your own.",
         "fam_deliberate": "Someone attacks you", "fam_deliberate_text": "A person or a group acts on purpose.",
@@ -82,12 +78,10 @@ T = {
         "assumptions_none": "Every question was answered by you.", "assumptions_kept": "Typical values you kept (show)",
         "kind_default": "Not answered", "kind_dont_know": "You did not know", "kind_catalogue": "Typical value kept",
         "facts_docs": "Documents", "facts_none": "none", "facts_missing": "Not provided", "facts_answers": "Answers",
-        "facts_assumptions": "Assumptions to confirm", "doc_note": "A document is stored but has not been read yet: it does not raise the confidence.",
+        "facts_assumptions": "Assumptions to confirm", "doc_note": "You mentioned a document. It has not been read, so it does not raise the confidence.",
         "doc_architecture_short": "architecture document", "doc_business-impact_short": "business impact analysis",
         "doc_security-baseline_short": "security baseline", "doc_other_short": "other document",
-        "export": "Download Excel", "xlsx_missing": "The Excel download needs the openpyxl package, which is not installed here. The study file download works.", "export_json": "Download the study file", "expert": "Open in expert mode",
-        "expert_hint": "Expert mode shows the full method (workshops 1 to 5) on the same study. Changes made there are not carried back into these screens: saving a screen here rebuilds the study from your answers.",
-        "edited": "This study was changed in expert mode. Saving this screen rebuilds the study from your quick answers and replaces those changes (the previous version is kept as a .bak file).",
+        "export": "Download Excel", "xlsx_missing": "The Excel download needs the openpyxl package, which is not installed here. The study file download works.", "export_json": "Download the study file",
         "edit_answers": "Change my answers",
         "honesty": "Honesty statement",
     },
@@ -96,11 +90,10 @@ T = {
         "home_lead": "Répondez à quelques questions simples, cochez les risques qui vous concernent et obtenez une vue claire de votre situation "
                      "et de ce qu'il faut faire en premier. Aucune connaissance en sécurité n'est nécessaire.",
         "way1": "Partir de zéro", "way1_text": "Répondre à des questions simples (environ 30 minutes).", "way1_go": "Commencer",
-        "way2": "J'ai des documents", "way2_text": "Ajoutez aussi un document (Word, PDF ou texte). Il est conservé et signalé ; sa lecture viendra plus tard.",
-        "way2_go": "Commencer avec un document",
-        "way3": "J'ai déjà une analyse de risques", "way3_text": "Importez votre classeur Excel et relisez-le.", "way3_go": "Importer un classeur",
+        "way2": "J'ai un document", "way2_text": "Dites-nous que vous en avez un (architecture, analyse d'impact, socle de sécurité). Il est noté, pas lu.",
+        "way2_go": "Commencer, avec un document",
         "continue": "Reprendre là où vous en étiez", "continue_none": "Rien ici pour l'instant. Vos analyses apparaîtront ici pour que vous puissiez y revenir.",
-        "all_studies": "Toutes les études, l'exemple du guide et l'import de fichier", "step_of": "Étape {n} sur 4",
+        "all_studies": "Toutes vos études enregistrées", "step_of": "Étape {n} sur 4",
         "step_about": "Vous", "step_risks": "Risques concernés", "step_now": "Maintenant et après", "step_results": "Résultats",
         "steps_label": "Votre progression", "saved": "Enregistré.", "back": "Retour", "continue_btn": "Enregistrer et continuer",
         "save_btn": "Enregistrer", "optional": "facultatif", "dk": "Je ne sais pas",
@@ -115,17 +108,14 @@ T = {
         "q_sensitivity": "Quelle est la sensibilité des informations que vous détenez ?",
         "q_sensitivity_ex": "Par exemple : un client, un patient ou une autorité serait-il contrarié de les voir ?",
         "q_doc": "Avez-vous un document sur vos systèmes ou vos risques ?",
-        "q_doc_ex": "Par exemple une description d'architecture, une analyse d'impact sur l'activité ou un socle de sécurité. Il est conservé et signalé comme fourni. Atelier ne le lit pas encore : il ne change donc pas les résultats.",
-        "doc_kind": "De quoi s'agit-il ?", "doc_file": "Fichier (Word, PDF ou texte, 20 Mo au plus)",
-        "doc_architecture": "Document d'architecture", "doc_business-impact": "Analyse d'impact sur l'activité",
-        "doc_security-baseline": "Socle de sécurité", "doc_other": "Autre chose",
-        "doc_have": "Document conservé : {name}. Il est signalé comme fourni et n'a pas été lu.", "doc_replace": "En envoyer un autre pour le remplacer",
+        "q_doc_ex": "Par exemple une description d'architecture, une analyse d'impact sur l'activité ou un socle de sécurité. Atelier ne lit pas les documents : votre réponse est seulement notée dans les résultats (« document mentionné, non lu ») et ne les change pas.",
+        "doc_yes": "Oui, j'en ai un", "doc_no": "Non",
+        "doc_mentioned": "document mentionné, non lu",
         "downtime_hours": "En quelques heures", "downtime_day": "En un jour ou deux", "downtime_days": "En une semaine",
         "downtime_week": "Nous tiendrions plus d'une semaine",
         "sens_public": "Surtout publiques, ou sans intérêt pour d'autres", "sens_internal": "Internes, mais sans gravité si elles fuitaient",
         "sens_confidential": "Données de clients, personnelles ou financières", "sens_critical": "Secrets, données de santé ou juridiques : une fuite serait grave",
         "err_name": "Donnez un nom à l'analyse (200 caractères au plus).", "err_values": "5 éléments au plus ; 200 caractères au plus chacun.",
-        "err_doc": "Le document n'a pas été accepté : {why}",
         "risks_title": "Les risques qui vous concernent typiquement",
         "risks_lead": "Ils viennent d'une liste publique, choisis d'après vos réponses. Gardez ceux qui conviennent, écartez les autres et ajoutez les vôtres.",
         "fam_deliberate": "Quelqu'un vous attaque", "fam_deliberate_text": "Une personne ou un groupe agit volontairement.",
@@ -164,12 +154,10 @@ T = {
         "assumptions_none": "Vous avez répondu à toutes les questions.", "assumptions_kept": "Valeurs typiques que vous avez gardées (afficher)",
         "kind_default": "Sans réponse", "kind_dont_know": "Vous ne saviez pas", "kind_catalogue": "Valeur typique conservée",
         "facts_docs": "Documents", "facts_none": "aucun", "facts_missing": "Non fournis", "facts_answers": "Réponses",
-        "facts_assumptions": "Hypothèses à confirmer", "doc_note": "Un document est conservé mais n'a pas encore été lu : il n'augmente pas la confiance.",
+        "facts_assumptions": "Hypothèses à confirmer", "doc_note": "Vous avez mentionné un document. Il n'a pas été lu : il n'augmente donc pas la confiance.",
         "doc_architecture_short": "document d'architecture", "doc_business-impact_short": "analyse d'impact sur l'activité",
         "doc_security-baseline_short": "socle de sécurité", "doc_other_short": "autre document",
-        "export": "Télécharger Excel", "xlsx_missing": "Le téléchargement Excel nécessite le paquet openpyxl, qui n'est pas installé ici. Le téléchargement du fichier d'étude fonctionne.", "export_json": "Télécharger le fichier d'étude", "expert": "Ouvrir en mode expert",
-        "expert_hint": "Le mode expert montre la méthode complète (ateliers 1 à 5) sur la même étude. Les changements faits là-bas ne reviennent pas dans ces écrans : enregistrer un écran ici reconstruit l'étude à partir de vos réponses.",
-        "edited": "Cette étude a été modifiée en mode expert. Enregistrer cet écran reconstruit l'étude à partir de vos réponses rapides et remplace ces modifications (la version précédente est gardée dans un fichier .bak).",
+        "export": "Télécharger Excel", "xlsx_missing": "Le téléchargement Excel nécessite le paquet openpyxl, qui n'est pas installé ici. Le téléchargement du fichier d'étude fonctionne.", "export_json": "Télécharger le fichier d'étude",
         "edit_answers": "Modifier mes réponses",
         "honesty": "Déclaration d'honnêteté",
     },
@@ -215,15 +203,11 @@ def _err(msg):
     return f'<span class="field-error" role="alert">{esc(msg)}</span>' if msg else ""
 
 
-def _edited_banner(lang, edited):
-    return f'<p class="notice" role="note">{esc(tr(lang, "edited"))}</p>' if edited else ""
-
-
 # ------------------------------------------------------------------ home
 
 def home(session, lang, recent, flash=""):
     """recent: [(sid, name, mtime, step)] quick studies, newest first."""
-    ways = [("1", "/quick/new", "way1", "primary"), ("2", "/quick/new?doc=1", "way2", ""), ("3", "/reviews", "way3", "")]
+    ways = [("1", "/quick/new", "way1", "primary"), ("2", "/quick/new?doc=1", "way2", "")]
     cards = "".join(
         f'<a class="way {cls}" href="{href}{"&" if "?" in href else "?"}lang={lang}"><span class="way-n" aria-hidden="true">{n}</span>'
         f'<span class="way-t">{esc(tr(lang, key))}</span><span class="way-d">{esc(tr(lang, key + "_text"))}</span>'
@@ -246,7 +230,7 @@ def home(session, lang, recent, flash=""):
 
 # ------------------------------------------------------------------ screen 1: about you
 
-def about(session, sid, lang, cat, state, errors=None, doc_open=False, edited=False, flash="", doc=None):
+def about(session, sid, lang, cat, state, errors=None, doc_yes=False, flash=""):
     """state: the profile being edited (the "profile" object of the quick answers, or what was typed)."""
     errors = errors or {}
     prof = state or {}
@@ -273,16 +257,15 @@ def about(session, sid, lang, cat, state, errors=None, doc_open=False, edited=Fa
                       f'{" checked" if current == "dont_know" else ""}><span class="c-t">{esc(tr(lang, "dk"))}</span></label>')
     cur_down = "dont_know" if slot("downtime").get("dont_know") else slot("downtime").get("answer")
     cur_sens = "dont_know" if slot("sensitivity").get("dont_know") else slot("sensitivity").get("answer")
-    doc = doc or {}
-    have = (f'<p class="doc-have">{esc(tr(lang, "doc_have", name=doc.get("filename") or ""))}</p>') if doc.get("provided") else ""
-    kinds = "".join(f'<option value="{k}"{" selected" if (doc.get("kind") or state.get("doc_kind")) == k else ""}>{esc(tr(lang, "doc_" + k))}</option>'
-                    for k in engine.DOCUMENT_KINDS)
+    doc_has = bool(doc_yes or slot("document").get("provided"))
+    doc_radios = "".join(
+        f'<label class="choice"><input type="radio" name="has_doc" value="{v}"{" checked" if (v == "yes") == doc_has else ""}>'
+        f'<span class="c-t">{esc(tr(lang, "doc_" + v))}</span></label>' for v in ("yes", "no"))
     action = f"/quick/{sid}/about" if sid else "/quick/new"
-    doc_attr = " open" if doc_open or doc.get("provided") or errors.get("doc") else ""
     body = f"""{stepper(sid, "about", lang, reachable=bool(sid))}
 <h1>{esc(tr(lang, "about_title"))}</h1><p class="lead">{esc(tr(lang, "about_lead"))}</p>
-{_flash(lang, flash)}{_edited_banner(lang, edited)}
-<form method="post" action="{action}" enctype="multipart/form-data" class="flow">{csrf_input(session)}
+{_flash(lang, flash)}
+<form method="post" action="{action}" class="flow">{csrf_input(session)}
 <input type="hidden" name="lang" value="{esc(lang)}">
 <section class="q"><label for="f-name"><span class="q-t">{esc(tr(lang, "q_name"))}</span><span class="example">{esc(tr(lang, "q_name_ex"))}</span></label>
 <input id="f-name" name="name" value="{esc(prof.get("name", ""))}" maxlength="200" required>{_err(errors.get("name"))}</section>
@@ -298,11 +281,8 @@ def about(session, sid, lang, cat, state, errors=None, doc_open=False, edited=Fa
 <div class="choice-grid">{radios("downtime", engine.DOWNTIME_KEYS, "downtime_", cur_down)}</div></fieldset>
 <fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_sensitivity"))}</span><span class="example">{esc(tr(lang, "q_sensitivity_ex"))}</span></legend>
 <div class="choice-grid">{radios("sensitivity", engine.SENSITIVITY_KEYS, "sens_", cur_sens)}</div></fieldset>
-<details class="q doc"{doc_attr}><summary><span class="q-t">{esc(tr(lang, "q_doc"))}</span> <span class="opt">({esc(tr(lang, "optional"))})</span></summary>
-<p class="example">{esc(tr(lang, "q_doc_ex"))}</p>{have}
-<label>{esc(tr(lang, "doc_kind"))} <select name="doc_kind">{kinds}</select></label>
-<label>{esc(tr(lang, "doc_replace") if doc.get("provided") else tr(lang, "doc_file"))} <input type="file" name="document" accept=".txt,.md,.docx,.pdf"></label>
-{_err(errors.get("doc"))}</details>
+<fieldset class="q doc"><legend><span class="q-t">{esc(tr(lang, "q_doc"))}</span> <span class="opt">({esc(tr(lang, "optional"))})</span><span class="example">{esc(tr(lang, "q_doc_ex"))}</span></legend>
+<div class="choice-grid">{doc_radios}</div></fieldset>
 <div class="actions"><button class="primary big">{esc(tr(lang, "continue_btn"))} <span aria-hidden="true">&rarr;</span></button></div>
 </form>"""
     return page(tr(lang, "about_title"), body, session, lang=lang, lang_path=action)
@@ -336,7 +316,7 @@ def _risk_card(lang, rdef, kept, reason, errors, mine=False):
 <p class="meta">{esc(tr(lang, "hits"))}: {esc(crit)}</p>{typology}{reason_html}</article>"""
 
 
-def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False, flash="", shortlist=None):
+def risks(session, sid, lang, cat, quick, state=None, errors=None, flash="", shortlist=None):
     """state: {"keep": {id: bool}, "reasons": {id: text}, "new": [{"title","family","criteria"}]} when a form was refused.
     `shortlist`: the engine's short list for the profile. Its risks, the kept ones and the person's own are shown
     in the main list; every other applicable risk goes under the collapsed "More risks you can add" section."""
@@ -397,7 +377,7 @@ def risks(session, sid, lang, cat, quick, state=None, errors=None, edited=False,
     count = tr(lang, "risks_count", k=n_kept, n=n_main)
     body = f"""{stepper(sid, "risks", lang)}
 <h1>{esc(tr(lang, "risks_title"))}</h1><p class="lead">{esc(tr(lang, "risks_lead"))}</p>
-{_flash(lang, flash)}{_edited_banner(lang, edited)}
+{_flash(lang, flash)}
 <form method="post" action="/quick/{sid}/risks" class="flow">{csrf_input(session)}
 <input type="hidden" name="lang" value="{esc(lang)}">
 <p class="count-line" role="status">{esc(count)}</p>
@@ -416,7 +396,7 @@ def _level_chip(cal, name, cls, lang="en"):
     return f'<span class="lvl {cls.get(name, "")}">{esc(engine.level_name(cal, name, lang))}</span>'
 
 
-def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edited=False, flash=""):
+def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, flash=""):
     """rows: engine.quick_compute rows (one per kept risk). state: {"sev": {id: v}, "sevreason": {id: t}, "lik": {id: v},
     "in": {id: [..]}, "extra": {id: [..]}} when a form was refused, to show what was typed."""
     errors = errors or {}
@@ -481,16 +461,19 @@ def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edit
                 f'<a class="button primary" href="/quick/{sid}/risks">{esc(tr(lang, "now_empty_cta"))}</a></div>')
     body = f"""{stepper(sid, "now", lang)}
 <h1>{esc(tr(lang, "now_title"))}</h1><p class="lead">{esc(tr(lang, "now_lead"))}</p>
-{_flash(lang, flash)}{_edited_banner(lang, edited)}{form}"""
+{_flash(lang, flash)}{form}"""
     return page(tr(lang, "now_title"), body, session, cal_id=cal["id"], lang=lang, lang_path=f"/quick/{sid}/now")
 
 
 # ------------------------------------------------------------------ screen 4: results
 
-def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions, assumptions, edited=False, can_xlsx=True):
+def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions, assumptions, can_xlsx=True):
     cls = level_classes(cal)
     conf, band = facts["confidence"], facts["band"]
-    doc_names = ", ".join(tr(lang, f"doc_{k}_short") for k in facts["documents"]) or tr(lang, "facts_none")
+    doc_names = ", ".join(tr(lang, f"doc_{k}_short") for k in facts["documents"])
+    if facts["document_provided"]:
+        doc_names = ", ".join(x for x in (doc_names, tr(lang, "doc_mentioned")) if x)
+    doc_names = doc_names or tr(lang, "facts_none")
     missing = ", ".join(tr(lang, f"doc_{k}_short") for k in facts["not_provided"]) or tr(lang, "facts_none")
     line = (f'{tr(lang, "facts_docs")}: {doc_names}. {tr(lang, "facts_missing")}: {missing}. '
             f'{tr(lang, "facts_answers")}: {facts["answers"]}. {tr(lang, "facts_assumptions")}: {facts["assumptions"]}. '
@@ -532,7 +515,6 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
               f'<p class="notice" role="note">{esc(tr(lang, "xlsx_missing"))}</p>')
     body = f"""{stepper(sid, "results", lang)}
 <h1>{esc(tr(lang, "res_title"))}</h1><p class="lead">{esc(tr(lang, "res_lead"))}</p>
-{_edited_banner(lang, edited)}
 {honesty_box(lang)}
 <section class="card conf"><div class="conf-n"><span class="big-n">{conf}%</span><span class="band b-{esc(band)}">{esc(tr(lang, "band_" + band))}</span></div>
 <div><h2>{esc(tr(lang, "conf"))}</h2><progress max="100" value="{conf}" aria-label="{esc(tr(lang, "conf"))}">{conf}%</progress>
@@ -542,7 +524,5 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
 <section class="card"><h2>{esc(tr(lang, "assumptions"))}</h2><p class="hint">{esc(tr(lang, "assumptions_lead"))}</p>{ass}</section>
 <section class="card next-steps"><div class="btns">{export}
 <a class="button secondary" href="/s/{sid}/export.json">{esc(tr(lang, "export_json"))}</a>
-<a class="button secondary" href="/quick/{sid}/about">{esc(tr(lang, "edit_answers"))}</a>
-<a class="button secondary" href="/s/{sid}" rel="nofollow">{esc(tr(lang, "expert"))}</a></div>
-<p class="hint">{esc(tr(lang, "expert_hint"))}</p></section>"""
+<a class="button secondary" href="/quick/{sid}/about">{esc(tr(lang, "edit_answers"))}</a></div></section>"""
     return page(tr(lang, "res_title"), body, session, cal_id=cal["id"], lang=lang, lang_path=f"/quick/{sid}/results")

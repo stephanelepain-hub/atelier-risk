@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Atelier launcher: start, stop and check the local web app, and renew its login token.
 
-  python3 app/atelier.py start [--port 8770] [--data-dir DIR] [--private-dir DIR]
+  python3 app/atelier.py start [--port 8770] [--data-dir DIR]
       Starts the server in the background on 127.0.0.1 and prints the one-time login link. Opens nothing else
       (no browser). The server log goes to <data dir>/server.log (mode 600); the link is never written there.
   python3 app/atelier.py stop     Stops the server this launcher started.
-  python3 app/atelier.py status   Says whether it runs, where, and which drafting route is set. Exit 0 if running, 3 if not.
+  python3 app/atelier.py status   Says whether it runs and where. Exit 0 if running, 3 if not.
   python3 app/atelier.py token --new
       Writes a new login token (mode 600). A running server keeps the old one until you stop and start it.
 
@@ -25,7 +25,7 @@ import time
 APP_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(APP_DIR))
 
-from atelier_app import config, drafting  # noqa: E402
+from atelier_app import config  # noqa: E402
 from atelier_app.storage import atomic_write  # noqa: E402
 
 START_WAIT = 20
@@ -83,8 +83,6 @@ def cmd_start(a, data):
         pass
     cmd = [sys.executable, str(APP_DIR / "serve.py"), "--port", str(a.port), "--data-dir", str(data),
            "--url-file", str(url_file)]
-    if a.private_dir:
-        cmd += ["--private-dir", a.private_dir]
     log = pathlib.Path(data) / "server.log"
     fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     os.chmod(log, 0o600)
@@ -134,21 +132,14 @@ def cmd_stop(a, data):
 
 def cmd_status(a, data):
     info = read_pid(data)
-    s = drafting.normalise(config.drafting_settings(data))
-    route = s["route"] + (f" (model {s['model']}, endpoint {drafting.endpoint_label(s['base_url'])})"
-                          if s["route"] != "off" else "")
-    if s.get("problem"):
-        route += f" ({s['problem']})"
     if info and is_ours(info["pid"]):
         port = info.get("port")
         print(f"Atelier is running at http://127.0.0.1:{port}/ (pid {info['pid']}, since {info.get('started')}); "
               f"port {'answering' if listening(int(port)) else 'NOT answering'}.")
         print(f"Data directory: {data}")
-        print(f"Drafting route: {route}")
         return 0
     print("Atelier is not running.")
     print(f"Data directory: {data}")
-    print(f"Drafting route: {route}")
     return 3
 
 
@@ -173,7 +164,6 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     st = sub.add_parser("start", help="start the server in the background and print the one-time login link")
     st.add_argument("--port", type=int, default=config.DEFAULT_PORT)
-    st.add_argument("--private-dir", default=None)
     sub.add_parser("stop", help="stop the server")
     sub.add_parser("status", help="is it running?")
     tk = sub.add_parser("token", help="renew the login token")

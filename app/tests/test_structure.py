@@ -28,9 +28,8 @@ class StructureTest(unittest.TestCase):
                 self.assertNotIn('"studies"', p.read_text(), p.name)
 
     def test_config_defaults_follow_environment(self):
-        with mock.patch.dict(os.environ, {"ATELIER_DATA_DIR": "/srv/x", "ATELIER_PRIVATE_DIR": ""}, clear=False):
+        with mock.patch.dict(os.environ, {"ATELIER_DATA_DIR": "/srv/x"}, clear=False):
             self.assertEqual(config.default_data_dir(), pathlib.Path("/srv/x"))
-            self.assertEqual(config.default_private_dir("/srv/x"), pathlib.Path("/srv/x/private"))
         env = {k: v for k, v in os.environ.items() if k not in ("ATELIER_DATA_DIR", "XDG_DATA_HOME")}
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertEqual(config.default_data_dir(), pathlib.Path.home() / ".local" / "share" / "atelier")

@@ -81,8 +81,6 @@ def parse_args(argv=None):
     ap.add_argument("--host", default=config.DEFAULT_HOST, help="bind address (default 127.0.0.1)")
     ap.add_argument("--port", type=int, default=config.DEFAULT_PORT, help="port (default 8770)")
     ap.add_argument("--data-dir", default=None, help="data directory (default $ATELIER_DATA_DIR or ~/.local/share/atelier)")
-    ap.add_argument("--private-dir", default=None,
-                    help="private calibrations (default $ATELIER_PRIVATE_DIR or <data-dir>/private)")
     ap.add_argument("--allow-remote", action="store_true", help="allow a non-loopback bind address (not recommended)")
     ap.add_argument("--allowed-host", action="append", default=[],
                     help="extra Host header value to accept, as host:port (only with --allow-remote)")
@@ -102,11 +100,10 @@ def main(argv=None):
         return 2
     host = "127.0.0.1" if a.host == "localhost" else a.host
     data = a.data_dir or config.default_data_dir()
-    private = a.private_dir or None  # default: config.default_private_dir()
     extra = list(a.allowed_host)
     if a.allow_remote and not is_loopback(host):
         extra.append(f"{host}:{a.port}")
-    app = App(data, private_dir=private, port=a.port, extra_hosts=extra, max_upload=MAX_UPLOAD)
+    app = App(data, port=a.port, extra_hosts=extra, max_upload=MAX_UPLOAD)
     srv = (Server6 if ":" in host else Server)((host, a.port), Handler)
     srv.app = app
     port = srv.server_address[1]

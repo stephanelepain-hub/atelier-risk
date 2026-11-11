@@ -6,7 +6,7 @@ import threading
 import unittest
 
 from app.tests import helpers
-from app.tests.helpers import Client, make_app
+from app.tests.helpers import Client, make_app, quick_study
 from atelier_app import server
 from atelier_app.app import App
 
@@ -20,14 +20,16 @@ class AuthTest(unittest.TestCase):
         helpers.cleanup(self.dir)
 
     def test_no_cookie_redirects_to_login(self):
-        for p in ("/", "/s/s-20261110-0123abcd", "/s/s-20261110-0123abcd/register", "/cal/anssi-v1.5.css"):
+        for p in ("/", "/studies", "/quick/new", "/s/s-20261110-0123abcd/delete", "/s/s-20261110-0123abcd/export.json",
+                  "/s/s-20261110-0123abcd/export.xlsx", "/quick/s-20261110-0123abcd/results", "/cal/anssi-v1.5.css"):
             r = self.c.get(p)
             self.assertEqual(r.status, 303, p)
             self.assertEqual(r.get("Location"), "/login", p)
 
     def test_no_cookie_post_refused(self):
-        r = self.c.post("/new", {"name": "x"})
-        self.assertEqual(r.status, 403)
+        for p in ("/quick/new", "/logout", "/s/s-20261110-0123abcd/delete", "/login/link"):
+            r = self.c.post(p, {"name": "x"})
+            self.assertEqual(r.status, 403, p)
         self.assertEqual(os.listdir(self.app.store.dir), ["trash"])
 
     def test_forged_session_cookie_refused(self):
@@ -86,19 +88,21 @@ class AuthTest(unittest.TestCase):
 
     def test_csrf_missing_or_wrong(self):
         self.c.login()
-        r = self.c.post("/new", {"name": "x"})
+        r = self.c.post("/quick/new", {"name": "x"})
         self.assertEqual(r.status, 403)
-        r = self.c.post("/new", {"name": "x", "csrf": "wrong"})
+        r = self.c.post("/quick/new", {"name": "x", "csrf": "wrong"})
         self.assertEqual(r.status, 403)
         self.assertEqual(sorted(os.listdir(self.app.store.dir)), ["trash"])
-        r = self.c.post_csrf("/new", {"name": "x"})
+        r = self.c.post_csrf("/quick/new", {"name": "x"}, page="/quick/new")
         self.assertEqual(r.status, 303)
 
-    def test_csrf_missing_on_multipart_import(self):
+    def test_multipart_bodies_are_not_accepted(self):
         self.c.login()
-        body, ctype = helpers.multipart({}, {"file": ("s.json", helpers.EXAMPLE.read_bytes())})
-        r = self.c.req("POST", "/import", body=body, ctype=ctype)
-        self.assertEqual(r.status, 403)
+        body = (b'--b\r\nContent-Disposition: form-data; name="csrf"\r\n\r\n' + self.c.csrf("/quick/new").encode()
+                + b'\r\n--b\r\nContent-Disposition: form-data; name="name"\r\n\r\nx\r\n--b--\r\n')
+        r = self.c.req("POST", "/quick/new", body=body, ctype="multipart/form-data; boundary=b")
+        self.assertEqual(r.status, 415)
+        self.assertEqual(sorted(os.listdir(self.app.store.dir)), ["trash"])
 
     def test_logout(self):
         self.c.login()
@@ -128,8 +132,9 @@ class AuthTest(unittest.TestCase):
 
     def test_no_inline_script_or_style(self):
         self.c.login()
-        sid = self.c.load_example()
-        for p in ("/login", "/", f"/s/{sid}", f"/s/{sid}/w1", f"/s/{sid}/w3", f"/s/{sid}/register"):
+        sid = quick_study(self.c)
+        for p in ("/login", "/", "/studies", "/quick/new", f"/quick/{sid}/about", f"/quick/{sid}/risks",
+                  f"/quick/{sid}/now", f"/quick/{sid}/results", f"/s/{sid}/delete"):
             t = self.c.text(self.c.get(p))
             self.assertNotRegex(t, r"<script(?![^>]*\bsrc=)", p)
             self.assertNotIn(" style=", t, p)
@@ -139,7 +144,7 @@ class AuthTest(unittest.TestCase):
     def test_token_file_mode_and_reuse(self):
         mode = stat.S_IMODE(os.stat(self.app.token_path).st_mode)
         self.assertEqual(mode, 0o600)
-        for d in (self.app.data_dir, self.app.store.dir, self.app.private_dir):
+        for d in (self.app.data_dir, self.app.store.dir, self.app.tmp_dir):
             self.assertEqual(stat.S_IMODE(os.stat(d).st_mode), 0o700, d)
         again = App(self.dir, port=8770)
         self.assertEqual(again.auth.token, self.app.auth.token)
@@ -152,7 +157,7 @@ class TraversalTest(unittest.TestCase):
         self.app, self.dir = make_app()
         self.c = Client(self.app)
         self.c.login()
-        self.sid = self.c.load_example()
+        self.sid = quick_study(self.c)
 
     def tearDown(self):
         helpers.cleanup(self.dir)
@@ -161,9 +166,10 @@ class TraversalTest(unittest.TestCase):
         paths = [
             "/static/../atelier_app/auth.py", "/static/%2e%2e/serve.py", "/static/..%2fserve.py",
             "/static/", "/static", "/static/app.css/..", "/static/%2e%2e%2f%2e%2e%2fengine%2fatelier_engine%2fcli.py",
-            "/s/../../etc/passwd", "/s/..%2f..%2fetc%2fpasswd", "/s/%2e%2e%2f%2e%2e%2fetc%2fpasswd/w1",
+            "/s/../../etc/passwd", "/s/..%2f..%2fetc%2fpasswd", "/s/%2e%2e%2f%2e%2e%2fetc%2fpasswd/delete",
             "/s/s-20261110-0000000g", "/s/s-20261110-01234567", "/s/S-20261110-01234567",
-            f"/s/{self.sid}/../token", f"/s/{self.sid}%2f..%2f..%2ftoken", f"/s/{self.sid}/w1/fe/..%2f..%2ftoken",
+            f"/s/{self.sid}/../token", f"/s/{self.sid}%2f..%2f..%2ftoken", f"/quick/{self.sid}/..%2f..%2ftoken",
+            f"/quick/{self.sid}/about/../../token", "/quick/..%2f..%2ftoken",
             "/cal/..%2f..%2fetc%2fpasswd.css", "/cal/../token.css", "/token", "/studies/", "/tmp/",
         ]
         token = self.app.auth.token
@@ -184,7 +190,7 @@ class TraversalTest(unittest.TestCase):
         self.assertEqual(self.c.get("/static/other.js").status, 404)
 
 
-class UploadCapTest(unittest.TestCase):
+class RequestCapTest(unittest.TestCase):
     def setUp(self):
         self.app, self.dir = make_app(max_upload=2000)
         self.c = Client(self.app)
@@ -193,9 +199,8 @@ class UploadCapTest(unittest.TestCase):
     def tearDown(self):
         helpers.cleanup(self.dir)
 
-    def test_upload_over_cap_refused(self):
-        big = b'{"format": "atelier-study", "pad": "' + b"x" * 5000 + b'"}'
-        r = self.c.import_bytes(big)
+    def test_body_over_cap_refused(self):
+        r = self.c.post_csrf("/quick/new", {"name": "x", "activity": "y" * 5000}, page="/quick/new")
         self.assertEqual(r.status, 413)
         self.assertEqual(sorted(os.listdir(self.app.store.dir)), ["trash"])
 
@@ -235,12 +240,12 @@ class RealSocketTest(unittest.TestCase):
 
     def test_oversize_content_length_refused_without_reading(self):
         n = 6 * 1024 * 1024
-        out = self.raw(f"POST /import HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nContent-Length: {n}\r\n"
-                       f"Content-Type: multipart/form-data; boundary=x\r\nConnection: close\r\n\r\n".encode())
+        out = self.raw(f"POST /quick/new HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nContent-Length: {n}\r\n"
+                       f"Content-Type: application/x-www-form-urlencoded\r\nConnection: close\r\n\r\n".encode())
         self.assertTrue(out.startswith(b"HTTP/1.0 413") or out.startswith(b"HTTP/1.1 413"), out[:40])
 
     def test_post_without_length_refused(self):
-        out = self.raw(f"POST /new HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nConnection: close\r\n\r\n".encode())
+        out = self.raw(f"POST /quick/new HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nConnection: close\r\n\r\n".encode())
         self.assertIn(b" 411 ", out.split(b"\r\n")[0])
 
     def test_bad_host_over_http(self):

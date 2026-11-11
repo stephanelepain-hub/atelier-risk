@@ -1,6 +1,5 @@
 """Quick-path handlers: the home page and the four screens. Levels, confidence and the study come from the engine."""
-from . import calibrations, documents, engine, views_quick
-from .storage import NotFound
+from . import calibrations, engine, views_quick
 from .web import HTTPError, Response, redirect
 
 LANGS = ("en", "fr")
@@ -9,6 +8,7 @@ SID = r"(s-[0-9]{8}-[0-9a-f]{8})"
 NEXT_STEP = {"about": "risks", "risks": "now", "now": "results", "results": "results"}
 ORDER = ("about", "risks", "now", "results")
 QUICK_FORMAT = {"format": "atelier-quick", "version": "0.1"}
+DOC_STATUS = "mentioned, not read"
 
 
 def _lines(text):
@@ -83,19 +83,9 @@ class QuickRoutes:
         except engine.QuickError as e:
             raise HTTPError(400, str(e))
 
-    def _edited_in_expert_mode(self, st, quick, cal):
-        """True when the stored study differs from what the quick answers build (it was changed in expert mode)."""
-        try:
-            fresh = engine.quick_build(quick, cal, self.quick_catalogue())
-        except engine.QuickError:
-            return False
-        return any(st.get(k) != fresh.get(k) for k in engine.COLLECTIONS)
-
     def _save(self, req, sid, old, quick, cal):
         """Rebuild the study from the quick answers and save it (the store keeps the previous file as .bak)."""
         st = self._quick_build(quick, cal)
-        if isinstance((old or {}).get("study"), dict) and old["study"].get("confidential") is True:
-            st["study"]["confidential"] = True
         self.store_for(req.session).save(sid, st)
         return st
 
@@ -132,10 +122,10 @@ class QuickRoutes:
 
     def quick_new_form(self, req):
         lang = self._lang(req)
-        resp = Response(views_quick.about(req.session, None, lang, self.quick_catalogue(), {}, doc_open=req.arg("doc") == "1"))
+        resp = Response(views_quick.about(req.session, None, lang, self.quick_catalogue(), {}, doc_yes=req.arg("doc") == "1"))
         return self._remember(req, resp, lang)
 
-    def _parse_about(self, req, cat, doc_state=None):
+    def _parse_about(self, req, cat):
         """(profile, errors) from the About-you form. Errors map a field to a message key already translated."""
         lang = self._lang(req)
         errors = {}
@@ -154,43 +144,15 @@ class QuickRoutes:
             if v == "dont_know":
                 return {"answer": "dont_know", "dont_know": True}
             return {"answer": v} if v in keys else {}
-        kind = req.field("doc_kind")
         prof = {"name": name,
                 "activity": {"value": activity, "dont_know": bool(req.field("activity_dk"))},
                 "values": {"value": values[:engine.MAX_VALUES] if "values" not in errors else values, "dont_know": bool(req.field("values_dk"))},
                 "tools": {"value": tools, "dont_know": bool(req.field("tools_dk"))},
                 "downtime": plain("downtime", engine.DOWNTIME_KEYS),
                 "sensitivity": plain("sensitivity", engine.SENSITIVITY_KEYS),
-                "doc_kind": kind if kind in engine.DOCUMENT_KINDS else "other"}
+                "document": ({"provided": True, "status": DOC_STATUS} if req.field("has_doc") == "yes"
+                             else {"provided": False})}
         return prof, errors
-
-    def _apply_document(self, sid, prof, req, quick):
-        """Store an uploaded document (flagged, not read). Returns an error text or None; updates prof["document"]."""
-        lang = self._lang(req)
-        prev = (quick or {}).get("profile", {}).get("document") or {}
-        doc = dict(prev) if prev.get("provided") else {"provided": False}
-        f = req.files.get("document")
-        if f and f[1]:
-            try:
-                meta = self.docs.add(sid, f[0], f[1])
-            except documents.DocumentError as e:
-                prof["document"] = doc
-                return views_quick.tr(lang, "err_doc", why=str(e))
-            if prev.get("doc_id"):
-                try:
-                    self.docs.delete(sid, prev["doc_id"])
-                except NotFound:
-                    pass
-            doc = {"provided": True, "doc_id": meta["id"], "filename": meta["name"], "kind": prof["doc_kind"],
-                   "status": "stored, not read"}
-        elif doc.get("provided"):
-            doc["kind"] = prof["doc_kind"]
-        prof["document"] = doc
-        return None
-
-    def _about_response(self, req, sid, lang, prof, errors, status, edited=False):
-        doc = (prof.get("document") or {})
-        return Response(views_quick.about(req.session, sid, lang, self.quick_catalogue(), prof, errors, edited=edited, doc=doc), status)
 
     def quick_new(self, req):
         lang = self._lang(req)
@@ -200,19 +162,8 @@ class QuickRoutes:
             return Response(views_quick.about(req.session, None, lang, cat, prof, errors), 400)
         cal = calibrations.load(calibrations.DEFAULT)
         quick = dict(QUICK_FORMAT, lang=lang, step="risks", profile=dict(prof), risks=[])
-        quick["profile"].pop("doc_kind")
-        quick["profile"]["document"] = {"provided": False}
         self._sync_risks(quick)
         sid = self.store_for(req.session).create(self._quick_build(quick, cal))
-        f = req.files.get("document")
-        if f and f[1]:
-            err = self._apply_document(sid, prof, req, quick)
-            if err:
-                quick["step"] = "about"
-                self._save(req, sid, None, quick, cal)
-                return self._about_response(req, sid, lang, prof, {"doc": err}, 400)
-            quick["profile"]["document"] = prof["document"]
-            self._save(req, sid, None, quick, cal)
         return redirect(f"/quick/{sid}/risks")
 
     def quick_about(self, req, sid):
@@ -221,8 +172,7 @@ class QuickRoutes:
         lang = self._lang(req, quick)
         cat = self.quick_catalogue()
         prof = dict(quick.get("profile") or {})
-        resp = Response(views_quick.about(req.session, sid, lang, cat, prof, doc=prof.get("document") or {},
-                                          edited=self._edited_in_expert_mode(st, quick, cal), flash=req.arg("f")))
+        resp = Response(views_quick.about(req.session, sid, lang, cat, prof, flash=req.arg("f")))
         return self._remember(req, resp, lang)
 
     def quick_about_save(self, req, sid):
@@ -233,19 +183,12 @@ class QuickRoutes:
             cat = self.quick_catalogue()
             prof, errors = self._parse_about(req, cat)
             if errors:
-                prof["document"] = (quick.get("profile") or {}).get("document") or {}
-                return self._about_response(req, sid, lang, prof, errors, 400,
-                                            edited=self._edited_in_expert_mode(st, quick, cal))
-            err = self._apply_document(sid, prof, req, quick)
-            kind = prof.pop("doc_kind")
+                return Response(views_quick.about(req.session, sid, lang, cat, prof, errors), 400)
             quick["lang"] = lang
             quick["profile"] = prof
             self._sync_risks(quick)
             self._advance(quick, "about")
             self._save(req, sid, st, quick, cal)
-            if err:
-                prof["doc_kind"] = kind
-                return self._about_response(req, sid, lang, prof, {"doc": err}, 400)
         return redirect(f"/quick/{sid}/risks")
 
     # ---------- screen 2: risks ----------
@@ -255,8 +198,7 @@ class QuickRoutes:
         cal = self._cal(st)
         lang = self._lang(req, quick)
         cat = self.quick_catalogue()
-        resp = Response(views_quick.risks(req.session, sid, lang, cat, quick, edited=self._edited_in_expert_mode(st, quick, cal),
-                                          flash=req.arg("f"), shortlist=engine.quick_shortlist(quick["profile"], cat)))
+        resp = Response(views_quick.risks(req.session, sid, lang, cat, quick, flash=req.arg("f"), shortlist=engine.quick_shortlist(quick["profile"], cat)))
         return self._remember(req, resp, lang)
 
     def quick_risks_save(self, req, sid):
@@ -283,7 +225,6 @@ class QuickRoutes:
                     errors["new"] = views_quick.tr(lang, "err_values")
             if errors:
                 return Response(views_quick.risks(req.session, sid, lang, cat, quick, state, errors,
-                                                  edited=self._edited_in_expert_mode(st, quick, cal),
                                                   shortlist=engine.quick_shortlist(quick["profile"], cat)), 400)
             for e in quick["risks"]:
                 e["decision"] = "keep" if e["id"] in kept else "discard"
@@ -321,7 +262,7 @@ class QuickRoutes:
         cal = self._cal(st)
         lang = self._lang(req, quick)
         resp = Response(views_quick.now(req.session, sid, lang, self.quick_catalogue(), quick, cal, self._rows(quick, cal),
-                                        edited=self._edited_in_expert_mode(st, quick, cal), flash=req.arg("f")))
+                                        flash=req.arg("f")))
         return self._remember(req, resp, lang)
 
     def quick_now_save(self, req, sid):
@@ -354,8 +295,7 @@ class QuickRoutes:
                 if sev is not None and not reason:
                     errors[rid] = views_quick.tr(lang, "err_sev_reason")
             if errors:
-                return Response(views_quick.now(req.session, sid, lang, cat, quick, cal, rows, state, errors,
-                                                edited=self._edited_in_expert_mode(st, quick, cal)), 400)
+                return Response(views_quick.now(req.session, sid, lang, cat, quick, cal, rows, state, errors), 400)
             for rid, (sev, reason, lik, in_place, extra) in parsed.items():
                 e = entries[rid]
                 if sev is None:
@@ -390,5 +330,5 @@ class QuickRoutes:
         resp = Response(views_quick.results(
             req.session, sid, lang, cat, quick, cal, rows, reg_rows, engine.quick_facts(quick, cal, cat),
             engine.quick_actions(quick, cal, cat, 5), engine.quick_assumptions(quick, cal, cat),
-            edited=self._edited_in_expert_mode(st, quick, cal), can_xlsx=engine.have_xlsx()))
+            can_xlsx=engine.have_xlsx()))
         return self._remember(req, resp, lang)

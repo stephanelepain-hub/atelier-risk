@@ -7,5 +7,4 @@ python3 app/atelier.py stop
 python3 app/atelier.py token --new
 ```
 
-Drafting is off until you pick a route in Settings. See `docs/app.md` (run, data, documents, drafting routes,
-limits, security model, a systemd user unit template).
+See `docs/app.md` (run, data, the four screens, limits, security model, a systemd user unit template).

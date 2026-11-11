@@ -76,16 +76,17 @@ class Base(unittest.TestCase):
 
 
 class HomeTest(Base):
-    def test_home_has_the_honesty_statement_and_three_ways_in(self):
+    def test_home_has_the_honesty_statement_and_two_ways_in(self):
         t = self.page("/")
         self.assertIn(engine.HONESTY["en"], t)
         self.assertIn('href="/quick/new?lang=en"', t)
         self.assertRegex(t, r'href="/quick/new\?doc=1&(amp;)?lang=en"')
-        self.assertIn('href="/reviews?lang=en"', t)
         self.assertIn('href="/studies"', t)
         self.assertIn("Start from scratch", t)
-        self.assertIn("I have documents", t)
-        self.assertIn("I already have a risk analysis", t)
+        self.assertIn("I have a document", t)
+        self.assertEqual(t.count('<a class="way'), 2)
+        for gone in ("I already have a risk analysis", "/reviews", "expert", "workshop"):
+            self.assertNotIn(gone, t.lower() if gone.islower() else t, gone)
 
     def test_french_home(self):
         t = self.page("/?lang=fr")
@@ -99,12 +100,22 @@ class HomeTest(Base):
         t = self.page("/")
         self.assertIn(engine.HONESTY["fr"], t)
 
-    def test_existing_study_list_stays_reachable(self):
-        sid = helpers_load_example(self.c)
+    def test_study_list_reopens_and_deletes(self):
+        sid = self.start()
         t = self.page("/studies")
-        self.assertIn(f'href="/s/{sid}"', t)
+        self.assertIn(f'href="/quick/{sid}/risks"', t)                 # reopen at the screen where the person stopped
+        self.assertIn(f'href="/s/{sid}/delete"', t)
         self.assertIn("<h1>Studies</h1>", t)
         self.assertIn('href="/studies"', self.page("/"))
+        self.assertNotIn("Duplicate", t)
+        self.assertNotIn("Import a study file", t)
+
+    def test_a_file_that_is_not_a_quick_study_can_only_be_deleted(self):
+        sid = helpers.store_example(self.c)
+        t = self.page("/studies")
+        self.assertIn("not a quick-path study", t)
+        self.assertNotIn(f'href="/quick/{sid}/', t)
+        self.assertIn(f'href="/s/{sid}/delete"', t)
 
     def test_login_still_required(self):
         anon = Client(self.app)
@@ -125,10 +136,6 @@ class HomeTest(Base):
         self.assertIn(f'href="/quick/{sid}/risks?lang=en"', t)   # next screen to do
         self.assertNotIn("<script>alert", t)
         self.assertIn("&quot;&gt;&lt;script&gt;alert(1)", t)
-
-
-def helpers_load_example(c):
-    return c.load_example()
 
 
 class WalkTest(Base):
@@ -175,14 +182,16 @@ class WalkTest(Base):
         self.assertIn("Step 4 of 4", t)
         self.assertEqual(t.count(engine.HONESTY["en"]), 1)
         self.assertEqual(t.count("<svg"), 2)                                   # before and after maps
-        self.assertNotIn("EBIOS", t)                                          # method names stay in expert mode
+        self.assertNotIn("EBIOS", t)                                          # plain words only, no method names
         self.assertNotIn("EBIOS", self.page(f"/quick/{sid}/now"))
         self.assertIn("Now</figcaption>", t)
         self.assertIn("After your extra measures</figcaption>", t)
         self.assertIn("Your top actions", t)
         self.assertIn("What we assumed", t)
-        self.assertIn(f'href="/s/{sid}"', t)                                   # open in expert mode
-        self.assertIn("Open in expert mode", t)
+        for gone in ("expert", "workshop", "Workshop"):
+            self.assertNotIn(gone, t, gone)
+        self.assertNotIn(f'href="/s/{sid}"', t)
+        self.assertIn(f'href="/s/{sid}/export.json"', t)
         if HAVE_OPENPYXL:
             self.assertIn(f'href="/s/{sid}/export.xlsx"', t)
         else:
@@ -368,7 +377,7 @@ class ValidationTest(Base):
 
     def test_unknown_study_and_non_quick_study(self):
         self.assertEqual(self.c.get("/quick/s-20261110-0123abcd/results").status, 404)
-        sid = helpers_load_example(self.c)
+        sid = helpers.store_example(self.c)
         for step in ("about", "risks", "now", "results"):
             self.assertEqual(self.c.get(f"/quick/{sid}/{step}").status, 404, step)
 
@@ -452,109 +461,147 @@ class ConfidenceAndAssumptionsTest(Base):
 
 
 class DocumentTest(Base):
-    def upload_start(self, name="notes.txt", data=b"Our network has one server and a router.", kind="architecture"):
-        form = {"csrf": self.c.csrf("/quick/new"), "name": "With document", "activity": "x", "values": "a", "tools": ["office"],
-                "downtime": "day", "sensitivity": "internal", "lang": "en", "doc_kind": kind}
-        body, ctype = helpers.multipart(form, {"document": (name, data)})
-        return self.c.req("POST", "/quick/new", body=body, ctype=ctype)
+    """The document question is a plain yes/no flag: nothing is uploaded, stored or read."""
 
-    def test_a_document_is_stored_and_flagged_not_read(self):
-        r = self.upload_start()
+    def start_doc(self, answer):
+        form = {"csrf": self.c.csrf("/quick/new"), "name": "With document", "activity": "x", "values": "a", "tools": ["office"],
+                "downtime": "day", "sensitivity": "internal", "lang": "en"}
+        if answer is not None:
+            form["has_doc"] = answer
+        return self.c.post("/quick/new", form)
+
+    def test_yes_is_stored_as_a_flag_and_listed_as_mentioned_not_read(self):
+        r = self.start_doc("yes")
         self.assertEqual(r.status, 303)
         sid = sid_of(r)
         doc = self.study(sid)["quick"]["profile"]["document"]
-        self.assertTrue(doc["provided"])
-        self.assertEqual((doc["kind"], doc["filename"]), ("architecture", "notes.txt"))
-        listed = self.app.docs.list(sid)
-        self.assertEqual([d["id"] for d in listed], [doc["doc_id"]])
+        self.assertEqual(doc, {"provided": True, "status": "mentioned, not read"})
         self.keep_all(sid)
         self.rate_all(sid)
         t = self.page(f"/quick/{sid}/results")
-        self.assertIn("Documents: architecture document.", t)
-        self.assertIn("Not provided: business impact analysis, security baseline.", t)
-        self.assertIn("stored but has not been read yet", t)
-        self.assertNotIn("Without a document, confidence never goes above", t)
-        # nothing was drawn from the document: no element carries source "document"
+        self.assertIn("Documents: document mentioned, not read.", t)
+        self.assertIn("You mentioned a document. It has not been read, so it does not raise the confidence.", t)
+        self.assertIn("Not provided: architecture document, business impact analysis, security baseline.", t)
+        # nothing was drawn from a document: no element carries source "document"
         st = self.study(sid)
         for key in engine.COLLECTIONS:
             for x in st[key]:
                 self.assertNotEqual(x["source"], "document")
-        self.assertEqual(self.page(f"/s/{sid}/docs").count("notes.txt"), 1)
+        self.assertEqual(engine.check(st)["errors"], [])
 
-    def test_the_second_way_in_opens_the_document_section(self):
-        t = self.page("/quick/new?doc=1")
-        self.assertRegex(t, r'<details class="q doc" open>')
-        self.assertNotRegex(self.page("/quick/new"), r'<details class="q doc" open>')
+    def test_no_or_unanswered_is_not_provided(self):
+        for answer in ("no", None, "maybe"):
+            sid = sid_of(self.start_doc(answer))
+            self.assertEqual(self.study(sid)["quick"]["profile"]["document"], {"provided": False}, answer)
+        t = self.page(f"/quick/{sid}/results")
+        self.assertNotIn("mentioned, not read", t)
+        self.assertIn("Without a document, confidence never goes above 75%.", t)
 
-    def test_refused_document_keeps_the_form_and_says_why(self):
-        r = self.upload_start(name="malware.exe", data=b"MZ")
-        self.assertEqual(r.status, 400)
-        t = self.c.text(r)
-        self.assertIn("The document was not accepted", t)
-        self.assertIn("only .txt, .md, .docx and .pdf files are accepted", t)
-        self.assertRegex(t, r'action="/quick/s-[0-9]{8}-[0-9a-f]{8}/about"')   # resubmitting does not create a second study
-        self.assertEqual(len(self.app.store.list()), 1)
-        self.assertEqual(self.app.docs.list(sid_of_form(t)), [])
+    def test_the_form_has_no_file_input_and_no_multipart(self):
+        for path in ("/quick/new", "/quick/new?doc=1"):
+            t = self.page(path)
+            self.assertNotIn('type="file"', t, path)
+            self.assertNotIn("multipart", t, path)
+            self.assertIn('name="has_doc" value="yes"', t)
+            self.assertIn('name="has_doc" value="no"', t)
 
-    def test_replacing_the_document(self):
-        sid = sid_of(self.upload_start())
-        old = self.study(sid)["quick"]["profile"]["document"]["doc_id"]
-        form = {"csrf": self.c.csrf(f"/quick/{sid}/about"), "name": "With document", "activity": "x", "values": "a",
-                "tools": ["office"], "downtime": "day", "sensitivity": "internal", "lang": "en", "doc_kind": "other"}
-        body, ctype = helpers.multipart(form, {"document": ("second.txt", b"Second document text")})
-        r = self.c.req("POST", f"/quick/{sid}/about", body=body, ctype=ctype)
-        self.assertEqual(r.status, 303)
-        new = self.study(sid)["quick"]["profile"]["document"]
-        self.assertNotEqual(new["doc_id"], old)
-        self.assertEqual([d["id"] for d in self.app.docs.list(sid)], [new["doc_id"]])
-        self.assertEqual(new["kind"], "other")
+    def test_the_second_way_in_preselects_yes_and_the_first_no(self):
+        self.assertRegex(self.page("/quick/new?doc=1"), r'name="has_doc" value="yes" checked')
+        t = self.page("/quick/new")
+        self.assertRegex(t, r'name="has_doc" value="no" checked')
+        self.assertNotRegex(t, r'name="has_doc" value="yes" checked')
 
-    def test_upload_limit_for_the_quick_forms_matches_documents(self):
-        for p in ("/quick/new", f"/quick/s-20261110-0123abcd/about"):
-            self.assertEqual(self.app.body_limit(p), self.app.body_limit("/s/s-20261110-0123abcd/docs"))
-        self.assertLess(self.app.body_limit("/quick/s-20261110-0123abcd/risks"), self.app.body_limit("/quick/new"))
+    def test_changing_the_answer_on_the_about_screen(self):
+        sid = sid_of(self.start_doc("yes"))
+        self.assertRegex(self.page(f"/quick/{sid}/about"), r'name="has_doc" value="yes" checked')
+        form = {"name": "With document", "activity": "x", "values": "a", "tools": ["office"], "downtime": "day",
+                "sensitivity": "internal", "lang": "en", "has_doc": "no"}
+        self.assertEqual(self.post(f"/quick/{sid}/about", form).status, 303)
+        self.assertEqual(self.study(sid)["quick"]["profile"]["document"], {"provided": False})
+
+    def test_the_document_routes_and_storage_are_gone(self):
+        sid = sid_of(self.start_doc("yes"))
+        self.assertEqual(self.c.get(f"/s/{sid}/docs").status, 404)
+        self.assertEqual(self.c.post_csrf(f"/s/{sid}/docs", {}, page="/").status, 404)
+        self.assertFalse(hasattr(self.app, "docs"))
+        self.assertFalse((self.app.data_dir / "documents").exists())
+
+    def test_the_request_limit_is_the_same_for_every_form(self):
+        for p in ("/quick/new", "/quick/s-20261110-0123abcd/about", "/quick/s-20261110-0123abcd/risks"):
+            self.assertEqual(self.app.body_limit(p), self.app.max_upload)
 
 
-def sid_of_form(t):
-    return re.search(r'/quick/(s-[0-9]{8}-[0-9a-f]{8})/about', t).group(1)
+class RemovedExpertFeaturesTest(Base):
+    """The public edition has the quick path only: the screens of the full method answer 404, never 200."""
 
-
-class ExpertModeTest(Base):
     def walk(self):
         sid = self.start()
         self.keep_all(sid)
         self.rate_all(sid)
         return sid
 
-    def test_the_quick_study_opens_in_the_existing_screens(self):
+    def test_the_removed_pages_answer_404(self):
         sid = self.walk()
-        for p in ("", "/w1", "/w2", "/w3", "/w4", "/w5", "/register", "/docs"):
-            self.assertEqual(self.c.get(f"/s/{sid}{p}").status, 200, p)
-        t = self.page(f"/s/{sid}/w5")
-        self.assertIn("Ransomware locks your files and systems", t)
-        self.assertIn(f'href="/quick/{sid}/results"', self.page(f"/s/{sid}"))
-        reg = self.page(f"/s/{sid}/register")
-        self.assertIn("Risk grid, now and at target", reg)
-        self.assertEqual(reg.count("<svg"), 2)
+        for p in ("", "/w1", "/w2", "/w3", "/w4", "/w5", "/register", "/docs", "/severities", "/el/R1",
+                  "/w1/bv/add", "/w2/ro/add", "/rename", "/duplicate", "/confidential", "/draft"):
+            self.assertEqual(self.c.get(f"/s/{sid}{p}").status, 404, p)
+            self.assertEqual(self.c.post_csrf(f"/s/{sid}{p}", {}, page="/").status, 404, p)
+        for p in ("/reviews", "/reviews/r-20261110-0123abcd", "/settings", "/new", "/import", "/example"):
+            self.assertEqual(self.c.get(p).status, 404, p)
+            self.assertEqual(self.c.post_csrf(p, {}, page="/").status, 404, p)
 
-    def test_an_expert_edit_shows_a_notice_on_the_quick_screens(self):
+    def test_the_quick_study_still_downloads_and_deletes(self):
         sid = self.walk()
-        self.assertNotIn("changed in expert mode", self.page(f"/quick/{sid}/results"))
-        r = self.c.post_csrf(f"/s/{sid}/w1/bv/add", {"label": "Added in expert mode", "owner": "me"}, page=f"/s/{sid}/w1")
-        self.assertEqual(r.status, 303)
-        for step in ("about", "risks", "now", "results"):
-            self.assertIn("This study was changed in expert mode", self.page(f"/quick/{sid}/{step}"), step)
-        # saving a quick screen rebuilds the study and keeps the previous version as .bak
-        self.post(f"/quick/{sid}/risks", {"keep": [e["id"] for e in self.study(sid)["quick"]["risks"]], "lang": "en"})
-        self.assertNotIn("Added in expert mode", json.dumps(self.study(sid)))
-        self.assertIn("Added in expert mode", (self.app.store.dir / f"{sid}.json.bak").read_text(encoding="utf-8"))
+        self.assertEqual(self.c.get(f"/s/{sid}/export.json").status, 200)
+        self.assertEqual(self.c.get(f"/s/{sid}/delete").status, 200)
+        self.assertEqual(self.c.post_csrf(f"/s/{sid}/delete", {}, page=f"/s/{sid}/delete").status, 303)
+        self.assertEqual(self.c.get(f"/quick/{sid}/results").status, 404)
 
-    def test_the_confidential_mark_survives_a_rebuild(self):
+    def test_no_page_mentions_the_removed_features(self):
         sid = self.walk()
-        self.c.post_csrf(f"/s/{sid}/confidential", {"confidential": "yes"}, page=f"/s/{sid}")
-        self.assertTrue(self.study(sid)["study"]["confidential"])
-        self.rate_all(sid, go="stay")
-        self.assertTrue(self.study(sid)["study"]["confidential"])
+        for path in ("/", "/studies", "/quick/new", f"/quick/{sid}/about", f"/quick/{sid}/risks",
+                     f"/quick/{sid}/now", f"/quick/{sid}/results"):
+            for lang in ("en", "fr"):
+                t = self.page(f"{path}{'&' if '?' in path else '?'}lang={lang}").lower()
+                for word in ("expert", "workshop", "atelier 1", "reviews", "revues", "/settings", "calibration"):
+                    self.assertNotIn(word, t, (path, lang, word))
+
+    def test_only_the_published_calibration_is_known(self):
+        self.assertEqual(calibrations.available(), {"anssi-v1.5": "public"})
+        self.assertTrue(calibrations.exists("anssi-v1.5"))
+        self.assertFalse(calibrations.exists("my-org-2026"))
+        self.assertEqual(self.c.get("/cal/anssi-v1.5.css").status, 200)
+        self.assertEqual(self.c.get("/cal/my-org-2026.css").status, 404)
+
+    def test_a_private_directory_in_the_environment_is_ignored(self):
+        import os
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            clash = pathlib.Path(d) / "anssi-v1.5.json"                      # would win a name clash in the engine
+            clash.write_text('{"id": "anssi-v1.5", "name": "NOT THE PUBLISHED ONE"}', encoding="utf-8")
+            (pathlib.Path(d) / "my-org-2026.json").write_text("{}", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"ATELIER_PRIVATE_DIR": d}):
+                self.assertEqual(calibrations.available(), {"anssi-v1.5": "public"})
+                self.assertNotEqual(calibrations.load("anssi-v1.5").get("name"), "NOT THE PUBLISHED ONE")
+                self.assertFalse(calibrations.exists("my-org-2026"))
+                self.assertEqual(engine.check({"format": "atelier-study", "study": {"calibration": "my-org-2026"}})["cal"], None)
+                sid = self.start()                                            # a whole walk uses the published one
+                self.assertEqual(self.study(sid)["study"]["calibration"], "anssi-v1.5")
+
+    def test_the_removed_modules_are_not_importable(self):
+        import importlib
+        for name in ("views_ws", "editors", "reviews", "views_review", "review_store", "drafting", "drafts",
+                     "views_draft", "documents"):
+            with self.assertRaises(ImportError, msg=name):
+                importlib.import_module(f"atelier_app.{name}")
+
+    def test_the_app_has_no_private_dir_option(self):
+        import inspect
+        from atelier_app import server
+        self.assertNotIn("private", inspect.signature(type(self.app).__init__).parameters)
+        with self.assertRaises(SystemExit):
+            server.parse_args(["--private-dir", "/tmp/x"])
 
 
 @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl is not installed")
@@ -593,7 +640,7 @@ class ExportTest(Base):
 
     def test_plain_studies_export_without_a_header(self):
         import openpyxl
-        sid = helpers_load_example(self.c)
+        sid = helpers.store_example(self.c)
         wb = openpyxl.load_workbook(io.BytesIO(self.c.get(f"/s/{sid}/export.xlsx").body))
         self.assertEqual(wb.worksheets[0]["A1"].value, "id")
 
@@ -623,19 +670,13 @@ class FrenchTest(Base):
 
 
 class ExistingFeaturesTest(Base):
-    def test_the_guide_example_still_loads_and_gives_the_same_levels(self):
-        sid = helpers_load_example(self.c)
-        st = self.study(sid)
+    def test_the_guide_example_still_gives_the_same_levels(self):
+        st = helpers.example_json()
         chk = engine.check(st)
         self.assertEqual(chk["errors"], [])
         rows, _ = engine.register(st, chk["cal"])
         self.assertEqual([(r["id"], r["severity"], r["likelihood"], r["level"]) for r in rows],
                          [("R1", 3, 3, "Élevé"), ("R2", 3, 2, "Moyen"), ("R3", 3, 4, "Élevé"), ("R4", 4, 2, "Moyen"), ("R5", 4, 1, "Moyen")])
-        self.assertNotIn("Quick path results", self.page(f"/s/{sid}"))
-
-    def test_review_import_page_is_reachable_from_the_home_page(self):
-        self.assertIn('href="/reviews?lang=en"', self.page("/"))
-        self.assertEqual(self.c.get("/reviews").status, 200)
 
 
 class Parser(HTMLParser):
@@ -678,7 +719,8 @@ class MarkupTest(Base):
         sid = self.start()
         self.keep_all(sid)
         self.rate_all(sid)
-        return [("/", self.page("/")), ("/quick/new", self.page("/quick/new")), ("/quick/new?doc=1", self.page("/quick/new?doc=1"))] + [
+        return [("/", self.page("/")), ("/quick/new", self.page("/quick/new")), ("/quick/new?doc=1", self.page("/quick/new?doc=1")),
+                ("/studies", self.page("/studies"))] + [
             (f"/quick/{sid}/{s}", self.page(f"/quick/{sid}/{s}")) for s in ("about", "risks", "now", "results")]
 
     def test_every_control_has_a_label_and_the_page_is_self_contained(self):
@@ -759,12 +801,6 @@ class ContrastTest(unittest.TestCase):
                  ("#1d2a55", "#e8eefc")]
         for fg, bg in pairs:
             self.assertGreaterEqual(contrast(fg, bg), 4.5, (fg, bg))
-
-    def test_legacy_badge_pairs_reach_aa(self):
-        v, css = self.vars()
-        for sel, fg, bg in ((".badge.ok", "ok", "#dff1e5"), (".badge.warn", "warn", "#fdeccc"), (".badge.bad", "bad", "#fadad7")):
-            self.assertIn(f"{sel} {{ background: {bg}; color: var(--{fg}); }}", css)
-            self.assertGreaterEqual(contrast(v[fg], bg), 4.5, sel)
 
     def test_focus_ring_is_visible(self):
         v, _ = self.vars()
@@ -957,9 +993,9 @@ class RoundTwoLayoutTest(Base):
         self.assertRegex(css, r"\.row-card \.blk\.sev \{[^}]*white-space: normal")  # the old nowrap `.sev` rule no longer leaks in
         self.assertRegex(css, r"@media \(max-width: 900px\) \{ \.row-grid \{ grid-template-columns: minmax\(0, 1fr\); \} \}")
 
-    def test_document_question_summary_has_title_and_optional_inline(self):
+    def test_document_question_is_a_yes_no_choice_with_title_and_optional_inline(self):
         t = self.page("/quick/new")
-        m = re.search(r'<details class="q doc"[^>]*><summary>(.*?)</summary>', t)
+        m = re.search(r'<fieldset class="q doc"><legend>(.*?)</legend>', t)
         self.assertIsNotNone(m)
         self.assertIn("Do you have a document about your systems or risks?", m.group(1))
         self.assertIn("(optional)", m.group(1))

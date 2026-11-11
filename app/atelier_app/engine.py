@@ -1,34 +1,30 @@
 """The only place the app talks to the engine. Levels, checks and registers all come from here."""
 import copy
-import importlib
-import io
+import json
 import os
-import pathlib
 import re
-import sys
 import tempfile
-import zipfile
 
 from . import ENGINE_DIR  # noqa: F401  (puts the engine on sys.path)
-from atelier_engine import calibration, importer as importer_mod, quick as quick_mod, study as study_mod  # noqa: E402
+from atelier_engine import calibration, quick as quick_mod, study as study_mod  # noqa: E402
 
 COLLECTIONS = list(study_mod.COLLECTIONS)
-DECISIONS = frozenset(study_mod.DECISIONS)
-TREATMENTS = frozenset(x for x in study_mod.TREATMENTS if x is not None)
-MEASURE_STATUS = frozenset(study_mod.MEASURE_STATUS)
-DERIVED_SEVERITY = ("strategic_scenarios", "risks")  # the engine checks these against their sources
 DEFAULT_CAL = "anssi-v1.5"
 CalibrationError = calibration.CalibrationError
-SpreadsheetError = importer_mod.SpreadsheetError
 
 
 def calibrations():
-    """{id: "public" | "private"} as the engine lists them (private dir taken from ATELIER_PRIVATE_DIR)."""
-    return calibration.available()
+    """{id: "public"}: the calibrations shipped in the repository's calibrations/ folder, and no others."""
+    return {f.stem: "public" for f in sorted(calibration.PUBLIC_DIR.glob("*.json"))}
 
 
 def load_cal(cal_id):
-    return calibration.load(cal_id)
+    """Read and check one published calibration. Nothing outside calibrations/ is ever read."""
+    if cal_id not in calibrations():
+        raise CalibrationError(f"unknown calibration '{cal_id}' (available: {', '.join(calibrations())})")
+    cal = json.loads((calibration.PUBLIC_DIR / f"{cal_id}.json").read_text(encoding="utf-8"))
+    calibration.check(cal)
+    return cal
 
 
 def study_cal_id(st):
@@ -66,7 +62,7 @@ def check(st):
     if errs:
         return {"errors": errs, "warnings": [], "calibration": cal_id, "cal": None}
     try:
-        cal = calibration.load(cal_id)
+        cal = load_cal(cal_id)
     except (CalibrationError, ValueError, OSError) as e:
         return {"errors": [f"calibration: {e}"], "warnings": [], "calibration": cal_id, "cal": None}
     try:
@@ -133,113 +129,6 @@ def to_xlsx_bytes(st, cal, tmp_dir, notice=None, extra_sheets=None, lang=None):
             return f.read()
     finally:
         os.unlink(path)
-
-
-def review_layouts():
-    from atelier_engine import importer
-    return importer.layouts()
-
-
-def import_review(data, cal, layout=None):
-    """Bound expanded workbook size before openpyxl parses it. The engine alone interprets cells."""
-    from atelier_engine import importer
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            entries = z.infolist()
-            if len(entries) > 3000 or sum(e.file_size for e in entries) > 100 * 1024 * 1024:
-                raise importer.SpreadsheetError("expanded workbook exceeds the safe import limit")
-    except zipfile.BadZipFile:
-        raise importer.SpreadsheetError("not an xlsx workbook") from None
-    return importer.read_xlsx(io.BytesIO(data), cal, layout=layout)
-
-
-def review_plugin(private_dir):
-    """Load the optional installed plugin, never a package from an unrelated private directory."""
-    directory = pathlib.Path(private_dir) / "plugins"
-    cached = sys.modules.get("atelier_private")
-    if cached and pathlib.Path(cached.__file__).resolve().parent.parent != directory.resolve():
-        for name in list(sys.modules):
-            if name == "atelier_private" or name.startswith("atelier_private."):
-                del sys.modules[name]
-    if not (directory / "atelier_private" / "review.py").is_file():
-        return None
-    sys.path.insert(0, str(directory))
-    try:
-        importlib.invalidate_caches()
-        return importlib.import_module("atelier_private.review")
-    finally:
-        sys.path.remove(str(directory))
-
-
-def review_result(state, cal, plugin):
-    if state['report'].get('errors'):
-        return {'register': [], 'summary': None, 'check': check(state['study']), 'score': None}
-    if plugin is not None:
-        return plugin.review(state["study"], state["report"], cal,
-                             ratings=state.get("ratings", {}), notes=state.get("notes", {}), kind="extract")
-    checked = check(state["study"])
-    rows, totals = ([], None) if checked["errors"] else register(state["study"], cal)
-    return {"register": rows, "summary": totals, "check": checked, "measures": state["study"].get("measures", []),
-            "score": None, "criteria": [], "proposed": {}, "ratings": {}, "sources": {}, "unrated": []}
-
-
-def review_xlsx(result, plugin, directory):
-    fd, path = tempfile.mkstemp(dir=directory, prefix=".export-", suffix=".xlsx")
-    os.close(fd)
-    try:
-        plugin.to_xlsx(result, path, "Risk analysis review")
-        return pathlib.Path(path).read_bytes()
-    finally:
-        os.unlink(path)
-
-
-def derived_severity(st, cal, key, eid):
-    """The severity the engine's checks accept for strategic scenario or risk `eid`, or None if they leave it open.
-
-    The engine checks that a strategic scenario's severity is the highest of its feared events (guide p.49) and that
-    a risk's severity is its scenario's, but it has no function that returns that value. So the app asks the
-    engine's own validate(): it tries 1 to 4 on a copy and keeps the single value that raises no severity error for
-    this element. The rule itself is never coded in the app. If the engine gains a function for it, only this
-    function changes.
-    """
-    if key not in DERIVED_SEVERITY or not cal or structure_errors(st):
-        return None
-    probe = copy.deepcopy(st)
-    hits = [x for x in probe.get(key) or [] if isinstance(x, dict) and x.get("id") == eid]
-    if len(hits) != 1:
-        return None
-    el, prefix, ok = hits[0], f"{eid}: severity ", []
-    for k in (1, 2, 3, 4):
-        el["severity"] = k
-        try:
-            errs = study_mod.validate(probe, cal)["errors"]
-        except Exception:  # a shape the engine does not expect: no value
-            return None
-        if not any(e.startswith(prefix) for e in errs):
-            ok.append(k)
-    return ok[0] if len(ok) == 1 else None
-
-
-def severity_errors(chk, eid):
-    """The engine's severity errors for one element, as the engine words them."""
-    return [e for e in chk.get("errors", []) if e.startswith(f"{eid}: severity ")]
-
-
-def take_severities(st, cal, only=None):
-    """Store the engine-accepted severity on strategic scenarios, then on risks (they follow their scenario).
-
-    `only` limits the change to one element id. Returns [(id, old, new)] for the values that changed.
-    """
-    changed = []
-    for key in DERIVED_SEVERITY:
-        for x in st.get(key) or []:
-            if not isinstance(x, dict) or (only is not None and x.get("id") != only):
-                continue
-            v = derived_severity(st, cal, key, x.get("id"))
-            if v is not None and x.get("severity") != v:
-                changed.append((x.get("id"), x.get("severity"), v))
-                x["severity"] = v
-    return changed
 
 
 # ---------- quick path (the engine's quick module; levels, confidence and the honesty statement come from there) ----------

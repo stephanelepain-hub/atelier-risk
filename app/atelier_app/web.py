@@ -1,6 +1,4 @@
-"""Small HTTP layer: request and response objects, a regex router, form and multipart parsing."""
-import email.parser
-import email.policy
+"""Small HTTP layer: request and response objects, a regex router, form parsing."""
 import re
 import urllib.parse
 from http.cookies import SimpleCookie
@@ -31,7 +29,6 @@ class Request:
                 c = {}
             self.cookies = {k: m.value for k, m in c.items()}
         self.form = {}
-        self.files = {}
         self.session = None
 
     def arg(self, name, default=""):
@@ -56,33 +53,8 @@ class Request:
             except UnicodeDecodeError:
                 raise HTTPError(400, "form is not UTF-8")
             self.form = urllib.parse.parse_qs(text, keep_blank_values=True)
-        elif main == "multipart/form-data":
-            self.form, self.files = parse_multipart(ctype, self.body)
         else:
             raise HTTPError(415, "unsupported content type")
-
-
-def parse_multipart(ctype, body):
-    """Parse multipart/form-data with the email package (the cgi module is gone from recent Pythons)."""
-    msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
-        b"Content-Type: " + ctype.encode("latin-1") + b"\r\nMIME-Version: 1.0\r\n\r\n" + body)
-    if not msg.is_multipart():
-        raise HTTPError(400, "malformed multipart body")
-    form, files = {}, {}
-    for part in msg.iter_parts():
-        name = part.get_param("name", header="content-disposition")
-        if not name:
-            continue
-        data = part.get_payload(decode=True) or b""
-        filename = part.get_param("filename", header="content-disposition")
-        if filename is not None:
-            files[name] = (filename, data)
-        else:
-            try:
-                form.setdefault(name, []).append(data.decode("utf-8"))
-            except UnicodeDecodeError:
-                raise HTTPError(400, "form field is not UTF-8")
-    return form, files
 
 
 class Response:

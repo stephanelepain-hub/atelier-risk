@@ -1,6 +1,6 @@
 """The launcher app/atelier.py: start prints a one-time login link that works, status, token --new, stop.
 
-Runs the real command in subprocesses, on a temp data dir, a temp private dir and a free port; never the user's.
+Runs the real command in subprocesses, on a temp data dir and a free port; never the user's.
 """
 import http.client
 import os
@@ -29,21 +29,19 @@ def free_port():
 class LauncherTest(unittest.TestCase):
     def setUp(self):
         self.data = pathlib.Path(tempfile.mkdtemp(prefix="atelier-launch-"))
-        self.priv = helpers.make_private_dir()
         self.port = free_port()
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("ATELIER_")}
 
     def tearDown(self):
         self.run_cli("stop")
         helpers.cleanup(self.data)
-        helpers.cleanup(self.priv)
 
     def run_cli(self, *args):
         return subprocess.run([sys.executable, str(LAUNCHER), "--data-dir", str(self.data), *args], capture_output=True,
                               text=True, timeout=60, env=self.env)
 
     def test_start_status_token_stop(self):
-        r = self.run_cli("start", "--port", str(self.port), "--private-dir", str(self.priv))
+        r = self.run_cli("start", "--port", str(self.port))
         self.assertEqual(r.returncode, 0, r.stderr)
         m = re.search(r"one-time login link \(single use, 10 minutes\): (http://127\.0\.0\.1:(\d+)/login/once\?n=\S+)",
                       r.stdout)
@@ -67,7 +65,7 @@ class LauncherTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn(f"Atelier is running at http://127.0.0.1:{self.port}/", r.stdout)
         self.assertIn("port answering", r.stdout)
-        self.assertIn("Drafting route: off", r.stdout)
+        self.assertNotIn("Drafting", r.stdout)
         # a second start does not start a second server
         r = self.run_cli("start", "--port", str(self.port))
         self.assertEqual(r.returncode, 0)
@@ -107,7 +105,7 @@ class LauncherTest(unittest.TestCase):
             s.bind(("127.0.0.1", 0))
             s.listen(1)
             busy = s.getsockname()[1]
-            r = self.run_cli("start", "--port", str(busy), "--private-dir", str(self.priv))
+            r = self.run_cli("start", "--port", str(busy))
         self.assertEqual(r.returncode, 1)
         self.assertIn("already in use", r.stderr)
 
