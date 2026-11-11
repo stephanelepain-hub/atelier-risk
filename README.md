@@ -2,7 +2,7 @@
 
 Atelier gives a person with no security background a plain-language first view of their main cyber risks. You
 answer a few simple questions, keep the risks that apply to you, say what you already do and what you could add,
-and get two risk maps (now, and after your extra measures), your top 5 actions, the assumptions made, and a
+and get two risk maps (now, and after your extra measures), your top actions, the assumptions made, and a
 confidence figure. The method behind it is the EBIOS Risk Manager method published by ANSSI, the French national
 cybersecurity agency; ANSSI states that EBIOS Risk Manager conforms with ISO/IEC 27005:2022. The levels come from
 the published `anssi-v1.5` calibration and are computed by the engine, never typed in and never guessed by the app.
@@ -11,22 +11,21 @@ Status: early (v0.1), for beta testers.
 
 ## Honesty statement
 
-The app shows this text on the home page, on every results page and at the top of the Excel export:
+The app shows this text once on the home page, once on every results page and at the top of the Excel export:
 
-> This analysis reflects only the answers you gave and the documents you provided. It is only as good as that
-> information. Without source documents (architecture, business impact, security baseline) treat it as a first view.
+> These results come only from your answers. They are a first view, as good as the answers you gave.
 
 ## How to use it
 
-1. **Home.** Start from scratch, or say that you have a document.
-2. **About you.** Seven questions: a name, what the organisation does, what matters most, what you use, how soon a
-   stop would hurt, how sensitive your information is, and whether you have a document. Each has an example and
-   "Not sure". Atelier does not read documents: a "yes" is only listed in the results as "document mentioned,
-   not read".
+1. **Home.** One Start button (about 15 minutes), the honesty statement, and your saved studies.
+2. **About you.** Six questions: a name, what the organisation does, what matters most, what you use, how soon a
+   stop would hurt, and how sensitive your information is. Each has an example and "Not sure".
 3. **Risks.** Keep the typical risks that fit, discard the others, add your own.
-4. **Now and after.** For each kept risk: how bad, how likely, what you already do, what you could add.
-5. **Results.** What is already in place, the top 5 actions and each risk in three short lines, two maps, the
-   confidence, the honesty statement, the assumptions, and a closing line. Download the Excel workbook or the study
+4. **Now and after.** One compact row per kept risk (how much it would matter, how likely), then each measure
+   once for the whole business: already in place, add to my plan, or later.
+5. **Results.** A positive summary, your top actions in three short lines, the two maps with a numbered list of
+   the risks, then "See all your risks" and "Already in place" (both collapsed), the confidence, the honesty
+   statement, the assumptions, and the closing line again. Download the Excel workbook or the study
    file. Saved studies are listed under "Studies": reopen or delete.
 
 "How it works" (in the header) explains the method and where the numbers come from. The **Expert** switch in the
@@ -60,7 +59,6 @@ cd .. && python3 -m unittest discover -s app/tests -t .
 ## Limits
 
 - It is a first view. It reflects your answers and a public list of typical risks, not an audit of your systems.
-- Documents are not read. A "yes" to the document question does not change any level.
 - One calibration only (`anssi-v1.5`). One user, on your own machine, no HTTPS (loopback only).
 - Where you do not know an answer, a typical value is used and listed under "What we assumed".
 - The confidence figure is an Atelier rule, not part of the ANSSI method (see `docs/quick-path.md`).

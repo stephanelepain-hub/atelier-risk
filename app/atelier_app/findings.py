@@ -16,8 +16,8 @@ TXT = {
         "ev_sev": "You rated it “{x}”, noting: {why}",
         "ev_sens": {"internal": "Your information is for internal use.", "confidential": "Customer data is confidential for you.",
                     "critical": "Your information is highly sensitive."},
-        "ev_down": {"hours": "A stop of your tools would hurt within hours.",
-                    "day": "A stop of your tools would hurt within a day or two."},
+        "ev_down": {"hours": "A stop would hurt within hours.",
+                    "day": "A stop would hurt within a day or two."},
         "ev_tool": {"remote": "Some of you work away from the office.", "cloud": "You keep files or email online.",
                     "provider": "An outside company looks after your IT.", "website": "You have a website.",
                     "shop": "You use an online shop.", "industrial": "Your machines run on computers."},
@@ -40,8 +40,8 @@ TXT = {
         "ev_sev": "Vous l'avez noté « {x} », avec cette remarque : {why}",
         "ev_sens": {"internal": "Vos informations sont à usage interne.", "confidential": "Les données clients sont confidentielles chez vous.",
                     "critical": "Vos informations sont très sensibles."},
-        "ev_down": {"hours": "Un arrêt de vos outils ferait mal en quelques heures.",
-                    "day": "Un arrêt de vos outils ferait mal en un jour ou deux."},
+        "ev_down": {"hours": "Un arrêt ferait mal en quelques heures.",
+                    "day": "Un arrêt ferait mal en un jour ou deux."},
         "ev_tool": {"remote": "Une partie de l'équipe travaille hors du bureau.", "cloud": "Vous gardez fichiers ou messagerie en ligne.",
                     "provider": "Une entreprise extérieure s'occupe de votre informatique.", "website": "Vous avez un site web.",
                     "shop": "Vous utilisez une boutique en ligne.", "industrial": "Vos machines fonctionnent par ordinateur."},
@@ -144,10 +144,16 @@ def risk_item(r, quick, cat, lang, n=None):
             "fix": fix(mid, texts, lang) if mid else t["fix_done"]}
 
 
-def action_item(a, by_id, quick, cat, lang):
+def action_item(a, by_id, quick, cat, lang, used=None):
+    """One top action in three lines. The first two lines (the risk it helps, and why that risk is on the list) come
+    from the first of the action's risks that an earlier action has not shown yet (`used`), so that the cards do not
+    repeat one sentence."""
     t = _t(lang)
-    r0 = by_id[a["risks"][0]]
-    title = risk_title(r0, lang, 11)
+    rid0 = next((rid for rid in a["risks"] if used is None or rid not in used), a["risks"][0])
+    if used is not None:
+        used.add(rid0)
+    r0 = by_id[rid0]
+    title = risk_title(r0, lang, 7)
     gap = title if len(a["risks"]) == 1 else t["more"].format(t=title, n=len(a["risks"]) - 1)
     texts = {m["id"]: m for m in r0["def"]["measures"]}
     texts.setdefault(a["id"], a)
@@ -187,6 +193,7 @@ def closing(rows, cal, lang):
 
 def build(quick, cat, cal, rows, actions, lang):
     by_id = {r["id"]: r for r in rows}
-    return {"actions": [action_item(a, by_id, quick, cat, lang) for a in actions],
+    used = set()
+    return {"actions": [action_item(a, by_id, quick, cat, lang, used) for a in actions],
             "risks": [risk_item(r, quick, cat, lang, i) for i, r in enumerate(rows, 1)],
             "closing": closing(rows, cal, lang)}

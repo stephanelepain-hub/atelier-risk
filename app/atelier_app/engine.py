@@ -83,7 +83,7 @@ def register(st, cal):
     return rows, study_mod.summary(rows, cal)
 
 
-def risk_map(rows, cal, stage, title, plain=False, lang=None, labelled_by=None):
+def risk_map(rows, cal, stage, title, plain=False, lang=None, labelled_by=None, tooltips="all"):
     """Inline SVG from the engine; orientation belongs to the calibration.
 
     Treat colours as data, not SVG markup: the engine currently interpolates them into attributes.
@@ -97,7 +97,7 @@ def risk_map(rows, cal, stage, title, plain=False, lang=None, labelled_by=None):
     if plain:  # quick-path pages: no method or calibration name under the map title (plain words)
         safe["name"] = ""
     return maps.svg(rows, safe, stage=stage, title=title, orientation=cal.get("map_orientation"), lang=lang,
-                    labelled_by=labelled_by)
+                    labelled_by=labelled_by, tooltips=tooltips)
 
 
 def level_name(cal, name, lang=None):

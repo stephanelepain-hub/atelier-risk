@@ -284,7 +284,7 @@ class FindingsTest(ToneBase):
     def test_the_results_order_and_the_collapsed_sections(self):
         sid = self.walk("en")
         html = self.page(f"/quick/{sid}/results")
-        marks = ('class="summary"', "Your top actions", "<svg", "Your risks on the maps", '<details class="see-all"><summary>See all your risks (',
+        marks = ('class="summary"', "Your top actions", "<svg", '<div class="map-key">', '<details class="see-all"><summary>See all your risks (',
                  '<details class="in-place-box"><summary>Already in place (', "Confidence", "Honesty statement", 'class="closing"')
         order = [html.index(x) for x in marks]
         self.assertEqual(order, sorted(order))

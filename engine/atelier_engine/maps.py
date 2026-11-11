@@ -51,10 +51,12 @@ def _text_colour(rgb):
     return "000000" if (0.299 * r + 0.587 * g + 0.114 * b) > 140 else "FFFFFF"
 
 
-def svg(rows, cal, stage="now", title=None, orientation=None, lang=None, labelled_by=None):
+def svg(rows, cal, stage="now", title=None, orientation=None, lang=None, labelled_by=None, tooltips="all"):
     """Standalone SVG of the risk map for one stage. Text is escaped; no script, no external reference.
     `labelled_by`: id of an element of the page that already shows the map's title; the SVG then draws no title of
-    its own (no visible title, no <title> element) and refers to that element with aria-labelledby."""
+    its own (no visible title, no <title> element) and refers to that element with aria-labelledby.
+    `tooltips`: "all" (the default) gives every cell a <title> naming its axes and level; "occupied" gives one, with the
+    level name only, to the cells that hold a risk (a short text for a page that also lists the risks)."""
     from . import calibration as cal_mod
     cells = placements(rows, stage)
     row_axis, col_axis, row_name, col_name, to_sl = _layout(cal, orientation, lang)
@@ -77,8 +79,10 @@ def svg(rows, cal, stage="now", title=None, orientation=None, lang=None, labelle
             level = cal_mod.level(cal, s, v)
             colour = (cal_mod.level_info(cal, level).get("colour") or "DDDDDD").upper()
             ids = cells.get((s, v), [])
-            out.append(f'<rect x="{x}" y="{y}" width="{cw}" height="{ch}" fill="#{colour}" stroke="#FFFFFF" stroke-width="2">'
-                       f'<title>{escape(f"{row_name} {rn}, {col_name} {cn}: {cal_mod.level_name(cal, level, lang)}")}</title></rect>')
+            lvl_name = cal_mod.level_name(cal, level, lang)
+            tip = (f'<title>{escape(f"{row_name} {rn}, {col_name} {cn}: {lvl_name}" if tooltips == "all" else lvl_name)}</title>'
+                   if tooltips == "all" or ids else "")
+            out.append(f'<rect x="{x}" y="{y}" width="{cw}" height="{ch}" fill="#{colour}" stroke="#FFFFFF" stroke-width="2">{tip}</rect>')
             fg = _text_colour(colour)
             lines = [", ".join(ids[k:k + 3]) for k in range(0, len(ids), 3)]
             for k, line in enumerate(lines[:4]):

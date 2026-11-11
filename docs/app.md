@@ -10,8 +10,10 @@ computes or sets a level itself.
 The text below is written once, in `engine/atelier_engine/quick.py` (`HONESTY`, English and French). The home page,
 every results page and the top of the Excel export show it.
 
-> This analysis reflects only the answers you gave and the documents you provided. It is only as good as that
-> information. Without source documents (architecture, business impact, security baseline) treat it as a first view.
+> These results come only from your answers. They are a first view, as good as the answers you gave.
+
+French: « Ces résultats viennent uniquement de vos réponses. C'est une première vue, aussi juste que vos réponses. »
+It is shown once on the home page and once on the results page. A test pins the English text by its hash.
 
 ## Run it
 
@@ -83,15 +85,23 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 
 ## What it does
 
-- **Home** (`/`): the honesty statement and two ways in: start from scratch, or start and say you have a document.
+- **Home** (`/`): one title (about 15 minutes), one line, one Start button and the honesty statement.
   Below, the studies to pick up again, and a link to all saved studies.
 - **The four screens** (`/quick/new`, then `/quick/<study>/about|risks|now|results`), described in
   docs/quick-path.md: About you, Risks, Now and after, Results. Each saves what you entered and builds a normal
   study that the engine checks.
-- **Results**: what is already in place, then the top 5 actions and each kept risk in three short lines
-  (To strengthen / Based on / Next step, `findings.py`), two risk maps (now, and after your extra measures), the
-  confidence, the honesty statement, the assumptions, the downloads, and one closing line computed from the real
-  before and after levels. Levels and severities appear in plain words (`labels.py`: Low / Moderate / High;
+- **Now and after**: one compact row per kept risk (severity and likelihood), then each measure once for the whole
+  business, under a few plain headings (`labels.MEASURE_GROUP`), with three choices: Later, Already in place, Add to
+  my plan. The answer counts for every risk that lists the measure.
+- **Results**, in this order: one positive summary line ("With 5 actions, 4 of your 7 risks move to Low or
+  Moderate."), your top actions in three short lines (To strengthen / Based on / Next step, `findings.py`; the
+  "Rough guide" label above them says the time and who are estimates), the two risk maps with a numbered list of
+  the risks (plain numbers 1..n; the codes stay in Expert mode and in Excel), then two collapsed sections ("See all
+  your risks", "Already in place (n)"), the confidence with one plain line, the honesty statement, the assumptions
+  (collapsed), the downloads, and the summary line again at the very end. At most 350 visible words above the
+  collapsed sections for a typical study (a test checks it). "Based on" quotes the business (a tool used, how
+  sensitive the information is, how soon a stop hurts), then the catalogue's own reason for the risk; it never
+  quotes the likelihood. Levels and severities appear in plain words (`labels.py`: Low / Moderate / High;
   Minor / Noticeable / Serious / Very serious). The engine and the calibration keep the ANSSI terms; the mapping
   lives in the app and changes no number.
 - **How it works** (`/how`, EN and FR, linked from every page): the method, the screens and the workshops, where
@@ -102,8 +112,6 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
   the expert screens anywhere. The expert screens themselves (`/s/<study>`, `/s/<study>/w1` to `w5`, `/register`,
   `/el/<id>`, `/severities`, rename, duplicate) answer either way, and a quick study changed there shows a note on
   the quick screens.
-- **The document question** is a yes/no flag. Nothing is uploaded or read; a "yes" is listed in the results as
-  "document mentioned, not read" and does not change any level.
 - **Saved studies** (`/studies`): reopen a study where you stopped, or delete it (it moves to the trash folder).
 - **English and French**: `?lang=en|fr`, kept in a cookie; the quick-path pages and the Excel workbook follow it.
 - **Calibration**: the published `anssi-v1.5` only (`calibrations/anssi-v1.5.json`). Grid, legend and colours follow
@@ -148,7 +156,6 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 - A single-user local app. Sessions carry a user name and handlers get their study store through one function
   (`App.store_for`), so several users could be added later without changing URLs.
 - No HTTPS: it relies on staying on the loopback address.
-- It is a first view built from your answers and a public list of typical risks. It does not read documents and is
-  not an audit.
+- It is a first view built from your answers and a public list of typical risks. It is not an audit.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
 - The study list and the login page are in English only.

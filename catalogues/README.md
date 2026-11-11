@@ -11,13 +11,13 @@ company names and no text copied from another catalogue.
     Risk Manager typology.
   - **Accidental** (17): staff error, process or change error, failure of a network, hardware, software, supplier or
     building service, loss or theft of equipment, natural events.
-- Per risk: `id`, `family`, `title` and `description` (EN and FR), `criteria` (which of confidentiality, integrity,
+- Per risk: `id`, `family`, `title`, `description` and `why` (EN and FR; `why` is one short sentence on why the risk applies to a business like yours, shown under "Based on" when no answer says more), `criteria` (which of confidentiality, integrity,
   availability it hits), `packs`, `always_assessed`, `audience` (`all` or `sensitive`, see docs/quick-path.md), 3 to 6 `measures` (id, EN, FR), and two typical levels.
 - Top level: `packs`, the `tools` tick-list of the first screen (each tool implies packs), `origins`, `objectives`,
   `generic_measures` (offered for a risk the person adds), and `sources`.
 - Packs: `office-it`, `cloud-service`, `website-shop`, `industrial`, and `all` (every organisation).
   `always_assessed` risks are always put to the person for their pack; they cannot be discarded without a reason.
-- The same measure has the same id and text in every risk that lists it.
+- The same measure has the same id and text in every risk that lists it. The quick path asks about each measure once, for the whole business (docs/quick-path.md). The measure `key_tasks` was called `documentation` before: answers saved under the old id still count.
 
 ## Sources
 

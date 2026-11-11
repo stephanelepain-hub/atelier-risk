@@ -23,6 +23,17 @@ class Maps(unittest.TestCase):
         self.cal = calibration.load("anssi-v1.5")
         self.rows = study.register(EXAMPLE, self.cal)
 
+    def test_occupied_tooltips_name_only_the_level_of_the_cells_that_hold_a_risk(self):
+        full = ET.fromstring(maps.svg(self.rows, self.cal, "now", "t"))
+        short = ET.fromstring(maps.svg(self.rows, self.cal, "now", "t", tooltips="occupied"))
+        n_full = len(full.findall(f".//{NS}rect/{NS}title"))
+        tips = [t.text for t in short.findall(f".//{NS}rect/{NS}title")]
+        self.assertEqual(n_full, 16)
+        self.assertEqual(len(tips), len(maps.placements(self.rows, "now")))            # one per occupied cell
+        self.assertTrue(all(":" not in t and "Severity" not in t for t in tips), tips)   # the level name alone
+        self.assertEqual(len(short.findall(f".//{NS}rect")), 16)                       # every cell is still drawn
+        self.assertEqual(maps.svg(self.rows, self.cal, "now", "t"), maps.svg(self.rows, self.cal, "now", "t", tooltips="all"))
+
     def test_placements_follow_the_guide_figure(self):
         # guide p.75: R1 G3V3, R2 G3V2, R3 G3V4, R4 G4V2, R5 G4V1
         self.assertEqual(maps.placements(self.rows), {(3, 3): ["R1"], (3, 2): ["R2"], (3, 4): ["R3"], (4, 2): ["R4"], (4, 1): ["R5"]})

@@ -118,8 +118,7 @@ T = {
         'see_all': 'See all your risks ({n})',
         'in_place_h': 'Already in place ({n})',
         'rough': 'Rough guide',
-        'rough_text': 'time and who are estimates.',
-        'map_key': 'Your risks on the maps',
+        'map_key': 'Your risks',
         'conf_cap': 'up to {n}%',
         'assumed_h': 'What we assumed ({n})',
         'in_place': 'Already in place',
@@ -261,8 +260,7 @@ T = {
         'see_all': 'Voir tous vos risques ({n})',
         'in_place_h': 'Déjà en place ({n})',
         'rough': "Ordre d'idée",
-        'rough_text': 'durée et qui sont des estimations.',
-        'map_key': 'Vos risques sur les cartes',
+        'map_key': 'Vos risques',
         'conf_cap': "jusqu'à {n} %",
         'assumed_h': 'Ce que nous avons supposé ({n})',
         'in_place': 'Déjà en place',
@@ -638,10 +636,10 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
         plain_rows = [dict(r, id=str(num.get(r["id"], r["id"]))) for r in reg_rows]
         key = "".join(f'<li value="{num[r["id"]]}">{esc(_pick(r["def"]["title"], lang))}</li>' for r in rows)
         maps = (f'<div class="maps-wrap"><div class="maps"><figure><figcaption id="map-now">{esc(tr(lang, "map_now"))}</figcaption>'
-                f'{engine.risk_map(plain_rows, dcal, "now", tr(lang, "map_now"), plain=True, lang=lang, labelled_by="map-now")}</figure>'
+                f'{engine.risk_map(plain_rows, dcal, "now", tr(lang, "map_now"), plain=True, lang=lang, labelled_by="map-now", tooltips="occupied")}</figure>'
                 f'<figure><figcaption id="map-after">{esc(tr(lang, "map_after"))}</figcaption>'
-                f'{engine.risk_map(plain_rows, dcal, "target", tr(lang, "map_after"), plain=True, lang=lang, labelled_by="map-after")}</figure></div>'
-                f'<div class="map-key"><h3>{esc(tr(lang, "map_key"))}</h3><ol>{key}</ol></div></div>')
+                f'{engine.risk_map(plain_rows, dcal, "target", tr(lang, "map_after"), plain=True, lang=lang, labelled_by="map-after", tooltips="occupied")}</figure></div>'
+                f'<div class="map-key"><ol aria-label="{esc(tr(lang, "map_key"))}">{key}</ol></div></div>')
     else:
         maps = (f'<div class="empty-state"><p>{esc(tr(lang, "now_empty"))}</p>'
                 f'<a class="button primary" href="/quick/{sid}/risks">{esc(tr(lang, "now_empty_cta"))}</a></div>')
@@ -681,7 +679,7 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
     body = f"""{stepper(sid, "results", lang)}
 <h1>{esc(tr(lang, "res_title"))}</h1>
 {_edited_banner(lang, edited)}{summary}
-<section class="card"><h2>{esc(tr(lang, "top5"))}</h2><p class="rough"><b>{rough}</b> {esc(tr(lang, "rough_text"))}</p>{top}</section>
+<section class="card"><h2>{esc(tr(lang, "top5"))}</h2><p class="rough"><b>{rough}</b></p>{top}</section>
 <section class="card maps-card">{maps}</section>
 {all_risks}
 {in_place}
