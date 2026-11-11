@@ -136,6 +136,15 @@ class SwitchTest(SwitchBase):
         self.c.cookies["expert"] = "1"
         self.assertIn("Expert mode on", self.page("/"))
 
+    def test_without_next_the_referer_path_is_used_then_the_home_page(self):
+        r = self.c.post_csrf("/expert", {"on": "1"}, page="/")
+        self.assertEqual(r.get("Location"), "/")
+        form = {"on": "1", "csrf": self.c.csrf("/")}
+        r = self.c.post("/expert", form, headers={"Referer": "http://127.0.0.1:8770/how?lang=fr"})
+        self.assertEqual(r.get("Location"), "/how")
+        r = self.c.post("/expert", form, headers={"Referer": "http://evil.example//x"})
+        self.assertEqual(r.get("Location"), "/")
+
     def test_the_switch_returns_to_the_page_it_was_on(self):
         html = self.page("/how")
         self.assertIn('name="next" value="/how"', html)

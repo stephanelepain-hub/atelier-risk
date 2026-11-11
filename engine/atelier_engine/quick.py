@@ -642,4 +642,4 @@ def xlsx_sheets(quick, cal, catalogue=None):
                     for a in assumptions(quick, cal, catalogue)]
     head2 = ["Rank", "Action", "Risks", "Priority"] if lang == "en" else ["Rang", "Action", "Risques", "Priorité"]
     acts = [head2] + [[i, a[lang], ", ".join(a["risks"]), a["priority"]] for i, a in enumerate(top_actions(quick, cal, 5, catalogue), 1)]
-    return [("Assumptions" if lang == "en" else "Hypotheses", ass), ("Top actions" if lang == "en" else "Actions", acts)]
+    return [("Assumptions" if lang == "en" else "Hypothèses", ass), ("Top actions" if lang == "en" else "Actions", acts)]

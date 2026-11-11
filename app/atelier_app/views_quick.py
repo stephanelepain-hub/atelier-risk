@@ -665,7 +665,7 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
         for mid in r["in_place"]:
             if mid in texts and mid not in seen:
                 seen.add(mid)
-                placed.append(_pick(texts[mid], lang))
+                placed.append(labels.short_action(mid, lang) or _pick(texts[mid], lang))
     if placed:
         inplace = (f'<ul class="in-place">{"".join(f"<li>{esc(t)}</li>" for t in placed)}</ul>')
     else:
@@ -692,7 +692,7 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
         legend = "".join(
             f'<tr><th scope="row">{esc(r["id"])}</th><td>{esc(_pick(r["def"]["title"], lang))}</td>'
             f'<td>{_level_chip(cal, r["level"], cls, lang)}</td><td>{_level_chip(cal, r["level_target"], cls, lang)}</td></tr>' for r in rows)
-        maps += (f'<details class="legend-table" open><summary>{esc(tr(lang, "map_legend"))}</summary><div class="scroll"><table class="list">'
+        maps += (f'<details class="legend-table"><summary>{esc(tr(lang, "map_legend"))}</summary><div class="scroll"><table class="list">'
                  f'<thead><tr><th>#</th><th>{esc(tr(lang, "risk_col"))}</th><th>{esc(tr(lang, "now_col"))}</th><th>{esc(tr(lang, "after_col"))}</th></tr></thead>'
                  f'<tbody>{legend}</tbody></table></div></details>')
     else:

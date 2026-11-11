@@ -17,7 +17,7 @@ def _cell(v):
     return v
 
 
-FR = {"Risk register": "Registre des risques", "About": "A propos", "Study": "Étude", "Calibration": "Calibration",
+FR = {"Risk register": "Registre des risques", "About": "À propos", "Study": "Étude", "Calibration": "Calibration",
       "Calibration source": "Source de la calibration",
       "Feared events": "Événements redoutés", "Risk origins": "Sources de risque", "Stakeholders": "Parties prenantes",
       "Strategic scenarios": "Scénarios stratégiques", "Operational scenarios": "Scénarios opérationnels",

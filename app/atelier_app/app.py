@@ -6,6 +6,7 @@ import re
 import sys
 import threading
 import traceback
+import urllib.parse
 
 from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_quick
 from .expert_routes import ExpertRoutes
@@ -189,7 +190,7 @@ class App(ExpertRoutes, QuickRoutes):
         on = req.field("on")
         if on not in ("0", "1"):
             raise HTTPError(400, "on must be 1 or 0")
-        nxt = req.field("next", "/") or "/"
+        nxt = req.field("next") or urllib.parse.urlsplit(req.headers.get("referer", "")).path or "/"
         if not NEXT_RE.fullmatch(nxt) or nxt.startswith("//"):
             nxt = "/"
         resp = redirect(nxt)

@@ -82,7 +82,7 @@ def evidence(r, quick, cat, lang):
     fam = r["def"]["family"]
     if r["likelihood_source"] == "answer" and r.get("likelihood_answer"):
         x = tr(lang, "lik_" + r["likelihood_answer"])
-        return t["ev_lik_" + fam].format(x=_cut(x, 5))
+        return t["ev_lik_" + fam].format(x=_cut(x.split(":")[0].strip(), 5))
     if r["severity_source"] == "answer" and r["severity_reason"]:
         x = labels.SEVERITY_LABEL[lang][r["severity"]]
         return t["ev_sev"].format(x=x, why="“" + _cut(r["severity_reason"], 7) + "”")

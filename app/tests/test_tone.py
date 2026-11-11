@@ -241,8 +241,7 @@ class FindingsTest(ToneBase):
         placed = {m for r in engine.quick_compute(self.study(sid)["quick"], self.cal, self.cat) for m in r["in_place"]}
         self.assertTrue(placed)
         for m in placed:
-            text = next(x["en"] for r in self.cat["risks"] for x in r["measures"] if x["id"] == m)
-            self.assertIn(text.replace("'", "&#x27;"), html)
+            self.assertIn(f"<li>{labels.short_action(m, 'en')}</li>", html)
 
 
 class ClosingLineTest(ToneBase):

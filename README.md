@@ -21,7 +21,7 @@ The app shows this text on the home page, on every results page and at the top o
 1. **Home.** Start from scratch, or say that you have a document.
 2. **About you.** Seven questions: a name, what the organisation does, what matters most, what you use, how soon a
    stop would hurt, how sensitive your information is, and whether you have a document. Each has an example and
-   "I don't know". Atelier does not read documents: a "yes" is only listed in the results as "document mentioned,
+   "Not sure". Atelier does not read documents: a "yes" is only listed in the results as "document mentioned,
    not read".
 3. **Risks.** Keep the typical risks that fit, discard the others, add your own.
 4. **Now and after.** For each kept risk: how bad, how likely, what you already do, what you could add.
