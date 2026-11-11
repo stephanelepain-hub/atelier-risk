@@ -22,11 +22,14 @@ TXT = {
         "ev_tools": "You said you use: {x}.",
         "ev_typical": "A typical value for businesses like yours.",
         "fix_done": "Review your measures yearly: an hour, a manager.",
-        "close_land": "With your {m} planned actions, {k} of your {n} risks move to {lv}.",
-        "close_land_1": "With your planned action, {k} of your {n} risks move to {lv}.",
-        "close_better": "With your {m} planned actions, {k} of your {n} risks improve by a level.",
+        "close_land": "With your {m} planned actions, {k} of your {n} risks {move} to {lv}.",
+        "close_land_1": "With your planned action, {k} of your {n} risks {move} to {lv}.",
+        "close_better": "With your {m} planned actions, {k} of your {n} risks {improve} by a level.",
+        "close_better_1": "With your planned action, {k} of your {n} risks {improve} by a level.",
         "close_start": "Your {m} planned actions are a first step on {n} risks.",
-        "close_now": "{k} of your {n} risks are already at {lv}.",
+        "close_start_1": "Your planned action is a first step on {n} risks.",
+        "close_now": "{k} of your {n} risks {are} already at {lv}.",
+        "verbs": {"move": ("move", "moves"), "improve": ("improve", "improves"), "are": ("are", "is")},
         "close_map": "You have mapped {n} risks: a solid start for choosing your first actions.",
         "or": " or ", "more_tools": "{a} and {n} more",
     },
@@ -42,11 +45,14 @@ TXT = {
         "ev_tools": "Vous avez dit utiliser : {x}.",
         "ev_typical": "Une valeur typique pour des entreprises comme la vôtre.",
         "fix_done": "Revoir vos mesures chaque année : une heure, un responsable.",
-        "close_land": "Avec vos {m} actions prévues, {k} de vos {n} risques passent à {lv}.",
-        "close_land_1": "Avec votre action prévue, {k} de vos {n} risques passent à {lv}.",
-        "close_better": "Avec vos {m} actions prévues, {k} de vos {n} risques gagnent un niveau.",
+        "close_land": "Avec vos {m} actions prévues, {k} de vos {n} risques {move} à {lv}.",
+        "close_land_1": "Avec votre action prévue, {k} de vos {n} risques {move} à {lv}.",
+        "close_better": "Avec vos {m} actions prévues, {k} de vos {n} risques {improve} un niveau.",
+        "close_better_1": "Avec votre action prévue, {k} de vos {n} risques {improve} un niveau.",
         "close_start": "Vos {m} actions prévues sont un premier pas sur {n} risques.",
-        "close_now": "{k} de vos {n} risques sont déjà à {lv}.",
+        "close_start_1": "Votre action prévue est un premier pas sur {n} risques.",
+        "close_now": "{k} de vos {n} risques {are} déjà à {lv}.",
+        "verbs": {"move": ("passent", "passe"), "improve": ("gagnent", "gagne"), "are": ("sont", "est")},
         "close_map": "Vous avez cartographié {n} risques : un bon départ pour choisir vos premières actions.",
         "or": " ou ", "more_tools": "{a} et {n} autres",
     },
@@ -150,21 +156,27 @@ def closing(rows, cal, lang):
     n = len(rows)
     if not n:
         return ""
-    ranked = sorted(cal["levels"], key=lambda l: l["rank"])
-    top = ranked[-1]["rank"]
-    low = t["or"].join(labels.level_label(cal, l["name"], lang) for l in ranked if l["rank"] < top)
+    ranked = sorted(cal["levels"], key=lambda l: l["rank"])[:2]   # the two lowest levels: Low or Moderate
+    top = ranked[-1]["rank"] + 1                                   # a risk "lands" when its level after is below this
+    low = t["or"].join(labels.level_label(cal, l["name"], lang) for l in ranked)
     m = len({x for r in rows for x in r["extra"]})
     better = [r for r in rows if r["rank_target"] < r["rank"]]
     land = [r for r in better if r["rank_target"] < top]
+    v = t["verbs"]
+
+    def verb(key, k):
+        return v[key][0 if k != 1 else 1]
     if land:
-        return t["close_land_1" if m == 1 else "close_land"].format(m=m, k=len(land), n=n, lv=low)
+        k = len(land)
+        return t["close_land_1" if m == 1 else "close_land"].format(m=m, k=k, n=n, lv=low, move=verb("move", k))
     if better:
-        return t["close_better"].format(m=m, k=len(better), n=n)
+        k = len(better)
+        return t["close_better_1" if m == 1 else "close_better"].format(m=m, k=k, n=n, improve=verb("improve", k))
     if m:
-        return t["close_start"].format(m=m, n=n)
+        return t["close_start_1" if m == 1 else "close_start"].format(m=m, n=n)
     done = [r for r in rows if r["rank"] < top]
     if done:
-        return t["close_now"].format(k=len(done), n=n, lv=low)
+        return t["close_now"].format(k=len(done), n=n, lv=low, are=verb("are", len(done)))
     return t["close_map"].format(n=n)
 
 

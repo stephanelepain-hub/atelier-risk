@@ -283,6 +283,70 @@ class ClosingLineTest(ToneBase):
         self.assertNotIn("planned actions", line_b)
 
 
+class ClosingBranchesTest(ToneBase):
+    """Every branch of the closing line, from rows shaped like the engine's (rank before and after, extra measures)."""
+
+    def row(self, rank, target, extra=()):
+        return {"rank": rank, "rank_target": target, "extra": list(extra)}
+
+    def line(self, rows, lang="en"):
+        return findings.closing(rows, self.cal, lang)
+
+    def test_each_branch_in_both_languages(self):
+        rows = [self.row(3, 2, ["a", "b"]), self.row(3, 3, ["a"]), self.row(2, 1, ["c"]), self.row(3, 3)]
+        self.assertEqual(self.line(rows), "With your 3 planned actions, 2 of your 4 risks move to Low or Moderate.")
+        self.assertEqual(self.line(rows, "fr"), "Avec vos 3 actions prévues, 2 de vos 4 risques passent à Faible ou Modéré.")
+        one = [self.row(3, 2, ["a"]), self.row(3, 3)]
+        self.assertEqual(self.line(one), "With your planned action, 1 of your 2 risks moves to Low or Moderate.")
+        self.assertEqual(self.line(one, "fr"), "Avec votre action prévue, 1 de vos 2 risques passe à Faible ou Modéré.")
+        start = [self.row(3, 3, ["a", "b"]), self.row(3, 3)]            # a plan, no level change yet
+        self.assertEqual(self.line(start), "Your 2 planned actions are a first step on 2 risks.")
+        self.assertEqual(self.line(start, "fr"), "Vos 2 actions prévues sont un premier pas sur 2 risques.")
+        self.assertEqual(self.line([self.row(3, 3, ["a"])]), "Your planned action is a first step on 1 risks.")
+        now = [self.row(1, 1), self.row(3, 3)]                          # no plan, one risk already low
+        self.assertEqual(self.line(now), "1 of your 2 risks is already at Low or Moderate.")
+        self.assertEqual(self.line(now, "fr"), "1 de vos 2 risques est déjà à Faible ou Modéré.")
+        now2 = [self.row(1, 1), self.row(2, 2), self.row(3, 3)]
+        self.assertEqual(self.line(now2), "2 of your 3 risks are already at Low or Moderate.")
+        mapped = [self.row(3, 3), self.row(3, 3)]
+        self.assertEqual(self.line(mapped), "You have mapped 2 risks: a solid start for choosing your first actions.")
+        self.assertEqual(self.line([]), "")
+
+    def test_the_improve_branch_needs_a_level_above_the_top_of_a_four_level_scale(self):
+        import copy
+        cal4 = copy.deepcopy(self.cal)
+        cal4["levels"].append({"name": "Très haut", "name_en": "Very high", "rank": 4, "colour": "8E1B10"})
+        rows = [self.row(4, 3, ["a"]), self.row(4, 4)]                  # a step down that still ends at the top of the old scale
+        self.assertEqual(findings.closing(rows, cal4, "en"), "With your planned action, 1 of your 2 risks improves by a level.")
+        self.assertEqual(findings.closing(rows, cal4, "fr"), "Avec votre action prévue, 1 de vos 2 risques gagne un niveau.")
+        rows = [self.row(4, 3, ["a", "b"]), self.row(4, 3)]
+        self.assertEqual(findings.closing(rows, cal4, "en"), "With your 2 planned actions, 2 of your 2 risks improve by a level.")
+
+    def test_no_branch_names_a_level_the_rows_do_not_show(self):
+        for rows in ([self.row(3, 2, ["a"])], [self.row(2, 1)], [self.row(3, 3)]):
+            for lang in ("en", "fr"):
+                self.assertLessEqual(findings.wc(self.line(rows, lang)), 15)
+
+
+class EvidenceBranchesTest(ToneBase):
+    def test_a_changed_severity_is_quoted_with_its_reason_and_a_custom_risk_has_three_short_lines(self):
+        sid = self.start()
+        ids = self.keep_all(sid, new_title_1="Our delivery van breaks down " + "and keeps on going " * 3,
+                            new_family_1="accidental", new_crit_1=["availability"])
+        html = self.page(f"/quick/{sid}/now")
+        rid = ids[0]
+        form = {"lang": "en", "go": "next", f"sev_{rid}": "2", f"sevreason_{rid}": "Customers rarely notice " + "this one " * 12}
+        for r in re.findall(r'id="risk-([^"]+)"', html):
+            form[f"lik_{r}"] = "dont_know"
+        self.post(f"/quick/{sid}/now", form)
+        res = self.page(f"/quick/{sid}/results")
+        self.assertIn("You rated it “Noticeable”, noting: “Customers rarely notice", res)
+        for b in re.findall(r'<div class="finding">(.*?)</div>', res, re.S):
+            for text in re.findall(r"</b> ([^<]*)</p>", b):
+                self.assertLessEqual(findings.wc(text), 15, text)
+        self.assertIn('class="rid">C1</span>', res)
+
+
 @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl is not installed")
 class ExcelToneTest(ToneBase):
     def book(self, lang):
