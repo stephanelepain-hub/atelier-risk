@@ -20,6 +20,7 @@ TXT = {
         "ev_sens": "You said your information is “{x}”.",
         "ev_down": "You said a stop would matter “{x}”.",
         "ev_tools": "You said you use: {x}.",
+        "ev_values": "You said “{x}” matters most.",
         "ev_typical": "A typical value for businesses like yours.",
         "fix_done": "Review your measures yearly: an hour, a manager.",
         "close_land": "With your {m} planned actions, {k} of your {n} risks {move} to {lv}.",
@@ -43,6 +44,7 @@ TXT = {
         "ev_sens": "Selon vous, vos informations sont « {x} ».",
         "ev_down": "Selon vous, un arrêt compterait « {x} ».",
         "ev_tools": "Vous avez dit utiliser : {x}.",
+        "ev_values": "Vous avez dit que « {x} » compte le plus.",
         "ev_typical": "Une valeur typique pour des entreprises comme la vôtre.",
         "fix_done": "Revoir vos mesures chaque année : une heure, un responsable.",
         "close_land": "Avec vos {m} actions prévues, {k} de vos {n} risques {move} à {lv}.",
@@ -106,6 +108,10 @@ def evidence(r, quick, cat, lang):
         a = _cut(names[0], 5)
         x = a if len(names) == 1 else t["more_tools"].format(a=a, n=len(names) - 1)
         return t["ev_tools"].format(x=x)
+    vals = (prof.get("values") or {}).get("value") or []
+    vals = [str(v).strip() for v in vals if str(v).strip()]
+    if vals:
+        return t["ev_values"].format(x=_cut(vals[0], 6))
     return t["ev_typical"]
 
 

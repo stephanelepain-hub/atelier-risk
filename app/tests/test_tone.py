@@ -203,6 +203,16 @@ class FindingsTest(ToneBase):
         self.assertIn("You said “", html)
         self.assertRegex(html, r"You said (a stop would matter )?“[^”]+”")
 
+    def test_the_persons_own_values_are_quoted_when_no_other_answer_applies(self):
+        sid = self.start(tools=[], sensitivity="dont_know", downtime="dont_know", values="Taking orders by email")
+        self.keep_all(sid)
+        form = {"lang": "en", "go": "next"}
+        for r in re.findall(r'id="risk-([^"]+)"', self.page(f"/quick/{sid}/now")):
+            form[f"lik_{r}"] = "dont_know"
+        self.post(f"/quick/{sid}/now", form)
+        res = self.page(f"/quick/{sid}/results")
+        self.assertIn("You said “Taking orders by email” matters most.", res)
+
     def test_each_line_stays_within_fifteen_words_for_every_risk_and_measure(self):
         cat = self.cat
         keep = [{"id": r["id"], "decision": "keep", "assessed": True,
@@ -211,7 +221,8 @@ class FindingsTest(ToneBase):
             quick = {"format": "atelier-quick", "version": "0.1", "lang": lang, "step": "results",
                      "profile": {"name": "All", "tools": {"value": [t["id"] for t in cat["tools"]]},
                                  "downtime": {"answer": "hours"}, "sensitivity": {"answer": "critical"},
-                                 "activity": {"value": "We run a shop", "dont_know": False}},
+                                 "activity": {"value": "We run a shop", "dont_know": False},
+                                 "values": {"value": ["Taking orders by email from our regular customers every day"]}},
                      "risks": keep}
             rows = engine.quick_compute(quick, self.cal, cat)
             acts = engine.quick_actions(quick, self.cal, cat, 50)
