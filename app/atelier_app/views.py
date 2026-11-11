@@ -99,15 +99,18 @@ NAV = {"en": {"home": "Home", "list": "Studies", "logout": "Log out", "how": "Ho
               "forget_confirm": "Delete all your data now? Every study in your private space is removed.",
               "expert": "Expert", "expert_on": "Expert mode on",
               "sub": "Risk analysis, step by step", "skip": "Skip to the content",
-              "offered": "Atelier is offered by", "feedback": "Your feedback helps Atelier grow.",
+              "offered": "Atelier is offered by", "privacy": "Your data and legal notice", "feedback": "Your feedback helps Atelier grow.",
               "feedback_link": "Share it"},
        "fr": {"home": "Accueil", "list": "Études", "logout": "Se déconnecter", "how": "Comment ça marche",
               "forget": "Effacer mes données",
               "forget_confirm": "Effacer toutes vos données maintenant ? Chaque étude de votre espace privé est supprimée.",
               "expert": "Expert", "expert_on": "Mode expert activé",
               "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu",
-              "offered": "Atelier est proposé par", "feedback": "Vos retours font grandir Atelier.",
+              "offered": "Atelier est proposé par", "privacy": "Vos données et mentions légales", "feedback": "Vos retours font grandir Atelier.",
               "feedback_link": "Partagez-les"}}
+
+# Public mode: the footer links to /privacy.
+PRIVACY_PAGE = False
 
 # Public mode: ask search engines to leave the app out of their results (the publisher's own page is the one to find).
 NOINDEX = False
@@ -171,11 +174,12 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
         if pub.get("feedback_url"):
             fb = (f' {esc(n["feedback"])} <a href="{esc(pub["feedback_url"])}" target="_blank" '
                   f'rel="noopener noreferrer">{esc(n["feedback_link"])}</a>')
+        priv = f' · <a href="/privacy?lang={esc(lang)}">{esc(n["privacy"])}</a>' if PRIVACY_PAGE else ""
         mail = ""
         if pub.get("email"):
             mail = f' · <a href="mailto:{esc(pub["email"])}">{esc(pub["email"])}</a>'
         footer = (f'<footer class="publisher"><p>{esc(n["offered"])} <strong>{esc(pub["name"])}</strong>, '
-                  f'<a href="{esc(pub["url"])}" target="_blank" rel="noopener noreferrer">{esc(host)}</a>{mail}.{fb}</p></footer>')
+                  f'<a href="{esc(pub["url"])}" target="_blank" rel="noopener noreferrer">{esc(host)}</a>{mail}.{fb}{priv}</p></footer>')
     return f"""<!doctype html>
 <html lang="{esc(lang)}">
 <head>

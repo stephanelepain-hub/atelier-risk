@@ -10,7 +10,7 @@ import threading
 import traceback
 import urllib.parse
 
-from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_public, views_quick, workspaces
+from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_privacy, views_public, views_quick, workspaces
 from .expert_routes import ExpertRoutes
 from .quick_routes import ORDER, QuickRoutes
 from .storage import NotFound, Store, StudyLimit
@@ -59,9 +59,12 @@ def load_publisher(path):
         return None
     if "feedback_url" in d and not _safe_https(d["feedback_url"]):
         return None
+    if "legal_url" in d and not _safe_https(d["legal_url"]):
+        return None
     if "email" in d and not (type(d["email"]) is str and re.fullmatch(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}", d["email"])):
         return None
-    return {"name": d["name"], "url": d["url"], "feedback_url": d.get("feedback_url"), "email": d.get("email")}
+    return {"name": d["name"], "url": d["url"], "feedback_url": d.get("feedback_url"), "email": d.get("email"),
+            "legal_url": d.get("legal_url")}
 
 
 class App(ExpertRoutes, QuickRoutes):
@@ -81,6 +84,7 @@ class App(ExpertRoutes, QuickRoutes):
         os.chmod(self.tmp_dir, 0o700)
         self.token_path = self.data_dir / "token"
         views.NOINDEX = bool(self.public)
+        views.PRIVACY_PAGE = bool(self.public)
         if self.public:   # no login token, no shared study store: every visitor has a workspace of their own
             self.store, self.token_created, self.auth = None, False, auth.Auth("")
             self.workspaces = workspaces.Workspaces(self.data_dir)
@@ -151,6 +155,8 @@ class App(ExpertRoutes, QuickRoutes):
         r.add("GET", r"/static/brand/favicon\.svg", self.brand_favicon, public=True)
         r.add("GET", r"/favicon\.ico", self.brand_favicon, public=True)
         r.add("GET", r"/robots\.txt", self.robots_txt, public=True)
+        if self.public:
+            r.add("GET", r"/privacy", self.privacy, public=True)
         r.add("GET", r"/studies", self.index)
         r.add("GET", r"/cal/([A-Za-z0-9._%-]+)\.css", self.cal_css)
         r.add("GET", rf"/s/{SID}/delete", self.delete_confirm)
@@ -324,6 +330,10 @@ class App(ExpertRoutes, QuickRoutes):
         resp = redirect(nxt)
         resp.header("Set-Cookie", f"{EXPERT_COOKIE}={on}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000")
         return resp
+
+    def privacy(self, req):
+        lang = self._lang(req)
+        return self._remember(req, Response(views_privacy.privacy(req.session, lang)), lang)
 
     def how(self, req):
         lang = self._lang(req)

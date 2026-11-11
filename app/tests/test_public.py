@@ -1035,5 +1035,43 @@ class SearchEngines(unittest.TestCase):
             helpers.cleanup(d)
 
 
+class PrivacyPage(unittest.TestCase):
+    """Public mode has a privacy and legal page that states what the instance really does, linked from every page."""
+
+    def test_privacy_page_facts_wording_and_link(self):
+        from app.tests.test_tone import EN_NEGATIVE, FEAR, FR_NEGATIVE, words_read
+        d = tempfile.mkdtemp(prefix="atelier-test-")
+        try:
+            (pathlib.Path(d) / "publisher.json").write_text(json.dumps(
+                {"name": "CPLT", "url": "https://cplt.tech", "email": "hello@cplt.tech", "legal_url": "https://cplt.tech/legal"}))
+            from atelier_app.app import App
+            c = helpers.Client(App(d, port=8770, public=True, invite_code=None))
+            en = c.text(c.get("/privacy?lang=en"))
+            for fact in ("30 days", "15 days at most", "Lithuania", "Hostinger International Ltd", "CNIL",
+                         '<a href="mailto:hello@cplt.tech">hello@cplt.tech</a>', 'href="https://cplt.tech/legal"', "6(1)(b)"):
+                self.assertIn(fact, en)
+            fr = c.text(c.get("/privacy?lang=fr"))
+            for fact in ("30 jours", "15 jours au plus", "Lituanie", "CNIL"):
+                self.assertIn(fact, fr)
+            for lang, body, rx in (("en", en, EN_NEGATIVE), ("fr", fr, FR_NEGATIVE)):
+                text = words_read(body)
+                self.assertIsNone(rx.search(text), (lang, rx.search(text)))
+                self.assertIsNone(FEAR.search(text), (lang, FEAR.search(text)))
+            join = c.text(c.get("/join?lang=en"))
+            self.assertIn('<a href="/privacy?lang=en">Your data and legal notice</a>', join)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+            from atelier_app import views
+            views.PUBLISHER = None
+
+    def test_local_mode_has_no_privacy_route(self):
+        app, d = helpers.make_app()
+        try:
+            c = helpers.Client(app); c.login()
+            self.assertEqual(c.get("/privacy").status, 404)
+        finally:
+            helpers.cleanup(d)
+
+
 if __name__ == "__main__":
     unittest.main()
