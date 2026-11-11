@@ -198,7 +198,7 @@ class WalkTest(Base):
             self.assertIn(f'href="/s/{sid}/export.xlsx"', t)
         else:
             self.assertNotIn("export.xlsx", t)
-            self.assertIn("needs the openpyxl package", t)
+            self.assertIn("Add the openpyxl package to enable the Excel download", t)
         conf = engine.quick_confidence(st["quick"], self.cat)
         self.assertLessEqual(conf, 75)
         self.assertIn(f'<span class="big-n">{conf}%</span>', t)
