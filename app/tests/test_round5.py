@@ -533,6 +533,7 @@ class StatsTest(Cleanup, unittest.TestCase):
             r = run(str(a.data_dir), *extra)
             self.assertEqual(r.returncode, 0, r.stderr)
             out = r.stdout
+            self.assertIn("(1 file read)", out)
             self.assertIn("Studies started: 2", out)
             self.assertIn("Reached: about 2, risks 2, now 1, results 1", out)
             self.assertIn("Top discarded risks: D16 (1)", out)
@@ -543,6 +544,7 @@ class StatsTest(Cleanup, unittest.TestCase):
         other = run(str(a.data_dir), "--month", "1999-01")
         self.assertEqual(other.returncode, 0)
         self.assertIn("Studies started: 0", other.stdout)
+        self.assertIn("(0 files read)", other.stdout)                 # an empty answer says it read nothing
         self.assertEqual(run(str(a.data_dir), "--month", "2026-13").returncode, 2)
         self.assertEqual(run(str(a.data_dir / "missing")).returncode, 2)
 
@@ -584,6 +586,8 @@ class PrivacyTest(Cleanup, unittest.TestCase):
             self.assertIsNone(FEAR.search(text), (lang, FEAR.search(text)))
         self.assertEqual(en.count("<h2>"), len(views_privacy.T["en"]["sections"]))
         self.assertEqual(fr.count("<h2>"), len(views_privacy.T["fr"]["sections"]))
+        self.assertIn("An email address is asked only if you choose to send us your study", en)       # kept true by the share form
+        self.assertIn("Une adresse e-mail est demandée uniquement si vous choisissez de nous envoyer votre étude", fr)
         self.assertTrue(views_privacy.UPDATED["en"].endswith("2026") and "2026" in views_privacy.UPDATED["fr"])
 
     def test_the_counts_statement_names_no_identifier(self):

@@ -111,8 +111,8 @@ class Stats:
 # ---------------------------------------------------------------- reading the counts
 
 def read(data_dir, month=None):
-    """(lines, skipped): the valid lines of the month (every month when None) and the number of lines that were
-    skipped because they are not a JSON object. An unreadable file raises OSError."""
+    """(lines, skipped, files): the valid lines of the month (every month when None), the number of lines that were
+    skipped because they are not a JSON object, and the number of files read. An unreadable file raises OSError."""
     root = pathlib.Path(data_dir) / "stats"
     files = sorted(root.glob("????-??.jsonl")) if root.is_dir() else []
     if month:
@@ -132,7 +132,7 @@ def read(data_dir, month=None):
                     lines.append(d)
                 else:
                     skipped += 1
-    return lines, skipped
+    return lines, skipped, len(files)
 
 
 def summary(lines, top=10):
@@ -159,8 +159,8 @@ def summary(lines, top=10):
             "shared": ev["shared"], "forget": ev["forget"], "added": ev["risk_added"]}
 
 
-def render(s, label, skipped=0):
-    out = [f"Atelier anonymous counts: {label}", f"Studies started: {s['started']}",
+def render(s, label, skipped=0, files=0):
+    out = [f"Atelier anonymous counts: {label} ({files} file{'' if files == 1 else 's'} read)", f"Studies started: {s['started']}",
            "Reached: " + ", ".join(f"{k} {v}" for k, v in s["reached"].items()),
            "Top discarded risks: " + (", ".join(f"{r} ({n})" for r, n in s["discarded"]) or "none yet"),
            "Most chosen measures: " + (", ".join(f"{m} ({n}: {p} planned, {i} in place)" for m, n, p, i in s["measures"]) or "none yet"),
@@ -185,11 +185,11 @@ def main(argv=None):
         print(f"{d} is not a folder", file=sys.stderr)
         return 2
     try:
-        lines, skipped = read(d, a.month)
+        lines, skipped, files = read(d, a.month)
     except OSError as e:
         print(f"cannot read the counts: {e}", file=sys.stderr)
         return 1
-    print(render(summary(lines), a.month or "all months", skipped))
+    print(render(summary(lines), a.month or "all months", skipped, files))
     return 0
 
 
