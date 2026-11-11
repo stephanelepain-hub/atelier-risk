@@ -389,7 +389,11 @@ class ClosingBranchesTest(ToneBase):
         start = [self.row(3, 3, ["a", "b"]), self.row(3, 3)]            # a plan, no level change yet
         self.assertEqual(self.line(start), "Your 2 actions are a first step on 2 risks.")
         self.assertEqual(self.line(start, "fr"), "Vos 2 actions sont un premier pas sur 2 risques.")
-        self.assertEqual(self.line([self.row(3, 3, ["a"])]), "Your action is a first step on 1 risks.")
+        self.assertEqual(self.line([self.row(3, 3, ["a"])]), "Your action is a first step on 1 risk.")
+        self.assertEqual(self.line([self.row(3, 3, ["a"])], "fr"), "Votre action est un premier pas sur 1 risque.")
+        self.assertEqual(self.line([self.row(3, 3)]), "You have mapped 1 risk: a solid start for choosing your first actions.")
+        self.assertEqual(self.line([self.row(3, 2, ["a"])]), "With 1 action, 1 of your 1 risk moves to Low or Moderate.")
+        self.assertEqual(self.line([self.row(1, 1)], "fr"), "1 de vos 1 risque est déjà à Faible ou Modéré.")
         now = [self.row(1, 1), self.row(3, 3)]                          # no plan, one risk already low
         self.assertEqual(self.line(now), "1 of your 2 risks is already at Low or Moderate.")
         self.assertEqual(self.line(now, "fr"), "1 de vos 2 risques est déjà à Faible ou Modéré.")

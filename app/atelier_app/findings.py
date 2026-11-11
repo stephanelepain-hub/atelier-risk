@@ -22,15 +22,15 @@ TXT = {
                     "provider": "An outside company looks after your IT.", "website": "You have a website.",
                     "shop": "You use an online shop.", "industrial": "Your machines run on computers."},
         "fix_done": "Review your measures yearly: an hour, a manager.",
-        "close_land": "With {m} actions, {k} of your {n} risks {move} to {lv}.",
-        "close_land_1": "With 1 action, {k} of your {n} risks {move} to {lv}.",
-        "close_better": "With {m} actions, {k} of your {n} risks {improve} by a level.",
-        "close_better_1": "With 1 action, {k} of your {n} risks {improve} by a level.",
-        "close_start": "Your {m} actions are a first step on {n} risks.",
-        "close_start_1": "Your action is a first step on {n} risks.",
-        "close_now": "{k} of your {n} risks {are} already at {lv}.",
-        "verbs": {"move": ("move", "moves"), "improve": ("improve", "improves"), "are": ("are", "is")},
-        "close_map": "You have mapped {n} risks: a solid start for choosing your first actions.",
+        "close_land": "With {m} actions, {k} of your {n} {risks} {move} to {lv}.",
+        "close_land_1": "With 1 action, {k} of your {n} {risks} {move} to {lv}.",
+        "close_better": "With {m} actions, {k} of your {n} {risks} {improve} by a level.",
+        "close_better_1": "With 1 action, {k} of your {n} {risks} {improve} by a level.",
+        "close_start": "Your {m} actions are a first step on {n} {risks}.",
+        "close_start_1": "Your action is a first step on {n} {risks}.",
+        "close_now": "{k} of your {n} {risks} {are} already at {lv}.",
+        "verbs": {"move": ("move", "moves"), "improve": ("improve", "improves"), "are": ("are", "is")}, "risk": ("risks", "risk"),
+        "close_map": "You have mapped {n} {risks}: a solid start for choosing your first actions.",
         "or": " or ",
     },
     "fr": {
@@ -46,15 +46,15 @@ TXT = {
                     "provider": "Une entreprise extérieure s'occupe de votre informatique.", "website": "Vous avez un site web.",
                     "shop": "Vous utilisez une boutique en ligne.", "industrial": "Vos machines fonctionnent par ordinateur."},
         "fix_done": "Revoir vos mesures chaque année : une heure, un responsable.",
-        "close_land": "Avec {m} actions, {k} de vos {n} risques {move} à {lv}.",
-        "close_land_1": "Avec 1 action, {k} de vos {n} risques {move} à {lv}.",
-        "close_better": "Avec {m} actions, {k} de vos {n} risques {improve} un niveau.",
-        "close_better_1": "Avec 1 action, {k} de vos {n} risques {improve} un niveau.",
-        "close_start": "Vos {m} actions sont un premier pas sur {n} risques.",
-        "close_start_1": "Votre action est un premier pas sur {n} risques.",
-        "close_now": "{k} de vos {n} risques {are} déjà à {lv}.",
-        "verbs": {"move": ("passent", "passe"), "improve": ("gagnent", "gagne"), "are": ("sont", "est")},
-        "close_map": "Vous avez cartographié {n} risques : un bon départ pour choisir vos premières actions.",
+        "close_land": "Avec {m} actions, {k} de vos {n} {risks} {move} à {lv}.",
+        "close_land_1": "Avec 1 action, {k} de vos {n} {risks} {move} à {lv}.",
+        "close_better": "Avec {m} actions, {k} de vos {n} {risks} {improve} un niveau.",
+        "close_better_1": "Avec 1 action, {k} de vos {n} {risks} {improve} un niveau.",
+        "close_start": "Vos {m} actions sont un premier pas sur {n} {risks}.",
+        "close_start_1": "Votre action est un premier pas sur {n} {risks}.",
+        "close_now": "{k} de vos {n} {risks} {are} déjà à {lv}.",
+        "verbs": {"move": ("passent", "passe"), "improve": ("gagnent", "gagne"), "are": ("sont", "est")}, "risk": ("risques", "risque"),
+        "close_map": "Vous avez cartographié {n} {risks} : un bon départ pour choisir vos premières actions.",
         "or": " ou ",
     },
 }
@@ -179,16 +179,16 @@ def closing(rows, cal, lang):
         return v[key][0 if k != 1 else 1]
     if land:
         k = len(land)
-        return t["close_land_1" if m == 1 else "close_land"].format(m=m, k=k, n=n, lv=low, move=verb("move", k))
+        return t["close_land_1" if m == 1 else "close_land"].format(m=m, k=k, n=n, lv=low, move=verb("move", k), risks=t["risk"][n == 1])
     if better:
         k = len(better)
-        return t["close_better_1" if m == 1 else "close_better"].format(m=m, k=k, n=n, improve=verb("improve", k))
+        return t["close_better_1" if m == 1 else "close_better"].format(m=m, k=k, n=n, improve=verb("improve", k), risks=t["risk"][n == 1])
     if m:
-        return t["close_start_1" if m == 1 else "close_start"].format(m=m, n=n)
+        return t["close_start_1" if m == 1 else "close_start"].format(m=m, n=n, risks=t["risk"][n == 1])
     done = [r for r in rows if r["rank"] < top]
     if done:
-        return t["close_now"].format(k=len(done), n=n, lv=low, are=verb("are", len(done)))
-    return t["close_map"].format(n=n)
+        return t["close_now"].format(k=len(done), n=n, lv=low, are=verb("are", len(done)), risks=t["risk"][n == 1])
+    return t["close_map"].format(n=n, risks=t["risk"][n == 1])
 
 
 def build(quick, cat, cal, rows, actions, lang):
