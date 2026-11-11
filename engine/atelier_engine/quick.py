@@ -455,8 +455,8 @@ def assumptions(quick, cal, catalogue=None):
             dk = bool(_slot(prof, key).get("dont_know"))
             out.append({"kind": "dont_know" if dk else "default", "scope": "profile", "risk": None, "what": key,
                         "value": used[key],
-                        "text": _t(f"About you: {q['en']}: {'you did not know' if dk else 'not answered'}; used {used[key]['en']}.",
-                                   f"Vous : {q['fr']} : {'vous ne saviez pas' if dk else 'sans réponse'} ; utilisé : {used[key]['fr']}.")})
+                        "text": _t(f"About you: {q['en']}: {'not sure' if dk else 'left open'}; used {used[key]['en']}.",
+                                   f"Vous : {q['fr']} : {'pas sûr' if dk else 'laissé ouvert'} ; utilisé : {used[key]['fr']}.")})
     rows = sorted(compute(quick, cal, cat), key=lambda r: (-r["rank"], -r["severity"], -r["likelihood"], r["id"]))
     for r in rows:
         title = r["def"]["title"]
@@ -466,18 +466,18 @@ def assumptions(quick, cal, catalogue=None):
                                    f"{r['id']} {title['fr']} : gravité {r['severity']} proposée à partir d'une valeur typique et d'une valeur par défaut prudente.")})
         elif r["severity_source"] == "catalogue":
             out.append({"kind": "catalogue", "scope": "risk", "risk": r["id"], "what": "severity", "value": r["severity"],
-                        "text": _t(f"{r['id']} {title['en']}: severity {r['severity']} is the proposed one, not changed by you.",
-                                   f"{r['id']} {title['fr']} : gravité {r['severity']} proposée, non modifiée par vous.")})
+                        "text": _t(f"{r['id']} {title['en']}: severity {r['severity']} is our proposal, kept as it is.",
+                                   f"{r['id']} {title['fr']} : gravité {r['severity']} proposée, conservée telle quelle.")})
         if r["likelihood_source"] == "default":
-            why = _t("you did not know", "vous ne saviez pas") if r["likelihood_flag"] == "dont_know" else _t("not answered", "sans réponse")
+            why = _t("not sure", "pas sûr") if r["likelihood_flag"] == "dont_know" else _t("left open", "laissé ouvert")
             out.append({"kind": "dont_know" if r["likelihood_flag"] == "dont_know" else "default", "scope": "risk", "risk": r["id"],
                         "what": "likelihood", "value": r["likelihood"],
                         "text": _t(f"{r['id']} {title['en']}: likelihood {r['likelihood']} is a typical value ({why['en']}).",
                                    f"{r['id']} {title['fr']} : vraisemblance {r['likelihood']} est une valeur typique ({why['fr']}).")})
         if r["in_place_source"] == "default":
             out.append({"kind": "default", "scope": "risk", "risk": r["id"], "what": "measures", "value": [],
-                        "text": _t(f"{r['id']} {title['en']}: measures already in place were not reviewed; none assumed.",
-                                   f"{r['id']} {title['fr']} : les mesures déjà en place n'ont pas été examinées ; aucune supposée.")})
+                        "text": _t(f"{r['id']} {title['en']}: measures already in place, none assumed yet.",
+                                   f"{r['id']} {title['fr']} : mesures déjà en place, aucune supposée pour l'instant.")})
     return out
 
 
@@ -611,16 +611,21 @@ def xlsx_notice(quick, cal, catalogue=None):
     """Lines for the header of the Excel export: the honesty statement and the facts, in the study's language."""
     lang = quick.get("lang") if quick.get("lang") in ("en", "fr") else "en"
     f = facts(quick, cal, catalogue)
-    docs = ", ".join(f["documents"]) or (
+    names = {"architecture": ("architecture document", "document d'architecture"),
+             "business-impact": ("business impact analysis", "analyse d'impact sur l'activité"),
+             "security-baseline": ("security baseline", "socle de sécurité"),
+             "other": ("other document", "autre document")}
+    name = lambda k: names.get(k, (k, k))[0 if lang == "en" else 1]  # noqa: E731
+    docs = ", ".join(name(k) for k in f["documents"]) or (
         ("mentioned, not read" if lang == "en" else "mentionné, non lu") if f["document_provided"]
-        else ("none" if lang == "en" else "aucun"))
-    missing = ", ".join(f["not_provided"]) or ("none" if lang == "en" else "aucun")
+        else ("none yet" if lang == "en" else "aucun pour l'instant"))
+    missing = ", ".join(name(k) for k in f["not_provided"]) or ("none" if lang == "en" else "aucun")
     if lang == "fr":
         band = {"low": "faible", "medium": "moyenne", "high": "élevée"}[f["band"]]
-        line = (f"Documents : {docs}. Non fournis : {missing}. Réponses : {f['answers']}. Hypothèses à confirmer : "
+        line = (f"Documents : {docs}. À ajouter : {missing}. Réponses : {f['answers']}. Hypothèses à confirmer : "
                 f"{f['assumptions']}. Confiance : {f['confidence']} % ({band}).")
     else:
-        line = (f"Documents: {docs}. Not provided: {missing}. Answers: {f['answers']}. Assumptions to confirm: "
+        line = (f"Documents: {docs}. To add: {missing}. Answers: {f['answers']}. Assumptions to confirm: "
                 f"{f['assumptions']}. Confidence: {f['confidence']}% ({f['band']}).")
     return [HONESTY[lang], line]
 
@@ -629,7 +634,8 @@ def xlsx_sheets(quick, cal, catalogue=None):
     """Extra sheets for the Excel export: [(title, [rows])] with the assumptions and the top actions."""
     lang = quick.get("lang") if quick.get("lang") in ("en", "fr") else "en"
     head = ["Kind", "Risk", "Input", "Assumption"] if lang == "en" else ["Type", "Risque", "Élément", "Hypothèse"]
-    kinds = {"default": "sans réponse", "dont_know": "ne sait pas", "catalogue": "valeur typique conservée"} if lang == "fr" else {}
+    kinds = ({"default": "laissé ouvert", "dont_know": "pas sûr", "catalogue": "valeur typique conservée"} if lang == "fr" else
+             {"default": "left open", "dont_know": "not sure", "catalogue": "typical value kept"})
     whats = {"severity": "gravité", "likelihood": "vraisemblance", "measures": "mesures", "activity": "activité", "values": "valeurs",
              "tools": "outils", "downtime": "arrêt", "sensitivity": "sensibilité"} if lang == "fr" else {}
     ass = [head] + [[kinds.get(a["kind"], a["kind"]), a["risk"] or "", whats.get(a["what"], a["what"]), a["text"][lang]]

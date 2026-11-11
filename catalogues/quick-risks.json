@@ -177,8 +177,8 @@
   },
   {
    "id": "disrupt",
-   "en": "Disrupt activity or create a crisis",
-   "fr": "Perturber l'activité ou provoquer une crise"
+   "en": "Disrupt your activity",
+   "fr": "Perturber votre activité"
   }
  ],
  "generic_measures": [
@@ -282,8 +282,8 @@
     "fr": "Vol de mots de passe de messagerie ou de services en ligne"
    },
    "description": {
-    "en": "A fake message tricks someone into giving their password, and the attacker reads or sends mail as them.",
-    "fr": "Un faux message amène quelqu'un à donner son mot de passe, et l'attaquant lit ou envoie des messages à sa place."
+    "en": "A fake message tricks someone into giving their password, and a stranger reads or sends mail as them.",
+    "fr": "Un faux message amène quelqu'un à donner son mot de passe, et un inconnu lit ou envoie des messages à sa place."
    },
    "criteria": [
     "confidentiality",
@@ -376,8 +376,8 @@
     "fr": "Vol de données clients ou de données personnelles"
    },
    "description": {
-    "en": "Attackers copy lists of customers, staff or patients and sell them or threaten to publish them.",
-    "fr": "Des attaquants copient des fichiers de clients, de personnel ou de patients et les revendent ou menacent de les publier."
+    "en": "Someone copies lists of customers, staff or patients and sells or publishes them.",
+    "fr": "Quelqu'un copie des fichiers de clients, de personnel ou de patients et les revend ou les publie."
    },
    "criteria": [
     "confidentiality"
@@ -429,8 +429,8 @@
     "fr": "Boutique en ligne ou page de paiement piégée"
    },
    "description": {
-    "en": "An attacker changes the shop so that it captures customers' card details or redirects payments.",
-    "fr": "Un attaquant modifie la boutique pour capter les données de carte des clients ou détourner les paiements."
+    "en": "Someone changes the shop so that it captures customers' card details or redirects payments.",
+    "fr": "Quelqu'un modifie la boutique pour capter les données de carte des clients ou détourner les paiements."
    },
    "criteria": [
     "confidentiality",
@@ -722,8 +722,8 @@
     "fr": "Compte en ligne ou console d'administration pris en main"
    },
    "description": {
-    "en": "An attacker gets into the main account of an online service and can read, change or delete everything in it.",
-    "fr": "Un attaquant entre dans le compte principal d'un service en ligne et peut tout lire, modifier ou supprimer."
+    "en": "Someone gets into the main account of an online service and can read, change or delete everything in it.",
+    "fr": "Quelqu'un entre dans le compte principal d'un service en ligne et peut tout lire, modifier ou supprimer."
    },
    "criteria": [
     "confidentiality",
@@ -776,8 +776,8 @@
    "id": "D12",
    "family": "deliberate",
    "title": {
-    "en": "Attackers use your remote access",
-    "fr": "Des attaquants utilisent votre accès à distance"
+    "en": "Someone gets in through your remote access",
+    "fr": "Quelqu'un entre par votre accès à distance"
    },
    "description": {
     "en": "Remote access to the office is found open or weakly protected and used to get in.",
@@ -824,12 +824,12 @@
    "id": "D13",
    "family": "deliberate",
    "title": {
-    "en": "A supplier is hacked and the attacker reaches you through them",
-    "fr": "Un fournisseur est piraté et l'attaquant vous atteint par son intermédiaire"
+    "en": "A supplier is hacked and it spreads to you",
+    "fr": "Un fournisseur est piraté et cela vous atteint aussi"
    },
    "description": {
-    "en": "A supplier or service provider with access to your systems is compromised and the attacker follows that access.",
-    "fr": "Un fournisseur ou prestataire ayant accès à vos systèmes est compromis et l'attaquant suit cet accès."
+    "en": "A supplier or service provider with access to your systems is compromised and someone follows that access to you.",
+    "fr": "Un fournisseur ou prestataire ayant accès à vos systèmes est compromis et quelqu'un suit cet accès jusqu'à vous."
    },
    "criteria": [
     "confidentiality",
@@ -1055,8 +1055,8 @@
     },
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
    ]
   },
@@ -1138,8 +1138,8 @@
     },
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
     {
      "id": "admin_accounts",
@@ -1221,8 +1221,8 @@
    "measures": [
     {
      "id": "spares",
-     "en": "Keep a spare or a quick replacement for critical equipment",
-     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+     "en": "Keep a spare or a quick replacement for essential equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel essentiel"
     },
     {
      "id": "backup_auto",
@@ -1231,13 +1231,13 @@
     },
     {
      "id": "battery",
-     "en": "Use a battery backup for critical equipment",
-     "fr": "Équiper le matériel critique d'une alimentation de secours sur batterie"
+     "en": "Use a battery backup for essential equipment",
+     "fr": "Équiper le matériel essentiel d'une alimentation de secours sur batterie"
     },
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
    ]
   },
@@ -1307,13 +1307,13 @@
    "measures": [
     {
      "id": "battery",
-     "en": "Use a battery backup for critical equipment",
-     "fr": "Équiper le matériel critique d'une alimentation de secours sur batterie"
+     "en": "Use a battery backup for essential equipment",
+     "fr": "Équiper le matériel essentiel d'une alimentation de secours sur batterie"
     },
     {
      "id": "spares",
-     "en": "Keep a spare or a quick replacement for critical equipment",
-     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+     "en": "Keep a spare or a quick replacement for essential equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel essentiel"
     },
     {
      "id": "manual_fallback",
@@ -1402,8 +1402,8 @@
     },
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
     {
      "id": "own_copy",
@@ -1620,8 +1620,8 @@
    "measures": [
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
     {
      "id": "password_manager",
@@ -1671,13 +1671,13 @@
     },
     {
      "id": "spares",
-     "en": "Keep a spare or a quick replacement for critical equipment",
-     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel critique"
+     "en": "Keep a spare or a quick replacement for essential equipment",
+     "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel essentiel"
     },
     {
      "id": "documentation",
-     "en": "Write down how critical tasks are done and train a deputy",
-     "fr": "Écrire comment les tâches critiques sont faites et former un suppléant"
+     "en": "Write down how key tasks are done and train a deputy",
+     "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
    ]
   },

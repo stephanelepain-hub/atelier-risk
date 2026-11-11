@@ -38,10 +38,12 @@ def load_or_create_token(path):
 
 
 class Session:
-    __slots__ = ("sid", "csrf", "seen", "user")
+    __slots__ = ("sid", "csrf", "seen", "user", "expert", "path")
 
     def __init__(self, user):
         self.user = user
+        self.expert = False  # set from the `expert` cookie on every request (see App.handle)
+        self.path = ""       # the page being shown (GET only), so the Expert switch can return to it
         self.sid = secrets.token_urlsafe(32)
         self.csrf = secrets.token_urlsafe(32)
         self.seen = time.time()

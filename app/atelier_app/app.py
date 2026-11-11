@@ -7,7 +7,8 @@ import sys
 import threading
 import traceback
 
-from . import STATIC_DIR, auth, calibrations, config, engine, views
+from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_quick
+from .expert_routes import ExpertRoutes
 from .quick_routes import ORDER, QuickRoutes
 from .storage import NotFound, Store
 from .web import HTTPError, Request, Response, Router, redirect
@@ -27,6 +28,7 @@ SECURITY_HEADERS = [
     ("Cache-Control", "no-store"),
 ]
 NEXT_RE = re.compile(r"/[A-Za-z0-9/_.\-]*")
+EXPERT_COOKIE = "expert"
 
 
 
@@ -35,7 +37,7 @@ def allowed_hosts_for(port, extra=()):
     return {f"127.0.0.1:{port}", f"localhost:{port}"} | {h.lower() for h in extra}
 
 
-class App(QuickRoutes):
+class App(ExpertRoutes, QuickRoutes):
     def __init__(self, data_dir, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD):
         self.data_dir = pathlib.Path(data_dir)
         self.store = Store(self.data_dir)
@@ -68,6 +70,9 @@ class App(QuickRoutes):
     def _routes(self):
         r = Router()
         self.add_quick_routes(r)
+        self.add_expert_routes(r)
+        r.add("GET", r"/how", self.how, public=True)
+        r.add("POST", r"/expert", self.expert_switch)
         r.add("GET", r"/login", self.login_form, public=True)
         r.add("POST", r"/login", self.login, public=True)
         r.add("GET", r"/login/once", self.login_once, public=True)
@@ -93,6 +98,9 @@ class App(QuickRoutes):
                 raise HTTPError(413, f"request body over {limit // (1024 * 1024)} MB")
             fn, args, public = self.router.match(req.method, req.path)
             req.session = self.auth.get(req.cookies.get(auth.SESSION_COOKIE))
+            if req.session:
+                req.session.expert = req.cookies.get(EXPERT_COOKIE) == "1"
+                req.session.path = req.path if req.method == "GET" else ""
             if not public and not req.session:
                 if req.method in ("GET", "HEAD"):
                     return self.secure(redirect("/login"))
@@ -174,6 +182,24 @@ class App(QuickRoutes):
         url = f"http://{req.headers['host']}/login/once?n={n}"
         return Response(views.link_page(url, req.session))
 
+    # ---------- Expert switch and "How it works" ----------
+
+    def expert_switch(self, req):
+        """Turn Expert mode on (`on`=1) or off (`on`=0) in a cookie, then go back to the page the switch was on."""
+        on = req.field("on")
+        if on not in ("0", "1"):
+            raise HTTPError(400, "on must be 1 or 0")
+        nxt = req.field("next", "/") or "/"
+        if not NEXT_RE.fullmatch(nxt) or nxt.startswith("//"):
+            nxt = "/"
+        resp = redirect(nxt)
+        resp.header("Set-Cookie", f"{EXPERT_COOKIE}={on}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000")
+        return resp
+
+    def how(self, req):
+        lang = self._lang(req)
+        return self._remember(req, Response(views_how.how(req.session, lang)), lang)
+
     # ---------- static ----------
 
     def static(self, req, name):
@@ -226,6 +252,22 @@ class App(QuickRoutes):
         return Response(data, 200, "application/json; charset=utf-8",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "json")}"')])
 
+    @staticmethod
+    def _finding_sheets(base, fnd, lang):
+        """The Excel sheets: the engine's assumptions, then each top action and each kept risk in three short lines
+        (To strengthen / Based on / Next step), closing with one encouraging line."""
+        lbl = [views_quick.tr(lang, k) for k in findings.LABEL_KEYS]
+        head = ["Rank" if lang == "en" else "Rang", "", "Text" if lang == "en" else "Texte"]
+        acts = [head] + [[i, lbl[k], f[key]] for i, f in enumerate(fnd["actions"], 1)
+                         for k, key in enumerate(("gap", "evidence", "fix"))]
+        risks = [["Risk" if lang == "en" else "Risque", "", head[2]]] + [
+            [f'{f["id"]} {f["title"]}', lbl[k], f[key]] for f in fnd["risks"]
+            for k, key in enumerate(("gap", "evidence", "fix"))]
+        if fnd["closing"]:
+            (risks if len(risks) > 1 else acts).append(["", "", fnd["closing"]])
+        return [base[0], ("Top actions" if lang == "en" else "Actions", acts),
+                (views_quick.tr(lang, "risks_h"), risks)]
+
     def export_xlsx(self, req, sid):
         st = self._load(req, sid)
         chk = engine.check(st)
@@ -234,17 +276,21 @@ class App(QuickRoutes):
         if not engine.have_xlsx():
             raise HTTPError(501, "the Excel export needs openpyxl, which is not installed here; the JSON export works")
         notice = sheets = lang = None
+        cal = chk["cal"]
         if isinstance(st.get("quick"), dict):  # a quick-path study: honesty header, assumptions and top actions
             try:
                 cat = self.quick_catalogue()
                 lang = self._lang(req, st["quick"])  # the quick workbook follows the page language
                 quick = dict(st["quick"], lang=lang)
-                if lang != st["quick"].get("lang"):
+                if lang != st["quick"].get("lang") and not self._edited_in_expert_mode(st, st["quick"], chk["cal"]):
                     st = engine.quick_build(quick, chk["cal"], cat)  # same answers, texts in the page language
                 notice = engine.quick_notice(quick, chk["cal"], cat)
-                sheets = engine.quick_sheets(quick, chk["cal"], cat)
+                rows = engine.quick_compute(quick, chk["cal"], cat)
+                fnd = findings.build(quick, cat, chk["cal"], rows, engine.quick_actions(quick, chk["cal"], cat, 5), lang)
+                sheets = self._finding_sheets(engine.quick_sheets(quick, chk["cal"], cat), fnd, lang)
+                cal = labels.display_cal(chk["cal"], lang)  # plain level and severity names, same numbers
             except engine.QuickError:
                 notice = sheets = lang = None
-        data = engine.to_xlsx_bytes(st, chk["cal"], self.tmp_dir, notice, sheets, lang)
+        data = engine.to_xlsx_bytes(st, cal, self.tmp_dir, notice, sheets, lang)
         return Response(data, 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "xlsx")}"')])

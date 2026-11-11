@@ -418,7 +418,7 @@ class AssumptionsAndActions(unittest.TestCase):
 
     def test_xlsx_notice_says_mentioned_not_read(self):
         q = answers()
-        self.assertIn("Documents: none.", quick.xlsx_notice(q, CAL)[1])
+        self.assertIn("Documents: none yet.", quick.xlsx_notice(q, CAL)[1])
         q["profile"]["document"] = {"provided": True, "status": "mentioned, not read"}
         self.assertIn("Documents: mentioned, not read.", quick.xlsx_notice(q, CAL)[1])
         q["lang"] = "fr"

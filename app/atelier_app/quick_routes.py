@@ -1,5 +1,5 @@
 """Quick-path handlers: the home page and the four screens. Levels, confidence and the study come from the engine."""
-from . import calibrations, engine, views_quick
+from . import calibrations, engine, findings, views_quick
 from .web import HTTPError, Response, redirect
 
 LANGS = ("en", "fr")
@@ -82,6 +82,14 @@ class QuickRoutes:
             return engine.quick_build(quick, cal, self.quick_catalogue())
         except engine.QuickError as e:
             raise HTTPError(400, str(e))
+
+    def _edited_in_expert_mode(self, st, quick, cal):
+        """True when the stored study differs from what the quick answers build (it was changed in expert mode)."""
+        try:
+            fresh = engine.quick_build(quick, cal, self.quick_catalogue())
+        except engine.QuickError:
+            return False
+        return any(st.get(k) != fresh.get(k) for k in engine.COLLECTIONS)
 
     def _save(self, req, sid, old, quick, cal):
         """Rebuild the study from the quick answers and save it (the store keeps the previous file as .bak)."""
@@ -172,7 +180,8 @@ class QuickRoutes:
         lang = self._lang(req, quick)
         cat = self.quick_catalogue()
         prof = dict(quick.get("profile") or {})
-        resp = Response(views_quick.about(req.session, sid, lang, cat, prof, flash=req.arg("f")))
+        resp = Response(views_quick.about(req.session, sid, lang, cat, prof, edited=self._edited_in_expert_mode(st, quick, cal),
+                                           flash=req.arg("f")))
         return self._remember(req, resp, lang)
 
     def quick_about_save(self, req, sid):
@@ -183,7 +192,8 @@ class QuickRoutes:
             cat = self.quick_catalogue()
             prof, errors = self._parse_about(req, cat)
             if errors:
-                return Response(views_quick.about(req.session, sid, lang, cat, prof, errors), 400)
+                return Response(views_quick.about(req.session, sid, lang, cat, prof, errors,
+                                                  edited=self._edited_in_expert_mode(st, quick, cal)), 400)
             quick["lang"] = lang
             quick["profile"] = prof
             self._sync_risks(quick)
@@ -198,7 +208,8 @@ class QuickRoutes:
         cal = self._cal(st)
         lang = self._lang(req, quick)
         cat = self.quick_catalogue()
-        resp = Response(views_quick.risks(req.session, sid, lang, cat, quick, flash=req.arg("f"), shortlist=engine.quick_shortlist(quick["profile"], cat)))
+        resp = Response(views_quick.risks(req.session, sid, lang, cat, quick, edited=self._edited_in_expert_mode(st, quick, cal),
+                                          flash=req.arg("f"), shortlist=engine.quick_shortlist(quick["profile"], cat)))
         return self._remember(req, resp, lang)
 
     def quick_risks_save(self, req, sid):
@@ -225,6 +236,7 @@ class QuickRoutes:
                     errors["new"] = views_quick.tr(lang, "err_values")
             if errors:
                 return Response(views_quick.risks(req.session, sid, lang, cat, quick, state, errors,
+                                                  edited=self._edited_in_expert_mode(st, quick, cal),
                                                   shortlist=engine.quick_shortlist(quick["profile"], cat)), 400)
             for e in quick["risks"]:
                 e["decision"] = "keep" if e["id"] in kept else "discard"
@@ -262,7 +274,7 @@ class QuickRoutes:
         cal = self._cal(st)
         lang = self._lang(req, quick)
         resp = Response(views_quick.now(req.session, sid, lang, self.quick_catalogue(), quick, cal, self._rows(quick, cal),
-                                        flash=req.arg("f")))
+                                        edited=self._edited_in_expert_mode(st, quick, cal), flash=req.arg("f")))
         return self._remember(req, resp, lang)
 
     def quick_now_save(self, req, sid):
@@ -295,7 +307,8 @@ class QuickRoutes:
                 if sev is not None and not reason:
                     errors[rid] = views_quick.tr(lang, "err_sev_reason")
             if errors:
-                return Response(views_quick.now(req.session, sid, lang, cat, quick, cal, rows, state, errors), 400)
+                return Response(views_quick.now(req.session, sid, lang, cat, quick, cal, rows, state, errors,
+                                                edited=self._edited_in_expert_mode(st, quick, cal)), 400)
             for rid, (sev, reason, lik, in_place, extra) in parsed.items():
                 e = entries[rid]
                 if sev is None:
@@ -330,5 +343,6 @@ class QuickRoutes:
         resp = Response(views_quick.results(
             req.session, sid, lang, cat, quick, cal, rows, reg_rows, engine.quick_facts(quick, cal, cat),
             engine.quick_actions(quick, cal, cat, 5), engine.quick_assumptions(quick, cal, cat),
-            can_xlsx=engine.have_xlsx()))
+            findings.build(quick, cat, cal, rows, engine.quick_actions(quick, cal, cat, 5), lang),
+            edited=self._edited_in_expert_mode(st, quick, cal), can_xlsx=engine.have_xlsx()))
         return self._remember(req, resp, lang)

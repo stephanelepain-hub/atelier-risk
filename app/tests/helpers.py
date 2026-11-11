@@ -82,6 +82,16 @@ class Client:
         form["csrf"] = self.csrf(page)
         return self.post(path, form)
 
+    def load_example(self):
+        """The ANSSI guide example, put in the study store as a study file (not made with the quick path)."""
+        return self.app.store.create(example_json())
+
+    def expert(self, on=True):
+        """Switch Expert mode on (or off) the way a person does, with the header switch; returns the response."""
+        r = self.post_csrf("/expert", {"on": "1" if on else "0", "next": "/"})
+        assert r.status == 303, r.status
+        return r
+
 
 def quick_study(client, name="Pilot"):
     """Start a quick-path study (screen 1 saved); returns its id."""

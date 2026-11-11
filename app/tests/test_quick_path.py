@@ -9,7 +9,7 @@ from html.parser import HTMLParser
 
 from app.tests import helpers
 from app.tests.helpers import HAVE_OPENPYXL, Client, make_app
-from atelier_app import calibrations, engine
+from atelier_app import calibrations, engine, labels
 
 XSS = '"><script>alert(1)</script><img src=x onerror=alert(2)>'
 STATIC = helpers.APP_DIR / "static"
@@ -85,8 +85,10 @@ class HomeTest(Base):
         self.assertIn("Start from scratch", t)
         self.assertIn("I have a document", t)
         self.assertEqual(t.count('<a class="way'), 2)
-        for gone in ("I already have a risk analysis", "/reviews", "expert", "workshop"):
+        for gone in ("I already have a risk analysis", "/reviews", "workshop"):
             self.assertNotIn(gone, t.lower() if gone.islower() else t, gone)
+        self.assertIn("Built on EBIOS Risk Manager, the method of ANSSI, the French national cybersecurity agency", t)
+        self.assertIn('href="/how?lang=en"', t)
 
     def test_french_home(self):
         t = self.page("/?lang=fr")
@@ -130,7 +132,7 @@ class HomeTest(Base):
 
     def test_recent_quick_studies_listed_on_the_home_page(self):
         t = self.page("/")
-        self.assertIn("Nothing here yet", t)
+        self.assertIn("Your analyses will appear here", t)
         sid = self.start(name=XSS)
         t = self.page("/")
         self.assertIn(f'href="/quick/{sid}/risks?lang=en"', t)   # next screen to do
@@ -156,7 +158,7 @@ class WalkTest(Base):
         suggested = engine.quick_suggest(st["quick"]["profile"], self.cat)
         ids = re.findall(r'name="keep" value="([^"]+)"', t)
         self.assertEqual(sorted(ids), sorted(suggested))
-        self.assertIn("Someone attacks you", t)
+        self.assertIn("Someone does it on purpose", t)
         self.assertIn("Things go wrong", t)
         discard = ids[-1]
         kept = [i for i in ids if i != discard]
@@ -188,7 +190,7 @@ class WalkTest(Base):
         self.assertIn("After your extra measures</figcaption>", t)
         self.assertIn("Your top actions", t)
         self.assertIn("What we assumed", t)
-        for gone in ("expert", "workshop", "Workshop"):
+        for gone in ("Open in expert view", "workshop", "Workshop"):
             self.assertNotIn(gone, t, gone)
         self.assertNotIn(f'href="/s/{sid}"', t)
         self.assertIn(f'href="/s/{sid}/export.json"', t)
@@ -200,7 +202,7 @@ class WalkTest(Base):
         conf = engine.quick_confidence(st["quick"], self.cat)
         self.assertLessEqual(conf, 75)
         self.assertIn(f'<span class="big-n">{conf}%</span>', t)
-        self.assertIn("Without a document, confidence never goes above 75%.", t)
+        self.assertIn("With answers alone, confidence reaches up to 75%.", t)
         actions = re.findall(r'<span class="a-n">(\d)</span>', t)
         self.assertEqual(actions, [str(i) for i in range(1, len(actions) + 1)])
         self.assertTrue(1 <= len(actions) <= 5)
@@ -211,11 +213,11 @@ class WalkTest(Base):
         for r in rows:
             m = re.search(rf'<th scope="row">{r["id"]}</th><td>.*?</td><td><span class="lvl [^"]*">([^<]+)</span></td><td><span class="lvl [^"]*">([^<]+)</span></td>', t)
             self.assertIsNotNone(m, r["id"])
-            # the engine's level, shown by its English name on this English page (round 2: name_en)
-            self.assertEqual((m.group(1), m.group(2)), (engine.level_name(self.cal, r["level"], "en"),
-                                                        engine.level_name(self.cal, r["level_target"], "en")))
+            # the engine's level, shown under its plain name (Low / Moderate / High) on this English page
+            self.assertEqual((m.group(1), m.group(2)), (labels.level_label(self.cal, r["level"], "en"),
+                                                        labels.level_label(self.cal, r["level_target"], "en")))
         # facts line
-        self.assertIn("Not provided: architecture document, business impact analysis, security baseline.", t)
+        self.assertIn("To add: architecture document, business impact analysis, security baseline.", t)
 
     def test_the_stored_study_is_a_normal_valid_study_one_row_per_kept_risk(self):
         sid = self.start()
@@ -301,7 +303,7 @@ class ValidationTest(Base):
         r = self.post(f"/quick/{sid}/risks", {"keep": [i for i in ids if i != always], "lang": "en"})
         self.assertEqual(r.status, 400)
         t = self.c.text(r)
-        self.assertIn("Tell us why you discard this risk.", t)
+        self.assertIn("Tell us why you set this risk aside.", t)
         self.assertIn('class="reason needed"', t)
         self.assertEqual(self.study(sid), before)                       # nothing saved
         self.assertIn("We always check this one", t)
@@ -404,12 +406,12 @@ class EmptyTest(Base):
         r = self.post(f"/quick/{sid}/risks", form)
         self.assertEqual(r.status, 303)
         t = self.page(f"/quick/{sid}/now")
-        self.assertIn("You have not kept any risk yet.", t)
+        self.assertIn("Choose your risks first, then come back here.", t)
         self.assertIn(f'href="/quick/{sid}/risks"', t)
         self.assertNotIn("<form method=\"post\" action=\"/quick/", t.split("</nav>", 2)[-1])
         t = self.page(f"/quick/{sid}/results")
-        self.assertIn("You have not kept any risk yet.", t)
-        self.assertIn("No action yet.", t)
+        self.assertIn("Choose your risks first, then come back here.", t)
+        self.assertIn("Tick the measures you would add", t)
         self.assertIn('<span class="big-n">0%</span>', t)
         st = self.study(sid)
         self.assertEqual(engine.check(st)["errors"], [])
@@ -433,17 +435,17 @@ class ConfidenceAndAssumptionsTest(Base):
         c1 = self.conf(sid)
         self.assertLess(c1, c0)
         t1 = self.page(f"/quick/{sid}/results")
-        self.assertIn("You did not know", t1)
+        self.assertIn("Not sure", t1)
         self.assertIn(f'<span class="big-n">{c1}%</span>', t1)
-        self.assertNotIn("You did not know", t0)
+        self.assertNotIn("Not sure", t0)
         self.assertEqual(engine.check(self.study(sid))["errors"], [])
 
     def test_skipped_rows_are_default_and_in_the_assumptions(self):
         sid = self.start()
         self.keep_all(sid)
         t = self.page(f"/quick/{sid}/results")
-        self.assertIn("Not answered", t)
-        self.assertIn("measures already in place were not reviewed", t)
+        self.assertIn("Left open", t)
+        self.assertIn("measures already in place, none assumed yet", t)
         risks = self.study(sid)["risks"]
         self.assertTrue(all(r["sources"]["likelihood"] == "default" for r in risks))
 
@@ -480,8 +482,8 @@ class DocumentTest(Base):
         self.rate_all(sid)
         t = self.page(f"/quick/{sid}/results")
         self.assertIn("Documents: document mentioned, not read.", t)
-        self.assertIn("You mentioned a document. It has not been read, so it does not raise the confidence.", t)
-        self.assertIn("Not provided: architecture document, business impact analysis, security baseline.", t)
+        self.assertIn("Your document is noted. The confidence figure reflects your answers.", t)
+        self.assertIn("To add: architecture document, business impact analysis, security baseline.", t)
         # nothing was drawn from a document: no element carries source "document"
         st = self.study(sid)
         for key in engine.COLLECTIONS:
@@ -495,7 +497,7 @@ class DocumentTest(Base):
             self.assertEqual(self.study(sid)["quick"]["profile"]["document"], {"provided": False}, answer)
         t = self.page(f"/quick/{sid}/results")
         self.assertNotIn("mentioned, not read", t)
-        self.assertIn("Without a document, confidence never goes above 75%.", t)
+        self.assertIn("With answers alone, confidence reaches up to 75%.", t)
 
     def test_the_form_has_no_file_input_and_no_multipart(self):
         for path in ("/quick/new", "/quick/new?doc=1"):
@@ -532,7 +534,7 @@ class DocumentTest(Base):
 
 
 class RemovedExpertFeaturesTest(Base):
-    """The public edition has the quick path only: the screens of the full method answer 404, never 200."""
+    """Review mode, AI drafting, document upload, private calibrations and import stay out of the public edition."""
 
     def walk(self):
         sid = self.start()
@@ -542,8 +544,7 @@ class RemovedExpertFeaturesTest(Base):
 
     def test_the_removed_pages_answer_404(self):
         sid = self.walk()
-        for p in ("", "/w1", "/w2", "/w3", "/w4", "/w5", "/register", "/docs", "/severities", "/el/R1",
-                  "/w1/bv/add", "/w2/ro/add", "/rename", "/duplicate", "/confidential", "/draft"):
+        for p in ("/docs", "/confidential", "/draft", "/draft/clear", "/draft/accept-all"):
             self.assertEqual(self.c.get(f"/s/{sid}{p}").status, 404, p)
             self.assertEqual(self.c.post_csrf(f"/s/{sid}{p}", {}, page="/").status, 404, p)
         for p in ("/reviews", "/reviews/r-20261110-0123abcd", "/settings", "/new", "/import", "/example"):
@@ -563,7 +564,7 @@ class RemovedExpertFeaturesTest(Base):
                      f"/quick/{sid}/now", f"/quick/{sid}/results"):
             for lang in ("en", "fr"):
                 t = self.page(f"{path}{'&' if '?' in path else '?'}lang={lang}").lower()
-                for word in ("expert", "workshop", "atelier 1", "reviews", "revues", "/settings", "calibration"):
+                for word in ("workshop", "atelier 1", "reviews", "revues", "/settings", "calibration", "/docs", "/draft"):
                     self.assertNotIn(word, t, (path, lang, word))
 
     def test_only_the_published_calibration_is_known(self):
@@ -591,8 +592,7 @@ class RemovedExpertFeaturesTest(Base):
 
     def test_the_removed_modules_are_not_importable(self):
         import importlib
-        for name in ("views_ws", "editors", "reviews", "views_review", "review_store", "drafting", "drafts",
-                     "views_draft", "documents"):
+        for name in ("reviews", "views_review", "review_store", "drafting", "drafts", "views_draft", "documents"):
             with self.assertRaises(ImportError, msg=name):
                 importlib.import_module(f"atelier_app.{name}")
 
@@ -617,7 +617,7 @@ class ExportTest(Base):
         wb = openpyxl.load_workbook(io.BytesIO(r.body))
         first = wb.worksheets[0]
         self.assertEqual(first["A1"].value, engine.HONESTY["en"])
-        self.assertTrue(first["A2"].value.startswith("Documents: none. Not provided: architecture, business-impact, security-baseline."))
+        self.assertTrue(first["A2"].value.startswith("Documents: none yet. To add: architecture document, business impact analysis, security baseline."))
         self.assertIn("Confidence:", first["A2"].value)
         header_row = next(i for i, row in enumerate(first.iter_rows(values_only=True), 1) if row[0] == "id")
         self.assertEqual([c.value for c in first[header_row]][:5], ["id", "label", "severity", "likelihood", "level"])
@@ -651,7 +651,7 @@ class FrenchTest(Base):
         sid = self.start(lang="fr", name="Boulangerie")
         t = self.page(f"/quick/{sid}/risks")
         self.assertIn("Étape 2 sur 4", t)
-        self.assertIn("Quelqu&#x27;un vous attaque", t)
+        self.assertIn("Quelqu&#x27;un le fait exprès", t)
         self.keep_all(sid, lang="fr")
         self.rate_all(sid, lang="fr")
         t = self.page(f"/quick/{sid}/results")
@@ -903,8 +903,8 @@ class RoundTwoShortlistTest(Base):
 class RoundTwoLanguageTest(Base):
     """F2: English pages carry English level and axis names; French pages French; the quick xlsx follows."""
 
-    FRENCH_LEVELS = ("Élevé", "Moyen", "Faible", "Peu vraisemblable", "Quasi certain", "Très vraisemblable", "Critique", "Mineure", "Significative")
-    ENGLISH_LEVELS = ("Low", "Medium", "High", "Unlikely", "Almost certain", "Critical", "Minor")
+    FRENCH_LEVELS = ("Élevé", "Modéré", "Faible", "Peu vraisemblable", "Quasi certain", "Très vraisemblable", "Très sérieux", "Mineur", "Notable")
+    ENGLISH_LEVELS = ("Low", "Moderate", "High", "Unlikely", "Almost certain", "Very serious", "Minor")
 
     def walk(self, lang):
         sid = self.start(lang=lang)
@@ -920,19 +920,19 @@ class RoundTwoLanguageTest(Base):
             for w in self.FRENCH_LEVELS:
                 self.assertNotIn(w, body, (path, w))
         res = self.page(f"/quick/{sid}/results?lang=en")
-        for w in ("Critical", "Unlikely", "Almost certain", "Likelihood", "Severity"):
+        for w in ("Very serious", "Unlikely", "Almost certain", "Likelihood", "Severity"):
             self.assertIn(w, res)
-        self.assertRegex(res, r'<span class="lvl lvl-i\d">(High|Medium|Low)</span>')
+        self.assertRegex(res, r'<span class="lvl lvl-i\d">(High|Moderate|Low)</span>')
 
     def test_french_pages_keep_the_french_names_and_french_axes(self):
         sid = self.walk("fr")
         res = self.page(f"/quick/{sid}/results?lang=fr")
         body = res.split("<main", 1)[1]
-        for w in ("Critique", "Peu vraisemblable", "Quasi certain", "Gravité", "Vraisemblance"):
+        for w in ("Très sérieux", "Peu vraisemblable", "Quasi certain", "Gravité", "Vraisemblance"):
             self.assertIn(w, body)
-        for w in ("Critical", "Unlikely", "Almost certain", ">Severity<", ">Likelihood<"):
+        for w in ("Very serious", "Unlikely", "Almost certain", ">Severity<", ">Likelihood<"):
             self.assertNotIn(w, body)
-        self.assertRegex(res, r'<span class="lvl lvl-i\d">(Élevé|Moyen|Faible)</span>')
+        self.assertRegex(res, r'<span class="lvl lvl-i\d">(Élevé|Modéré|Faible)</span>')
 
     def test_no_code_in_brackets_on_the_suggestion_line(self):
         sid = self.walk("en")
