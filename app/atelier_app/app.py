@@ -47,6 +47,12 @@ class App(ExpertRoutes, QuickRoutes):
         (see workspaces.py). invite_code (a string, or None for none) is asked on the join screen. behind_proxy=True
         reads the client address from X-Real-IP (set by the local reverse proxy) instead of the socket address."""
         self.data_dir = pathlib.Path(data_dir)
+        fb = self.data_dir / "feedback-url"
+        views.FEEDBACK_URL = None
+        if fb.is_file():
+            url = fb.read_text(encoding="utf-8").strip()
+            if url.startswith("https://") and len(url) < 300 and not any(c in url for c in '"<> '):
+                views.FEEDBACK_URL = url
         self.public = bool(public)
         self.invite_code = (invite_code.strip() or None) if isinstance(invite_code, str) else None
         self.behind_proxy = bool(behind_proxy)

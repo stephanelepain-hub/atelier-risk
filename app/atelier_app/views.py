@@ -98,12 +98,17 @@ NAV = {"en": {"home": "Home", "list": "Studies", "logout": "Log out", "how": "Ho
               "forget": "Delete my data",
               "forget_confirm": "Delete all your data now? Every study in your private space is removed.",
               "expert": "Expert", "expert_on": "Expert mode on",
-              "sub": "Risk analysis, step by step", "skip": "Skip to the content"},
+              "sub": "Risk analysis, step by step", "skip": "Skip to the content",
+              "feedback": "Your feedback helps Atelier grow.", "feedback_link": "Share it"},
        "fr": {"home": "Accueil", "list": "Études", "logout": "Se déconnecter", "how": "Comment ça marche",
               "forget": "Effacer mes données",
               "forget_confirm": "Effacer toutes vos données maintenant ? Chaque étude de votre espace privé est supprimée.",
               "expert": "Expert", "expert_on": "Mode expert activé",
-              "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu"}}
+              "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu",
+              "feedback": "Vos retours font grandir Atelier.", "feedback_link": "Partagez-les"}}
+
+# Where "Share your feedback" points (https only). Set by App from `<data_dir>/feedback-url`; None shows no footer.
+FEEDBACK_URL = None
 
 
 def logo_path():
@@ -149,6 +154,10 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
                   f'<input type="hidden" name="on" value="{0 if on else 1}"><input type="hidden" name="next" value="{esc(nxt)}">'
                   f'<button type="submit" class="switch" role="switch" aria-checked="{"true" if on else "false"}">'
                   f'<span class="track" aria-hidden="true"></span>{esc(n["expert"])}</button></form>')
+    footer = ""
+    if FEEDBACK_URL:
+        footer = (f'<footer class="feedback"><p>{esc(n["feedback"])} <a href="{esc(FEEDBACK_URL)}" target="_blank" '
+                  f'rel="noopener noreferrer">{esc(n["feedback_link"])}</a></p></footer>')
     return f"""<!doctype html>
 <html lang="{esc(lang)}">
 <head>
@@ -167,6 +176,7 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
 {note}
 {body}
 </main>
+{footer}
 </body>
 </html>
 """

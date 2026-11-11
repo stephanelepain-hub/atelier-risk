@@ -938,5 +938,66 @@ class LaunchTest(unittest.TestCase):
         self.assertTrue((self.data / "token").is_file())
 
 
+
+class DiskBounds(unittest.TestCase):
+    """Public mode keeps disk use bounded: a study file has a size cap, and joins wait when the disk runs low."""
+
+    def test_study_size_cap(self):
+        from atelier_app import storage, web
+        d = tempfile.mkdtemp(prefix="atelier-test-")
+        try:
+            st = storage.Store(d, max_bytes=2000)
+            sid = st.create({"x": "a" * 100})
+            with self.assertRaises(web.HTTPError) as cm:
+                st.save(sid, {"x": "a" * 5000})
+            self.assertEqual(cm.exception.status, 413)
+            self.assertIn("a" * 100, (pathlib.Path(d) / "studies" / (sid + ".json")).read_text())
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_low_disk_counts_as_full(self):
+        from atelier_app import workspaces
+        d = tempfile.mkdtemp(prefix="atelier-test-")
+        try:
+            ws = workspaces.Workspaces(d)
+            self.assertFalse(ws.full())
+            old = workspaces.MIN_FREE_BYTES
+            workspaces.MIN_FREE_BYTES = 1 << 62
+            try:
+                self.assertTrue(ws.full())
+            finally:
+                workspaces.MIN_FREE_BYTES = old
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+class FeedbackFooter(unittest.TestCase):
+    def test_footer_only_with_a_valid_https_url(self):
+        import pathlib
+        app, d = helpers.make_app(public=True, invite_code=None)
+        try:
+            c = helpers.Client(app)
+            self.assertNotIn('class="feedback"', c.text(c.get('/how')))
+        finally:
+            helpers.cleanup(d)
+        for url, shown in (("https://example.org/contact", True), ("javascript:alert(1)", False), ('https://x"onmouseover=1', False)):
+            d = tempfile.mkdtemp(prefix="atelier-test-")
+            try:
+                (pathlib.Path(d) / "feedback-url").write_text(url + "\n")
+                from atelier_app.app import App
+                c = helpers.Client(App(d, port=8770, public=True, invite_code=None))
+                body = c.text(c.get('/how?lang=en'))
+                self.assertEqual('class="feedback"' in body, shown, url)
+                if shown:
+                    self.assertIn('href="https://example.org/contact"', body)
+                    self.assertIn("Share it", body)
+                    fr = c.text(c.get('/how?lang=fr'))
+                    self.assertIn("Partagez-les", fr)
+            finally:
+                shutil.rmtree(d, ignore_errors=True)
+        from atelier_app import views
+        views.FEEDBACK_URL = None
+
+
 if __name__ == "__main__":
     unittest.main()
