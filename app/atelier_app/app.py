@@ -46,7 +46,8 @@ def _safe_https(url):
 
 
 def load_publisher(path):
-    """`publisher.json`: {"name": "...", "url": "https://...", "feedback_url": "https://..." (optional)}. Anything
+    """`publisher.json`: {"name": "...", "url": "https://...", "feedback_url": "https://..." (optional),
+    "email": "contact address" (optional)}. Anything
     else (missing file, bad JSON, a non-https URL, a long name) gives None: no footer."""
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
@@ -58,7 +59,9 @@ def load_publisher(path):
         return None
     if "feedback_url" in d and not _safe_https(d["feedback_url"]):
         return None
-    return {"name": d["name"], "url": d["url"], "feedback_url": d.get("feedback_url")}
+    if "email" in d and not (type(d["email"]) is str and re.fullmatch(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}", d["email"])):
+        return None
+    return {"name": d["name"], "url": d["url"], "feedback_url": d.get("feedback_url"), "email": d.get("email")}
 
 
 class App(ExpertRoutes, QuickRoutes):

@@ -227,7 +227,7 @@ If `<data_dir>/publisher.json` exists and is valid, every page ends with one lin
 with a link, and an optional feedback link:
 
 ```json
-{"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact"}
+{"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact", "email": "hello@cplt.tech"}
 ```
 
-Both URLs must be https. A missing or invalid file shows no footer.
+Both URLs must be https; `email` (optional) is shown as a mail link. A missing or invalid file shows no footer.

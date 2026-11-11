@@ -171,8 +171,11 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
         if pub.get("feedback_url"):
             fb = (f' {esc(n["feedback"])} <a href="{esc(pub["feedback_url"])}" target="_blank" '
                   f'rel="noopener noreferrer">{esc(n["feedback_link"])}</a>')
+        mail = ""
+        if pub.get("email"):
+            mail = f' · <a href="mailto:{esc(pub["email"])}">{esc(pub["email"])}</a>'
         footer = (f'<footer class="publisher"><p>{esc(n["offered"])} <strong>{esc(pub["name"])}</strong>, '
-                  f'<a href="{esc(pub["url"])}" target="_blank" rel="noopener noreferrer">{esc(host)}</a>.{fb}</p></footer>')
+                  f'<a href="{esc(pub["url"])}" target="_blank" rel="noopener noreferrer">{esc(host)}</a>{mail}.{fb}</p></footer>')
     return f"""<!doctype html>
 <html lang="{esc(lang)}">
 <head>

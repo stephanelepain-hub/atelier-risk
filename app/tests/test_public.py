@@ -986,13 +986,15 @@ class PublisherFooter(unittest.TestCase):
             views.PUBLISHER = None
 
     def test_footer_states_the_publisher_with_a_link(self):
-        good = json.dumps({"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact"})
+        good = json.dumps({"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact",
+                           "email": "hello@cplt.tech"})
         for path in ("/how?lang=en", "/join?lang=en"):
             body = self._body(good, path)
             self.assertIn("Atelier is offered by <strong>CPLT</strong>", body)
             self.assertIn('href="https://cplt.tech"', body)
             self.assertIn('>cplt.tech</a>', body)
             self.assertIn('href="https://cplt.tech/contact"', body)
+            self.assertIn('<a href="mailto:hello@cplt.tech">hello@cplt.tech</a>', body)
         fr = self._body(good, "/how?lang=fr")
         self.assertIn("Atelier est proposé par <strong>CPLT</strong>", fr)
         self.assertIn("Partagez-les", fr)
@@ -1000,7 +1002,8 @@ class PublisherFooter(unittest.TestCase):
     def test_no_footer_without_a_valid_file(self):
         for content in (None, "not json", json.dumps({"name": "X", "url": "javascript:alert(1)"}),
                         json.dumps({"name": "X", "url": 'https://x"onmouseover=1'}),
-                        json.dumps({"name": "X", "url": "https://x.org", "feedback_url": "http://plain"})):
+                        json.dumps({"name": "X", "url": "https://x.org", "feedback_url": "http://plain"}),
+                        json.dumps({"name": "X", "url": "https://x.org", "email": 'a@b.org"><script>'})):
             self.assertNotIn('class="publisher"', self._body(content), content)
 
 
