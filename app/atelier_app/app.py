@@ -218,9 +218,10 @@ class App(ExpertRoutes, QuickRoutes):
                                                                     self.invite_code.encode("utf-8")):
             self.join_limiter.fail(client)
             return self.join_form(req, "bad_code", 403)
-        if self.workspaces.full():
-            return self.join_form(req)
-        wid = self.workspaces.create()
+        try:
+            wid = self.workspaces.create()
+        except workspaces.WorkspacesFull:
+            return self.join_form(req)    # shows the "full for now" page
         resp = redirect("/")
         resp.header("Set-Cookie", workspaces.cookie_header(wid))
         resp.header("Set-Cookie", f"{auth.PRE_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/join; Max-Age=0")

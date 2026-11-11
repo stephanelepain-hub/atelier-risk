@@ -394,6 +394,22 @@ class LimitsTest(PublicBase):
         self.assertIn("We are full for now", pre_page.text(r))
         self.assertEqual(len(ws_folders(self.app)), 3)
 
+    def test_joins_that_arrive_together_cannot_pass_the_limit(self):
+        self.app.workspaces.max_workspaces = 5
+        results = []
+
+        def go():
+            c = Client(self.app)
+            pre = PRE_RE.search(c.text(c.get("/join"))).group(1)
+            results.append(c.post("/join", {"pre": pre, "code": CODE}).status)
+        threads = [threading.Thread(target=go) for _ in range(12)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(10)
+        self.assertEqual(len(ws_folders(self.app)), 5)
+        self.assertEqual(sorted(results).count(303), 5)
+
     def test_a_visitor_with_a_workspace_still_works_when_full(self):
         c = self.joined()
         self.app.workspaces.max_workspaces = 1

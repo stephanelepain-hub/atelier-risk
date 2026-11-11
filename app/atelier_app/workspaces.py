@@ -41,6 +41,10 @@ def clear_cookie_header():
     return f"{COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
 
 
+class WorkspacesFull(Exception):
+    """The server already holds its maximum number of workspaces."""
+
+
 class JoinLimiter:
     """Wrong invite codes per client address: more than JOIN_MAX in JOIN_WINDOW seconds locks that address."""
 
@@ -81,6 +85,7 @@ class Workspaces:
         self.max_studies = max_studies
         self.stores = {}
         self.lock = threading.Lock()
+        self.create_lock = threading.Lock()
 
     # ---------- lookup ----------
 
@@ -125,17 +130,22 @@ class Workspaces:
     # ---------- create and remove ----------
 
     def create(self):
-        """A new workspace. Returns the cookie value."""
-        while True:
-            wid = secrets.token_urlsafe(32)
-            h = hash_id(wid)
-            try:
-                self.folder(h).mkdir(mode=0o700)
-            except FileExistsError:
-                continue
-            self.touch(h)
-            self.store(h)
-            return wid
+        """A new workspace. Returns the cookie value. Raises WorkspacesFull at the limit (checked and created under one
+        lock, so joins that arrive together cannot pass it)."""
+        with self.create_lock:
+            if self.full():
+                raise WorkspacesFull(self.max_workspaces)
+            while True:
+                wid = secrets.token_urlsafe(32)
+                h = hash_id(wid)
+                try:
+                    self.folder(h).mkdir(mode=0o700)
+                except FileExistsError:
+                    continue
+                break
+        self.touch(h)
+        self.store(h)
+        return wid
 
     def remove(self, h):
         with self.lock:
