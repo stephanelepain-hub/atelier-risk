@@ -41,14 +41,14 @@ def severity_cell(st, chk, key, x):
     derived = engine.derived_severity(st, cal, key, eid)
     errs = engine.severity_errors(chk, eid)
     shown = derived if derived is not None else stored
-    val = scale_text(cal, "severity", shown) if shown is not None else "not determined"
+    val = scale_text(cal, "severity", shown) if shown is not None else "pending"
     if errs:
         note = "".join(f'<span class="chk bad">{esc(e)}</span>' for e in errs)
         if derived is not None and derived != stored:
             note += f'<span class="chk">stored: {scale_text(cal, "severity", stored) if stored is not None else "none"}</span>'
         return f'<span class="sev">{val}</span>{note}'
     if derived is None:
-        return f'<span class="sev">{val}</span><span class="chk">the engine cannot determine it yet</span>'
+        return f'<span class="sev">{val}</span><span class="chk">the engine sets it once the links are in place</span>'
     return f'<span class="sev">{val}</span><span class="chk ok">engine check passed</span>'
 
 
@@ -227,7 +227,7 @@ def form_fields(slug, el, st, chk, errs=None):
             sev = f'<p class="derived">Severity: {severity_cell(st, chk, "strategic_scenarios", stored)}</p>'
         return f"""<label>Risk origin {_select("risk_origin", ros, el.get("risk_origin"), required=True)}{e("risk_origin")}</label>
 <fieldset><legend>Feared events it leads to</legend>{e("feared_events")}{_boxes("feared_events", fes, el.get("feared_events"), "No feared event yet (workshop 1).")}</fieldset>
-<p class="hint wide">Severity is not typed here: the engine takes it from the feared events (guide p.49) when you save.</p>{sev}
+<p class="hint wide">The engine sets the severity from the feared events (guide p.49) when you save.</p>{sev}
 <fieldset><legend>Attack paths</legend>{e("paths")}<div class="scroll"><table class="paths-form"><thead><tr><th>Id</th><th>Label</th><th>Stakeholder</th><th></th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table></div></fieldset>"""
     if slug == "os":
@@ -248,7 +248,7 @@ def form_fields(slug, el, st, chk, errs=None):
 <label>Target likelihood {_select("likelihood_target", lk, el.get("likelihood_target"), blank="(no target)", unknown="not in the scale")}{e("likelihood_target")}</label>
 <label>Treatment {_select("treatment", [(t, t) for t in editors.TREATMENTS], el.get("treatment"))}{e("treatment")}</label>
 <label>Owner <input name="owner" value="{esc(el.get("owner", ""))}" maxlength="200">{e("owner")}</label>
-<p class="hint wide">Severity is not typed here: the engine takes it from the scenario (guide p.62, p.65) when you save.</p>{sev}"""
+<p class="hint wide">The engine sets the severity from the scenario (guide p.62, p.65) when you save.</p>{sev}"""
     if slug == "ms":
         rks = [(i, f'{i} {(editors.find(st, "risks", i) or {}).get("label", "")}') for i in editors.ids(st, "risks")]
         return f"""<label class="wide">Label <input name="label" value="{esc(el.get("label", ""))}" required maxlength="1000">{e("label")}</label>

@@ -152,6 +152,34 @@ class SwitchTest(SwitchBase):
         self.assertEqual(r.get("Location"), "/how")
 
 
+class ExpertScreensTest(SwitchBase):
+    """The restored expert screens, on a study made with the quick path."""
+
+    def test_the_quick_study_opens_in_the_existing_screens(self):
+        sid = self.study_walk()
+        for p in ("", "/w1", "/w2", "/w3", "/w4", "/w5", "/register"):
+            self.assertEqual(self.c.get(f"/s/{sid}{p}").status, 200, p)
+        t = self.page(f"/s/{sid}/w5")
+        self.assertIn("Ransomware locks your files and systems", t)
+        self.assertIn(f'href="/quick/{sid}/results"', self.page(f"/s/{sid}"))
+        reg = self.page(f"/s/{sid}/register")
+        self.assertIn("Risk grid, now and at target", reg)
+        self.assertEqual(reg.count("<svg"), 2)
+
+    def test_the_expert_pages_have_no_documents_tab_no_privacy_row_no_draft_panel(self):
+        sid = self.study_walk()
+        for p in ("", "/w1", "/w2", "/w5"):
+            t = self.page(f"/s/{sid}{p}")
+            for gone in ("/docs", ">Documents<", "/confidential", "Mark this study confidential", "badge private", "Draft", "/settings"):
+                self.assertNotIn(gone, t, (p, gone))
+
+    def test_a_refused_expert_form_keeps_the_typed_values(self):
+        sid = self.study_walk()
+        r = self.c.post_csrf(f"/s/{sid}/w1/bv/add", {"label": "", "owner": "kept@example"}, page=f"/s/{sid}/w1")
+        self.assertEqual(r.status, 400)
+        self.assertIn("kept@example", self.c.text(r))
+
+
 class EditedInExpertModeTest(SwitchBase):
     def test_a_quick_study_changed_in_expert_mode_keeps_its_note(self):
         sid = self.study_walk()

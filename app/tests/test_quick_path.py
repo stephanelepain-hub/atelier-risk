@@ -797,10 +797,21 @@ class ContrastTest(unittest.TestCase):
         self.assertGreaterEqual(contrast("#dbe4ff", "#27458f"), 4.5)       # the header's sub-title on the lighter end
 
     def test_badges_and_bands(self):
-        pairs = [("#5a3d00", "#fff1cc"), ("#8c1d16", "#fde2e0"), ("#14502b", "#dff1e5"), ("#14502b", "#e6f4ea"), ("#5a3d00", "#fff6dd"),
+        pairs = [("#5a3d00", "#fff1cc"), ("#14502b", "#dff1e5"), ("#14502b", "#e6f4ea"), ("#5a3d00", "#fff6dd"),
                  ("#1d2a55", "#e8eefc")]
         for fg, bg in pairs:
             self.assertGreaterEqual(contrast(fg, bg), 4.5, (fg, bg))
+
+    def test_the_soft_palette_has_no_red_alert_colours_and_the_pairs_stay_readable(self):
+        v, css = self.vars()
+        self.assertIn(".band.b-low { background: #fff1cc; color: #5a3d00; }", css)       # low confidence: soft amber, not red
+        self.assertIn(".band.b-medium { background: var(--accent-soft); color: var(--accent-dark); }", css)
+        self.assertIn("button.danger, a.button.danger { background: #fff; border-color: var(--bad); color: var(--bad); }", css)
+        for sel, fg, bg in ((".badge.ok", "ok", "#dff1e5"), (".badge.warn", "warn", "#fdeccc"), (".badge.bad", "bad", "#fdeccc")):
+            self.assertIn(f"{sel} {{ background: {bg}; color: var(--{fg}); }}", css)
+            self.assertGreaterEqual(contrast(v[fg], bg), 4.5, sel)
+        r, g, b = (int(v["bad"][i:i + 2], 16) for i in (1, 3, 5))
+        self.assertLess(r - max(g, b), 100, v["bad"])                                    # not a strong red
 
     def test_focus_ring_is_visible(self):
         v, _ = self.vars()
