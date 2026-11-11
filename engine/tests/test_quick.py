@@ -425,6 +425,33 @@ class AssumptionsAndActions(unittest.TestCase):
         self.assertIn("Documents : mentionné, non lu.", quick.xlsx_notice(q, CAL)[1])
 
 
+class PositiveWording(unittest.TestCase):
+    """The texts the engine hands to the pages and to the Excel export use positive wording (round 2 owner rule)."""
+    EN = re.compile(r"\b(do not|don't|cannot|can't|won't|must not|never|does not|did not|is not|are not|was not|were not)\b", re.I)
+    FR = re.compile(r"\bne\b[^.;:!?]{0,40}\bpas\b|\bn['’]\w+[^.;:!?]{0,40}\bpas\b|\bjamais\b|\bne peut\b", re.I)
+
+    def texts(self, lang):
+        q = answers()
+        q["lang"] = lang
+        out = list(quick.xlsx_notice(q, CAL))
+        out += [a["text"][lang] for a in quick.assumptions(q, CAL)]
+        for title, rows in quick.xlsx_sheets(q, CAL):
+            out += [title] + [str(c) for row in rows for c in row]
+        return out
+
+    def test_assumptions_notice_and_sheets_have_no_negative_wording(self):
+        for lang, rx in (("en", self.EN), ("fr", self.FR)):
+            for text in self.texts(lang):
+                self.assertIsNone(rx.search(text), (lang, text))
+
+    def test_the_excel_notice_names_the_documents_to_add(self):
+        q = answers()
+        self.assertIn("To add: architecture document, business impact analysis, security baseline.", quick.xlsx_notice(q, CAL)[1])
+        q["lang"] = "fr"
+        self.assertIn("À ajouter : document d'architecture, analyse d'impact sur l'activité, socle de sécurité.", quick.xlsx_notice(q, CAL)[1])
+        self.assertEqual([t for t, _ in quick.xlsx_sheets(q, CAL)], ["Hypothèses", "Actions"])
+
+
 class Honesty(unittest.TestCase):
     def test_statement_constants(self):
         self.assertEqual(set(quick.HONESTY), {"en", "fr"})
