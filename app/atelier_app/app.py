@@ -10,7 +10,7 @@ import threading
 import traceback
 import urllib.parse
 
-from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_privacy, views_public, views_quick, workspaces
+from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, shares, stats, views, views_how, views_privacy, views_public, views_quick, workspaces
 from .expert_routes import ExpertRoutes
 from .quick_routes import ORDER, QuickRoutes
 from .storage import NotFound, Store, StudyLimit
@@ -74,7 +74,7 @@ class App(ExpertRoutes, QuickRoutes):
         (see workspaces.py). invite_code (a string, or None for none) is asked on the join screen. behind_proxy=True
         reads the client address from X-Real-IP (set by the local reverse proxy) instead of the socket address."""
         self.data_dir = pathlib.Path(data_dir)
-        views.PUBLISHER = load_publisher(self.data_dir / "publisher.json")
+        views.PUBLISHER = self.publisher = load_publisher(self.data_dir / "publisher.json")
         self.public = bool(public)
         self.invite_code = (invite_code.strip() or None) if isinstance(invite_code, str) else None
         self.behind_proxy = bool(behind_proxy)
@@ -89,11 +89,13 @@ class App(ExpertRoutes, QuickRoutes):
             self.store, self.token_created, self.auth = None, False, auth.Auth("")
             self.workspaces = workspaces.Workspaces(self.data_dir)
             self.join_limiter = workspaces.JoinLimiter()
+            self.stats = stats.Stats(self.data_dir)        # anonymous counts (stats.py)
+            self.shares = shares.Shares(self.data_dir)     # studies sent to the publisher on purpose (shares.py)
         else:
             self.store = Store(self.data_dir)
             token, self.token_created = auth.load_or_create_token(self.token_path)
             self.auth = auth.Auth(token)
-            self.workspaces = None
+            self.workspaces = self.stats = self.shares = None
         self.max_upload = max_upload
         self.extra_hosts = tuple(extra_hosts)
         self.set_port(port)
@@ -127,6 +129,10 @@ class App(ExpertRoutes, QuickRoutes):
     def purge_idle(self, days=workspaces.IDLE_DAYS):
         """Public mode: delete every workspace not visited for `days` days. Returns how many were deleted."""
         return self.workspaces.purge_idle(days) if self.public else 0
+
+    def purge_shared(self, days=shares.KEEP_DAYS):
+        """Public mode: delete the shared studies older than `days` days (a year by default). Returns how many."""
+        return self.shares.purge(days) if self.public else 0
 
     def set_port(self, port):
         self.port = port
@@ -267,6 +273,7 @@ class App(ExpertRoutes, QuickRoutes):
     def forget(self, req):
         """Delete the visitor's workspace at once, clear the cookie, say goodbye."""
         self.workspaces.remove(req.session.user)
+        self._stat("forget")
         resp = Response(views_public.goodbye_page(self._lang(req)))
         resp.header("Set-Cookie", workspaces.clear_cookie_header())
         return resp
@@ -402,6 +409,7 @@ class App(ExpertRoutes, QuickRoutes):
     def export_json(self, req, sid):
         st = self._load(req, sid)
         data = (json.dumps(st, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
+        self._stat("download", kind="study")
         return Response(data, 200, "application/json; charset=utf-8",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "json")}"')])
 
@@ -447,5 +455,6 @@ class App(ExpertRoutes, QuickRoutes):
             except engine.QuickError:
                 notice = sheets = lang = None
         data = engine.to_xlsx_bytes(st, cal, self.tmp_dir, notice, sheets, lang)
+        self._stat("download", kind="xlsx")
         return Response(data, 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         [("Content-Disposition", f'attachment; filename="{self._filename(sid, st, "xlsx")}"')])

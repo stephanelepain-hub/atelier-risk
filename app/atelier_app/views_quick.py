@@ -607,7 +607,8 @@ def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edit
 
 # ------------------------------------------------------------------ screen 4: results
 
-def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions, assumptions, fnd, edited=False, can_xlsx=True):
+def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions, assumptions, fnd, edited=False, can_xlsx=True,
+            share_html=""):
     """Order: the closing summary, your top actions, the maps with their numbered risk list, "See all your risks"
     and "Already in place" (both collapsed), then confidence, the honesty statement, assumptions, downloads and the
     closing line again."""
@@ -691,5 +692,6 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
 <section class="card next-steps"><div class="btns">{export}
 <a class="button secondary" href="/s/{sid}/export.json">{esc(tr(lang, "export_json"))}</a>
 <a class="button secondary" href="/quick/{sid}/about">{esc(tr(lang, "edit_answers"))}</a>{expert}</div></section>
-{closing}"""
+{closing}
+{share_html}"""
     return page(tr(lang, "res_title"), body, session, cal_id=cal["id"], lang=lang, lang_path=f"/quick/{sid}/results")

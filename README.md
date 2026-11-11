@@ -93,6 +93,7 @@ cd .. && python3 -m unittest discover -s app/tests -t .
 Code: Apache License 2.0 (`LICENSE`).
 The `anssi-v1.5` calibration and the example study reproduce material from the ANSSI guide *EBIOS Risk Manager*,
 version 1.5 (2024), published under the Licence Ouverte / Open Licence (Etalab V1). See `NOTICE`.
+The cloud infrastructure risks cite the ANSSI / CERT-FR report CERTFR-2025-CTI-001 by recommendation number only (nothing copied; check the publication's terms); see `catalogues/README.md`.
 EBIOS is a registered trademark of the Secrétariat général de la défense et de la sécurité nationale (SGDSN).
 Atelier is an independent project. It is not affiliated with, endorsed by or labelled by ANSSI, SGDSN or the
 Club EBIOS.

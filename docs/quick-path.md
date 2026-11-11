@@ -157,6 +157,11 @@ its ceiling, `quick.CONFIDENCE_LINE`) read it from there.
 `quick.suggest(profile)` returns the ids for the packs the profile implies (every risk that applies),
 always-assessed risks first. With no answer for "what you use", the packs are `all` and `office-it`.
 
+Packs: `all`, `office-it`, `cloud-service`, `cloud-infra` (servers, apps or data on a public cloud; tool `cloud_infra`),
+`website-shop`, `industrial`. A risk may list several packs; `refs` (optional, required for a risk that belongs to
+`cloud-infra` only) lists the numbers of the recommendations of the cited CERT-FR cloud report that it relates to. The engine
+does not use `refs`; `check_catalogue` checks their shape.
+
 ### Short list and `audience`
 
 `quick.shortlist(profile, catalogue=None, limit=10)` returns the ids pre-ticked on screen 2: the always-assessed risks

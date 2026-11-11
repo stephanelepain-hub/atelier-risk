@@ -120,15 +120,17 @@ def read_invite_code(path):
 
 
 def purge_loop(app, every=3600, stop=None):
-    """Delete the workspaces idle for 30 days now, then once an hour (a daemon thread; `stop` is an Event for tests)."""
+    """Delete the workspaces idle for 30 days and the shared studies kept for 12 months, now and then once an hour (a daemon thread; `stop` is an Event for tests)."""
     stop = stop or threading.Event()
     while True:
-        try:
-            n = app.purge_idle()
-            if n:
-                print(f"Cleared {n} workspace(s) idle for 30 days.", flush=True)
-        except Exception as e:  # keep the loop alive: the next hour tries again
-            print(f"Clean-up failed: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+        for what, fn, said in (("workspaces", app.purge_idle, "Cleared {n} workspace(s) idle for 30 days."),
+                               ("shared studies", app.purge_shared, "Deleted {n} shared stud(ies) kept for 12 months.")):
+            try:
+                n = fn()
+                if n:
+                    print(said.format(n=n), flush=True)
+            except Exception as e:  # keep the loop alive: the next hour tries again
+                print(f"Clean-up of {what} failed: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
         if stop.wait(every):
             return
 

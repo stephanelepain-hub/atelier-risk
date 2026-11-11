@@ -155,7 +155,7 @@ EFFORT = {
     "secrets_vault": ("Keep keys and secrets in a safe store", "Garder clés et secrets dans un coffre", "a few hours", "quelques heures", "it"),
     "key_rotation": ("Replace access keys on a schedule", "Remplacer les clés d'accès régulièrement", "an hour or two", "une heure ou deux", "it"),
     "admin_device": ("Manage the cloud from a dedicated computer", "Gérer le cloud depuis un ordinateur dédié", "a few hours", "quelques heures", "it"),
-    "resource_inventory": ("List what you run and switch off the rest", "Lister ce qui tourne, éteindre le reste", "an hour or two", "une heure ou deux", "it"),
+    "resource_inventory": ("Remove unused servers and services", "Retirer les serveurs et services inutilisés", "an hour or two", "une heure ou deux", "it"),
     "exposure_review": ("Check what is open to the internet", "Vérifier ce qui est ouvert sur internet", "an hour or two", "une heure ou deux", "it"),
     "separate_backup": ("Keep backups in a separate account", "Garder les sauvegardes dans un compte séparé", "a few hours", "quelques heures", "it"),
     "activity_logs": ("Switch on the cloud activity log", "Activer le journal d'activité du cloud", "an hour or two", "une heure ou deux", "it"),

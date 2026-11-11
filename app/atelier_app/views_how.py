@@ -21,6 +21,7 @@ T = {
                     "<b>Now and after</b> are workshops 4 and 5: how likely each risk is, what you already do and what you could add.",
                     "<b>Results</b> are workshop 5: your risks on two maps, and the actions to start with."],
         "screens_note": "It is a shorter form of the method, a first view rather than a full analysis.",
+        "cloud": "Cloud infrastructure (servers, apps or data on a public cloud) is covered with the same method.",
         "h_numbers": "Where the numbers come from",
         "numbers": ["The scales and the risk grid come from the ANSSI guide, version 1.5 (September 2024). The numbers are "
                     "the guide's; only the names are in plain words.",
@@ -60,6 +61,7 @@ T = {
                     "<b>Maintenant et après</b> correspond aux ateliers 4 et 5 : la vraisemblance de chaque risque, ce que vous faites déjà et ce que vous pourriez ajouter.",
                     "<b>Résultats</b> correspond à l'atelier 5 : vos risques sur deux cartes, et les actions par lesquelles commencer."],
         "screens_note": "C'est une forme abrégée de la méthode : une première vue, pas une analyse complète.",
+        "cloud": "L'infrastructure cloud (serveurs, applications ou données sur un cloud public) est couverte avec la même méthode.",
         "h_numbers": "D'où viennent les chiffres",
         "numbers": ["Les échelles et la grille des risques viennent du guide de l'ANSSI, version 1.5 (septembre 2024). Les "
                     "chiffres sont ceux du guide ; seuls les noms sont en mots simples.",
@@ -99,7 +101,8 @@ def how(session, lang, public=False):
 <p><a href="{METHOD_URL}" rel="noopener noreferrer">{esc(t["method_link"])}</a> &middot;
 <a href="{GUIDE_URL}" rel="noopener noreferrer">{esc(t["guide_link"])}</a></p></section>
 <section class="card"><h2>{esc(t["h_screens"])}</h2>
-<ol>{"".join(f"<li>{x}</li>" for x in t["screens"])}</ol><p class="hint">{esc(t["screens_note"])}</p></section>
+<ol>{"".join(f"<li>{x}</li>" for x in t["screens"])}</ol><p class="hint">{esc(t["screens_note"])}</p>
+<p class="hint">{esc(t["cloud"])}</p></section>
 <section class="card"><h2>{esc(t["h_numbers"])}</h2>
 <ul>{"".join(f"<li>{esc(x)}</li>" for x in t["numbers"])}</ul>
 <h3>{esc(t["h_scales"])}</h3>

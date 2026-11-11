@@ -124,8 +124,55 @@ origin, the Content-Security-Policy is unchanged) reads the chosen file and post
 and builds the study again from them, so what is stored has the engine's own shape. Anything else gives 400 and a
 kind message. The study lands in the visitor's workspace with a new id and opens at the screen where it was saved.
 
+**Send my study to CPLT.** When `publisher.json` has an `email`, the results page ends with one card, "Want a deeper
+look?": a form `POST /quick/<id>/share` (with the form token) with `email` (required, checked), `message` (optional, at
+most 500 characters) and a `consent` box that starts unticked. A missing consent or a bad email gives a kind 400 page and
+stores nothing. The copy goes outside the workspace:
+
+| Path | Content |
+|---|---|
+| `<data>/shared/` | mode 0700 |
+| `.../<UTC date>-<16 random hex>/` | one share (mode 0700) |
+| `.../study.json` | the quick study, the same text as "Download the study file" (mode 0600) |
+| `.../contact.json` | `email`, `message`, `lang`, `created` (ISO UTC), `study_name` (mode 0600) |
+
+The app sends no email and makes no outbound call: the publisher reads the folders and replies from their own mailbox.
+Limits: 3 shares per workspace per UTC day (the 4th gets a kind 429 page; the dates are kept in the file `shares` of the
+workspace) and 2000 shared folders in total (then a kind "full for now, write to <email>" page, HTTP 503). The thank-you
+page says what happens next and the 12 months. `App.purge_shared(days=365)` deletes the shared folders older than that
+(by the date in the name, or by the folder's own time when older); the server runs it at start and every hour, next to
+`purge_idle`. Delete my data keeps the shared copies (they were sent on purpose): the privacy page says to write to the
+publisher address to remove one. Without an `email` in `publisher.json`, or in local mode, the card is absent and
+the route answers 404.
+
+**Anonymous counts.** One JSON line per event is appended to `<data>/stats/<YYYY-MM>.jsonl` (folder 0700, file 0600):
+`{"day": "YYYY-MM-DD", "event": ...}` plus only catalogue ids and short answer words.
+
+| Event | Fields |
+|---|---|
+| `study_started` | `tools` (tool ids), `sensitivity`, `downtime` (answer words, `dont_know` or `unanswered`) |
+| `step_reached` | `step` (`risks`, `now`, `results`; reached for the first time by that study) |
+| `risk_discarded` | `risk` (a catalogue id, when a ticked risk is unticked) |
+| `risk_added` | none (the text is never kept) |
+| `measures` | `measures`: measure id to `in`, `extra` or `none`, once, on reaching the results |
+| `download` | `kind`: `xlsx` or `study` (`maps` is allowed in the file format; the app has no separate maps download yet, so it writes none) |
+| `shared`, `forget` | none |
+
+`stats.clean` builds each line from this list, so a line holds no workspace id or hash, no study id, no IP address, no
+browser name, no time finer than the day, no typed text and no email. Writing a count never stops a page. Read the counts
+with `cd app && python3 -m atelier_app.stats <data_dir> [--month YYYY-MM]`: it prints studies started, studies that reached
+each step, the most discarded risks, the most chosen measures, downloads and shares (all months without `--month`). Local
+mode writes no counts.
+
 **How it works.** In public mode the "Your data" section says that the answers stay in a private space that only the
 browser can open, cleared after 30 days without a visit or at any time with Delete my data.
+
+### Cloud infrastructure
+
+The first screen has a tool "Servers, apps or data on AWS, Google Cloud or Microsoft Azure" (id `cloud_infra`). It
+implies the pack `cloud-infra`, which has the same structure as the other packs: it is catalogue content only, with no new
+engine path, scale, screen, origin or objective (catalogues/README.md lists the risks, their `refs` to the CERT-FR report
+CERTFR-2025-CTI-001, and the licence note). The three provider names appear only in the tool's label and example, and here.
 
 ## Where data lives
 
@@ -134,6 +181,7 @@ browser can open, cleared after 30 days without a visit or at any time with Dele
 | `~/.local/share/atelier/` | data directory (mode 0700); override with `--data-dir` or `ATELIER_DATA_DIR` |
 | `studies/<id>.json` | one study per file, in the engine's `atelier-study` format (docs/study-format.md); the quick answers are under its `quick` key |
 | `studies/<id>.json.bak` | the previous version, rewritten on every save |
+| `shared/`, `stats/` | public mode only: studies sent to the publisher, anonymous counts (see Public mode) |
 | `studies/trash/` | deleted studies (delete moves the file here, it does not erase it) |
 | `tmp/` | private temporary files of the Excel export, removed right after each download |
 | `server.log`, `run/` | the launcher's server log and pid file |
@@ -207,6 +255,7 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 | `app/atelier_app/storage.py` | study files |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
 | `app/atelier_app/workspaces.py`, `views_public.py` | public mode: workspaces, join limit, clean-up; join, goodbye, limit pages and the saved-file form |
+| `app/atelier_app/shares.py`, `views_share.py`, `stats.py` | public mode: studies sent to the publisher (folders, limits, purge) and their card and pages; anonymous counts and `python3 -m atelier_app.stats` |
 | `app/atelier_app/config.py`, `web.py`, `server.py` | settings, HTTP plumbing, the server |
 | `app/static/` | the CSS and JS files the pages load |
 | `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`); `no_openpyxl.py` runs the same tests as if openpyxl were missing (the Excel tests skip) |
@@ -230,4 +279,6 @@ with a link, and an optional feedback link:
 {"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact", "email": "hello@cplt.tech"}
 ```
 
-Both URLs must be https; `email` (optional) is shown as a mail link. A missing or invalid file shows no footer.
+Both URLs must be https; `email` (optional) is shown as a mail link and turns on "Send my study to CPLT" in public mode. A
+missing or invalid file shows no footer. The footer reads "Atelier is offered by NAME, site · email." then, when set, the
+feedback line and the privacy link joined by a middle dot (the privacy link exists in public mode).

@@ -16,14 +16,22 @@ T = {
             ("What we keep",
              "The answers you type, in a private space linked to one cookie in your browser. Atelier asks for no "
              "account, no name and no email address. In the text boxes, describe your work in general terms and "
-             "leave out names and confidential details."),
+             "leave out names and confidential details. We also keep anonymous counts, such as how many studies reach the "
+             "results or which measures people choose. They are anonymous, with no identifier and none of your text, and we use "
+             "them to improve Atelier (legal basis: GDPR article 6(1)(f))."),
             ("For how long",
              "Your private space is deleted 30 days after your last visit, or at once with Delete my data. "
-             "Download the results or the study file to keep a copy."),
+             "Download the results or the study file to keep a copy. A study you send us is kept for 12 months (see below)."),
             ("Who can see your answers",
              "Through the app, only your browser opens your private space. Your answers go to no AI service, "
-             "advertiser or other company: only our hosting provider stores them. The CPLT team opens a private "
-             "space only when you ask us for help with it."),
+             "advertiser or other company: only our hosting provider stores them. The CPLT team reads a study only "
+             "when you send it to us, and opens a private space only when you ask us for help with it."),
+            ("If you send us your study",
+             "When you choose Send your study to CPLT, we receive a copy of your answers, including the text you typed, "
+             "your email address and your optional message. We use them to reply to you by email with a fuller "
+             "strategy. We keep them for 12 months, then delete them. The legal basis is your consent (GDPR article "
+             "6(1)(a)). You can withdraw it, or ask us to delete your copy, with one email to {email}. Delete my data "
+             "leaves this copy in place, because you sent it on purpose."),
             ("Cookies",
              "Only the cookies the app needs to work: your private space, your language, Expert mode and a "
              "protection for the forms. Atelier uses no analytics, tracking or advertising cookies, so there is "
@@ -39,7 +47,8 @@ T = {
              "contact the CNIL, the French data protection authority."),
             ("Legal basis",
              "We keep your answers to provide the service you ask for (GDPR article 6(1)(b)), and the server logs "
-             "to keep the service safe (article 6(1)(f))."),
+             "and the anonymous counts to keep the service safe and improve it (article 6(1)(f)). A study you send us "
+             "rests on your consent (article 6(1)(a))."),
         ],
         "updated": "Last updated: {date}.",
     },
@@ -52,14 +61,26 @@ T = {
             ("Ce que nous gardons",
              "Les réponses que vous saisissez, dans un espace privé lié à un cookie de votre navigateur. Atelier "
              "fonctionne sans compte, sans nom et sans adresse e-mail. Dans les zones de texte, décrivez votre "
-             "activité en termes généraux, sans noms ni détails confidentiels."),
+             "activité en termes généraux, sans noms ni détails confidentiels. Nous gardons aussi des comptages anonymes, "
+             "par exemple combien d'études arrivent aux résultats ou quelles mesures les personnes choisissent. Ils "
+             "sont anonymes, sans identifiant et sans aucun de vos textes, et nous les utilisons pour améliorer Atelier "
+             "(base légale : article 6(1)(f) du RGPD)."),
             ("Combien de temps",
              "Votre espace privé est effacé 30 jours après votre dernière visite, ou tout de suite avec Effacer mes "
-             "données. Téléchargez les résultats ou le fichier d'étude pour en garder une copie."),
+             "données. Téléchargez les résultats ou le fichier d'étude pour en garder une copie. Une étude que vous nous "
+             "envoyez est conservée 12 mois (voir plus bas)."),
             ("Qui voit vos réponses",
              "Dans l'application, seul votre navigateur ouvre votre espace privé. Aucun service d'IA, annonceur ou "
-             "autre entreprise ne reçoit vos réponses : seul notre hébergeur les stocke. L'équipe CPLT ouvre un "
-             "espace privé uniquement si vous lui demandez de l'aide à son sujet."),
+             "autre entreprise ne reçoit vos réponses : seul notre hébergeur les stocke. L'équipe CPLT lit une étude "
+             "uniquement si vous nous l'envoyez, et ouvre un espace privé uniquement si vous lui demandez de l'aide à "
+             "son sujet."),
+            ("Si vous nous envoyez votre étude",
+             "Quand vous choisissez Envoyer votre étude à CPLT, nous recevons une copie de vos réponses, y compris les "
+             "textes saisis, votre adresse e-mail et votre message facultatif. Nous les utilisons pour vous répondre "
+             "par e-mail avec une stratégie plus complète. Nous les conservons 12 mois, puis nous les supprimons. La "
+             "base légale est votre consentement (article 6(1)(a) du RGPD). Vous pouvez le retirer, ou demander la "
+             "suppression de votre copie, par un e-mail à {email}. Effacer mes données laisse cette copie en place, "
+             "car vous l'avez envoyée volontairement."),
             ("Cookies",
              "Uniquement les cookies utiles au fonctionnement : votre espace privé, votre langue, le mode Expert et "
              "une protection des formulaires. Atelier se passe de cookies de mesure d'audience, de suivi ou de "
@@ -75,7 +96,8 @@ T = {
              "d'étude vous en donnent l'essentiel tout de suite. Vous pouvez aussi saisir la CNIL."),
             ("Base légale",
              "Nous gardons vos réponses pour fournir le service que vous demandez (article 6(1)(b) du RGPD), et les "
-             "journaux du serveur pour garder le service sûr (article 6(1)(f))."),
+             "journaux du serveur et les comptages anonymes pour garder le service sûr et l'améliorer (article "
+             "6(1)(f)). Une étude que vous nous envoyez repose sur votre consentement (article 6(1)(a))."),
         ],
         "updated": "Dernière mise à jour : {date}.",
     },

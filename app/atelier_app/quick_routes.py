@@ -2,7 +2,7 @@
 import copy
 import json
 
-from . import calibrations, engine, findings, views_public, views_quick
+from . import calibrations, engine, findings, shares, views_public, views_quick, views_share
 from .web import HTTPError, Response, redirect
 
 LANGS = ("en", "fr")
@@ -22,6 +22,12 @@ def _lines(text):
     return out
 
 
+def _answer(prof, key):
+    """The plain answer of an About-you question as a word for the counts: the answer, "dont_know" or "unanswered"."""
+    slot = prof.get(key) or {}
+    return "dont_know" if slot.get("dont_know") else slot.get("answer") or "unanswered"
+
+
 class QuickRoutes:
     catalogue_cache = None
 
@@ -38,8 +44,46 @@ class QuickRoutes:
         router.add("GET", rf"/quick/{SID}/results", self.quick_results)
         if getattr(self, "public", False):
             router.add("POST", r"/quick/open", self.quick_open)
+            router.add("POST", rf"/quick/{SID}/share", self.quick_share)
 
     # ---------- shared ----------
+
+    def _stat(self, event, **fields):
+        """Public mode: count one anonymous event (stats.py). Only catalogue ids and short answer words are kept: an id
+        that is not in the catalogue (a risk of the person's own, say) is dropped here, before stats.clean runs."""
+        counter = getattr(self, "stats", None)
+        if counter is None:
+            return
+        try:
+            cat = self.quick_catalogue()
+            if "tools" in fields:
+                known = {t["id"] for t in cat["tools"]}
+                fields["tools"] = [t for t in fields["tools"] if t in known]
+            if "risk" in fields and fields["risk"] not in {r["id"] for r in cat["risks"]}:
+                return
+            if "measures" in fields:
+                known = {m["id"] for r in cat["risks"] for m in r["measures"]} | {m["id"] for m in cat.get("generic_measures") or []}
+                fields["measures"] = {k: v for k, v in fields["measures"].items() if k in known}
+        except Exception:
+            return
+        counter.record(event, **fields)
+
+    def _reached(self, before, quick):
+        """Count the step a study has just reached when it is further than before; on reaching the results, also count
+        the answers to the measures (each measure: in place, planned, or neither)."""
+        after = quick.get("step") if quick.get("step") in ORDER else "about"
+        if ORDER.index(after) <= ORDER.index(before if before in ORDER else "about"):
+            return
+        self._stat("step_reached", step=after)
+        if after == "results":
+            org = engine.quick_org_measures(quick)
+            self._stat("measures", measures={m["id"]: "in" if m["id"] in org["in_place"] else "extra" if m["id"] in org["extra"] else "none"
+                                             for m in engine.quick_measure_list(quick, self.quick_catalogue())})
+
+    def _share_on(self):
+        """The "Send my study" offer needs public mode and a contact email in publisher.json."""
+        pub = getattr(self, "publisher", None)
+        return bool(getattr(self, "public", False) and pub and pub.get("email"))
 
     def quick_catalogue(self):
         if QuickRoutes.catalogue_cache is None:
@@ -183,6 +227,9 @@ class QuickRoutes:
         quick = dict(QUICK_FORMAT, lang=lang, step="risks", profile=dict(prof), risks=[])
         self._sync_risks(quick)
         sid = self.store_for(req.session).create(self._quick_build(quick, cal))
+        self._stat("study_started", tools=(prof["tools"].get("value") or []), sensitivity=_answer(prof, "sensitivity"),
+                   downtime=_answer(prof, "downtime"))
+        self._stat("step_reached", step="risks")
         return redirect(f"/quick/{sid}/risks")
 
     def quick_open(self, req):
@@ -254,8 +301,10 @@ class QuickRoutes:
             quick["lang"] = lang
             quick["profile"] = prof
             self._sync_risks(quick)
+            before = quick.get("step")
             self._advance(quick, "about")
             self._save(req, sid, st, quick, cal)
+            self._reached(before, quick)
         return redirect(f"/quick/{sid}/risks")
 
     # ---------- screen 2: risks ----------
@@ -295,6 +344,7 @@ class QuickRoutes:
                 return Response(views_quick.risks(req.session, sid, lang, cat, quick, state, errors,
                                                   edited=self._edited_in_expert_mode(st, quick, cal),
                                                   shortlist=engine.quick_shortlist(quick["profile"], cat)), 400)
+            was_kept = {e["id"] for e in quick["risks"] if e.get("decision") == "keep"}
             for e in quick["risks"]:
                 e["decision"] = "keep" if e["id"] in kept else "discard"
                 if state["reasons"][e["id"]]:
@@ -302,7 +352,7 @@ class QuickRoutes:
                 else:
                     e.pop("reason", None)
             used = {e["id"] for e in quick["risks"]}
-            n = 1
+            n, added = 1, 0
             for row in state["new"]:
                 if not row["title"]:
                     continue
@@ -313,9 +363,16 @@ class QuickRoutes:
                 quick["risks"].append({"id": rid, "decision": "keep", "custom": {
                     "title": row["title"], "family": row["family"],
                     "criteria": row["criteria"] or ["confidentiality", "integrity", "availability"]}})
+                added += 1
             quick["lang"] = lang
+            before = quick.get("step")
             self._advance(quick, "risks")
             self._save(req, sid, st, quick, cal)
+            for rid in sorted(was_kept - kept):
+                self._stat("risk_discarded", risk=rid)
+            for _ in range(added):
+                self._stat("risk_added")
+            self._reached(before, quick)
         return redirect(f"/quick/{sid}/now")
 
     # ---------- screen 3: now and after ----------
@@ -382,9 +439,11 @@ class QuickRoutes:
                                  "assessed": True}
             quick["lang"] = lang
             go = req.field("go")
+            before = quick.get("step")
             if go == "next":
                 self._advance(quick, "now")
             self._save(req, sid, st, quick, cal)
+            self._reached(before, quick)
         return redirect(f"/quick/{sid}/results" if go == "next" else f"/quick/{sid}/now?f=saved")
 
     # ---------- screen 4: results ----------
@@ -404,5 +463,31 @@ class QuickRoutes:
             req.session, sid, lang, cat, quick, cal, rows, reg_rows, engine.quick_facts(quick, cal, cat),
             engine.quick_actions(quick, cal, cat, 5), engine.quick_assumptions(quick, cal, cat),
             findings.build(quick, cat, cal, rows, engine.quick_actions(quick, cal, cat, 5), lang),
-            edited=self._edited_in_expert_mode(st, quick, cal), can_xlsx=engine.have_xlsx()))
+            edited=self._edited_in_expert_mode(st, quick, cal), can_xlsx=engine.have_xlsx(),
+            share_html=views_share.card(req.session, sid, lang) if self._share_on() else ""))
         return self._remember(req, resp, lang)
+
+    # ---------- results: "Send my study to CPLT" (public mode, when publisher.json has an email) ----------
+
+    def quick_share(self, req, sid):
+        """Store a copy of the study, with the email and message, for the publisher (shares.py). Needs the consent box,
+        a valid email and a message of at most 500 characters; otherwise a kind 400 page and nothing is stored."""
+        if not self._share_on():
+            raise HTTPError(404, "not found")
+        st, quick = self._quick_study(req, sid)
+        lang = self._lang(req, quick)
+        email, message = req.field("email").strip(), req.field("message").strip()
+        for ok, key in ((bool(req.field("consent")), "bad_consent"), (shares.valid_email(email), "bad_email"),
+                        (len(message) <= shares.MAX_MESSAGE, "bad_message")):
+            if not ok:
+                return Response(views_share.bad_page(lang, req.session, sid, key), 400)
+        meta = st.get("study") if isinstance(st.get("study"), dict) else {}
+        data = (json.dumps(st, ensure_ascii=False, indent=1) + "\n").encode("utf-8")   # the same text as the study file download
+        try:
+            self.shares.create(self.workspaces.folder(req.session.user), data, email, message, lang, str(meta.get("name") or ""))
+        except shares.TooManyToday:
+            return Response(views_share.limit_page(lang, req.session, sid), 429)
+        except shares.SharedFull:
+            return Response(views_share.full_page(lang, req.session, sid, self.publisher["email"]), 503, headers=[("Retry-After", "3600")])
+        self._stat("shared")
+        return Response(views_share.thanks_page(lang, req.session, sid, self.publisher["email"]))

@@ -256,7 +256,7 @@ class HowPageTest(qp.Base):
     def test_the_sources_named_are_those_of_the_catalogue(self):
         cat = engine.quick_catalogue()
         ids = {s["id"] for s in cat["sources"]}
-        self.assertEqual(ids, {"ebios-rm-1.5", "nist-800-30r1"})
+        self.assertEqual(ids, {"ebios-rm-1.5", "nist-800-30r1", "certfr-2025-cti-001"})
         en = self.page("/how")
         self.assertIn("ANSSI guide", en)
         self.assertIn("NIST SP 800-30", en)
