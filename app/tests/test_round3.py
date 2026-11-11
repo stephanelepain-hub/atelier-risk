@@ -156,6 +156,34 @@ class MeasuresAnsweredOnceTest(Round3Base):
         self.assertIn("Already in place (1)", res)
 
 
+class OldStudyBannerTest(Round3Base):
+    """A study saved with answers per risk opens without the "changed in expert mode" note; a real expert edit still shows it."""
+
+    def legacy(self):
+        sid = self.typical()
+        st = self.study(sid)
+        q = st["quick"]
+        del q["measures"]
+        for e in q["risks"]:
+            e["assessed"], e["in_place"], e["extra"] = True, [], []
+        q["risks"][0]["extra"], q["risks"][1]["extra"] = ["mfa"], ["mfa", "awareness"]
+        self.app.store.save(sid, st)
+        return sid
+
+    def test_no_false_note_on_an_old_study(self):
+        sid = self.legacy()
+        for page in ("about", "risks", "now", "results"):
+            self.assertNotIn("changed in expert mode", self.page(f"/quick/{sid}/{page}"), page)
+        self.assertNotIn("measures", self.study(sid)["quick"])            # opening a page does not rewrite the file
+
+    def test_a_real_expert_edit_of_an_old_study_still_shows_the_note(self):
+        sid = self.legacy()
+        st = self.study(sid)
+        st["feared_events"][0]["label"] = "Edited by hand in expert mode"
+        self.app.store.save(sid, st)
+        self.assertIn("changed in expert mode", self.page(f"/quick/{sid}/now"))
+
+
 class PlainResultsTest(Round3Base):
     """Items 4 and 5."""
 
@@ -163,7 +191,9 @@ class PlainResultsTest(Round3Base):
         for lang in ("en", "fr"):
             sid = self.typical(lang)
             res = self.page(f"/quick/{sid}/results?lang={lang}")
-            above = res[:res.index("<details")]
+            self.assertLess(res.index('<details class="see-all">'), res.index('<details class="in-place-box">'))
+            above = res[:res.index('<details class="see-all">')]            # everything before the first collapsed section
+            self.assertNotIn("<details", above)
             self.assertLessEqual(visible_words(above.split("<main", 1)[1]), 350, lang)           # what people read
             if lang == "en":       # strictest count (header, tooltips, every text above): the English page; French words run longer
                 self.assertLessEqual(visible_words(above, keep_svg_titles=True), 350, lang)

@@ -1,4 +1,6 @@
 """Quick-path handlers: the home page and the four screens. Levels, confidence and the study come from the engine."""
+import copy
+
 from . import calibrations, engine, findings, views_quick
 from .web import HTTPError, Response, redirect
 
@@ -67,8 +69,9 @@ class QuickRoutes:
         quick = st.get("quick")
         if not isinstance(quick, dict):
             raise HTTPError(404, "this study was not made with the quick path")
-        engine.quick_migrate(quick)   # answers saved per risk become answers for the whole business (the next save keeps them so)
-        return st, quick
+        # A copy in the current shape: answers saved per risk become answers for the whole business. The stored study
+        # keeps its old shape until the next save rebuilds it.
+        return st, engine.quick_migrate(copy.deepcopy(quick))
 
     def _cal(self, st):
         cal_id = calibrations.of_study(st)
@@ -89,7 +92,12 @@ class QuickRoutes:
             fresh = engine.quick_build(quick, cal, self.quick_catalogue())
         except engine.QuickError:
             return False
-        return any(st.get(k) != fresh.get(k) for k in engine.COLLECTIONS)
+        keys = list(engine.COLLECTIONS)
+        if not isinstance((st.get("quick") or {}).get("measures"), dict):
+            # saved before the measures were answered once: its measures, baseline and risk rows were built per risk
+            # and differ from a fresh build without any expert edit, so only the other collections are compared
+            keys = [k for k in keys if k not in ("baseline", "measures", "risks")]
+        return any(st.get(k) != fresh.get(k) for k in keys)
 
     def _save(self, req, sid, old, quick, cal):
         """Rebuild the study from the quick answers and save it (the store keeps the previous file as .bak)."""
