@@ -229,6 +229,7 @@ class QuickRoutes:
         sid = self.store_for(req.session).create(self._quick_build(quick, cal))
         self._stat("study_started", tools=(prof["tools"].get("value") or []), sensitivity=_answer(prof, "sensitivity"),
                    downtime=_answer(prof, "downtime"))
+        self._stat("step_reached", step="about")     # the About-you screen was filled in; the study now waits at the risks screen
         self._stat("step_reached", step="risks")
         return redirect(f"/quick/{sid}/risks")
 

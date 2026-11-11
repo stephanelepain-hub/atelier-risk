@@ -441,10 +441,10 @@ class StatsTest(Cleanup, unittest.TestCase):
         self.c.post_csrf("/forget", {}, page="/")
         lines = stat_lines(self.app)
         events = [d["event"] for d in lines]
-        self.assertEqual(events[:2], ["study_started", "step_reached"])
+        self.assertEqual(events[:3], ["study_started", "step_reached", "step_reached"])
         for ev in ("risk_discarded", "risk_added", "measures", "download", "shared", "forget"):
             self.assertIn(ev, events, ev)
-        self.assertEqual([d["step"] for d in lines if d["event"] == "step_reached"], ["risks", "now", "results"])
+        self.assertEqual([d["step"] for d in lines if d["event"] == "step_reached"], ["about", "risks", "now", "results"])
         started = lines[0]
         self.assertEqual((started["tools"], started["sensitivity"], started["downtime"]), (["cloud_infra"], "internal", "day"))
         self.assertEqual([d["risk"] for d in lines if d["event"] == "risk_discarded"], ["D16"])

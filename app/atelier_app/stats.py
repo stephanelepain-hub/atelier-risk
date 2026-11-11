@@ -152,7 +152,7 @@ def summary(lines, top=10):
     chosen.update(planned)
     chosen.update(placed)
     return {"started": ev["study_started"],
-            "reached": {"about": ev["study_started"], **{s: steps[s] for s in STEPS[1:]}},
+            "reached": {s: steps[s] for s in STEPS},
             "discarded": discarded.most_common(top),
             "measures": [(m, n, planned[m], placed[m]) for m, n in chosen.most_common(top)],
             "downloads": {k: sum(1 for d in lines if d["event"] == "download" and d.get("kind") == k) for k in DOWNLOADS},

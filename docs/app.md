@@ -151,7 +151,7 @@ the route answers 404.
 | Event | Fields |
 |---|---|
 | `study_started` | `tools` (tool ids), `sensitivity`, `downtime` (answer words, `dont_know` or `unanswered`) |
-| `step_reached` | `step` (`risks`, `now`, `results`; reached for the first time by that study) |
+| `step_reached` | `step` (`about`, `risks`, `now`, `results`; each counted once per study, when it is first reached) |
 | `risk_discarded` | `risk` (a catalogue id, when a ticked risk is unticked) |
 | `risk_added` | none (the text is never kept) |
 | `measures` | `measures`: measure id to `in`, `extra` or `none`, once, on reaching the results |
