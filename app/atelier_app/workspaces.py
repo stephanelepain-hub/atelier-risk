@@ -22,6 +22,8 @@ COOKIE = auth.SESSION_COOKIE                  # the same cookie name as the loca
 ID_RE = re.compile(r"[A-Za-z0-9_-]{43}")        # secrets.token_urlsafe(32): 256 bits
 HASH_RE = re.compile(r"[0-9a-f]{64}")
 MAX_WORKSPACES = 5000
+MAX_STUDY_BYTES = 512 * 1024      # one study file; 20 studies x 5000 workspaces stays within about 50 GB
+MIN_FREE_BYTES = 2 * 1024 ** 3    # new workspaces wait while the disk has less free space than this
 MAX_STUDIES = 20
 IDLE_DAYS = 30
 JOIN_WINDOW = 10 * 60
@@ -96,6 +98,8 @@ class Workspaces:
         return [p.name for p in self.root.iterdir() if HASH_RE.fullmatch(p.name) and p.is_dir() and not p.is_symlink()]
 
     def full(self):
+        if shutil.disk_usage(self.root).free < MIN_FREE_BYTES:
+            return True
         return len(self.hashes()) >= self.max_workspaces
 
     def find(self, wid):
@@ -115,7 +119,7 @@ class Workspaces:
         with self.lock:
             st = self.stores.get(h)
             if st is None:
-                st = self.stores[h] = Store(self.folder(h), max_studies=self.max_studies, keep_trash=False)
+                st = self.stores[h] = Store(self.folder(h), max_studies=self.max_studies, keep_trash=False, max_bytes=MAX_STUDY_BYTES)
             return st
 
     def session(self, wid, h):

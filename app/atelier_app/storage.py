@@ -58,10 +58,12 @@ def atomic_write(path, data):
 
 
 class Store:
-    def __init__(self, root, max_studies=None, keep_trash=True):
+    def __init__(self, root, max_studies=None, keep_trash=True, max_bytes=None):
         """max_studies: refuse `create` beyond this many studies (None = no limit). keep_trash=False removes a deleted
-        study for good (public mode) instead of moving it to studies/trash/."""
+        study for good (public mode) instead of moving it to studies/trash/. max_bytes: refuse to write a study file
+        larger than this (public mode keeps the disk use of a workspace bounded)."""
         self.max_studies = max_studies
+        self.max_bytes = max_bytes
         self.keep_trash = keep_trash
         self.root = pathlib.Path(root)
         self.dir = self.root / "studies"
@@ -117,6 +119,9 @@ class Store:
 
     def _write(self, p, study):
         data = (json.dumps(study, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
+        if self.max_bytes is not None and len(data) > self.max_bytes:
+            from .web import HTTPError
+            raise HTTPError(413, "This study has reached its size limit. Shorter texts will fit.")
         if p.exists():
             atomic_write(p.with_name(p.name + ".bak"), p.read_bytes())
         atomic_write(p, data)
