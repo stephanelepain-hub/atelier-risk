@@ -1073,5 +1073,32 @@ class PrivacyPage(unittest.TestCase):
             helpers.cleanup(d)
 
 
+class HeaderNavWithPublisher(unittest.TestCase):
+    """With a publisher footer configured, the header keeps its own links (regression: a footer variable once
+    overwrote them and the header showed a Python list)."""
+
+    def test_header_nav_intact(self):
+        d = tempfile.mkdtemp(prefix="atelier-test-")
+        try:
+            (pathlib.Path(d) / "publisher.json").write_text(json.dumps(
+                {"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/atelier",
+                 "email": "hello@cplt.tech"}))
+            from atelier_app.app import App
+            app = App(d, port=8770, public=True, invite_code=None)
+            c = helpers.Client(app)
+            for path in ("/join?lang=en", "/privacy?lang=fr"):
+                nav = re.search(r"<nav>(.*?)</nav>", c.text(c.get(path)), re.S).group(1)
+                self.assertNotIn("[", nav, path); self.assertNotIn("Share it", nav, path)
+            pre = re.search(r'name="pre" value="([^"]+)"', c.text(c.get("/join"))).group(1)
+            c.post("/join", {"pre": pre})
+            nav = re.search(r"<nav>(.*?)</nav>", c.text(c.get("/?lang=en")), re.S).group(1)
+            self.assertIn('href="/studies"', nav)
+            self.assertNotIn("[", nav)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+            from atelier_app import views
+            views.PUBLISHER = None
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -173,13 +173,13 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
         mail = f' · <a href="mailto:{esc(pub["email"])}">{esc(pub["email"])}</a>' if pub.get("email") else ""
         # first sentence: who offers Atelier, with the email when there is one, ended by one full stop; then the feedback
         # line and the privacy link, joined by a middle dot. Every combination reads cleanly (no stop before a dot).
-        links = []
+        extras = []
         if pub.get("feedback_url"):
-            links.append(f'{esc(n["feedback"])} <a href="{esc(pub["feedback_url"])}" target="_blank" '
+            extras.append(f'{esc(n["feedback"])} <a href="{esc(pub["feedback_url"])}" target="_blank" '
                          f'rel="noopener noreferrer">{esc(n["feedback_link"])}</a>')
         if PRIVACY_PAGE:
-            links.append(f'<a href="/privacy?lang={esc(lang)}">{esc(n["privacy"])}</a>')
-        rest = (" " + " · ".join(links)) if links else ""
+            extras.append(f'<a href="/privacy?lang={esc(lang)}">{esc(n["privacy"])}</a>')
+        rest = (" " + " · ".join(extras)) if extras else ""
         footer = (f'<footer class="publisher"><p>{esc(n["offered"])} <strong>{esc(pub["name"])}</strong>, '
                   f'<a href="{esc(pub["url"])}" target="_blank" rel="noopener noreferrer">{esc(host)}</a>{mail}.{rest}</p></footer>')
     return f"""<!doctype html>
