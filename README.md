@@ -7,7 +7,20 @@ confidence figure. The method behind it is the EBIOS Risk Manager method publish
 cybersecurity agency; ANSSI states that EBIOS Risk Manager conforms with ISO/IEC 27005:2022. The levels come from
 the published `anssi-v1.5` calibration and are computed by the engine, never typed in and never guessed by the app.
 
-Status: early (v0.1), for beta testers.
+Status: early (v0.1), for beta testers. Atelier is offered by CPLT ([cplt.tech](https://cplt.tech)).
+
+## Try it online (beta)
+
+We are looking for beta testers: people who run or manage a small organisation (up to about 50 people), and the IT
+people who help them.
+
+1. Open [atelier.cplt.online](https://atelier.cplt.online) and enter the invite code `cplt-cqe0vg`.
+2. Answer the questions. It takes about 15 minutes, in English or French, and you need no account.
+3. Tell us what felt unclear, slow or missing, with the "Share it" link at the bottom of every page or in an issue
+   here.
+
+Your answers stay in a private space that only your browser can open. It is cleared after 30 days without a visit,
+and "Delete my data" clears it at once.
 
 ## Honesty statement
 

@@ -40,6 +40,27 @@ def allowed_hosts_for(port, extra=()):
     return {f"127.0.0.1:{port}", f"localhost:{port}"} | {h.lower() for h in extra}
 
 
+def _safe_https(url):
+    return (type(url) is str and url.startswith("https://") and len(url) < 300
+            and not any(c in url for c in '"<>\' \t\n'))
+
+
+def load_publisher(path):
+    """`publisher.json`: {"name": "...", "url": "https://...", "feedback_url": "https://..." (optional)}. Anything
+    else (missing file, bad JSON, a non-https URL, a long name) gives None: no footer."""
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if type(d) is not dict or type(d.get("name")) is not str or not 0 < len(d["name"]) <= 60:
+        return None
+    if not _safe_https(d.get("url")):
+        return None
+    if "feedback_url" in d and not _safe_https(d["feedback_url"]):
+        return None
+    return {"name": d["name"], "url": d["url"], "feedback_url": d.get("feedback_url")}
+
+
 class App(ExpertRoutes, QuickRoutes):
     def __init__(self, data_dir, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD,
                  public=False, invite_code=None, behind_proxy=False):
@@ -47,12 +68,7 @@ class App(ExpertRoutes, QuickRoutes):
         (see workspaces.py). invite_code (a string, or None for none) is asked on the join screen. behind_proxy=True
         reads the client address from X-Real-IP (set by the local reverse proxy) instead of the socket address."""
         self.data_dir = pathlib.Path(data_dir)
-        fb = self.data_dir / "feedback-url"
-        views.FEEDBACK_URL = None
-        if fb.is_file():
-            url = fb.read_text(encoding="utf-8").strip()
-            if url.startswith("https://") and len(url) < 300 and not any(c in url for c in '"<> '):
-                views.FEEDBACK_URL = url
+        views.PUBLISHER = load_publisher(self.data_dir / "publisher.json")
         self.public = bool(public)
         self.invite_code = (invite_code.strip() or None) if isinstance(invite_code, str) else None
         self.behind_proxy = bool(behind_proxy)

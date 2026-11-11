@@ -219,3 +219,15 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 - It is a first view built from your answers and a public list of typical risks. It is not an audit.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
 - In local mode the study list and the login page are in English only (in public mode the study list and the new pages follow the language).
+
+
+### Publisher footer
+
+If `<data_dir>/publisher.json` exists and is valid, every page ends with one line saying who offers this instance,
+with a link, and an optional feedback link:
+
+```json
+{"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact"}
+```
+
+Both URLs must be https. A missing or invalid file shows no footer.

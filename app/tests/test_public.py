@@ -971,32 +971,37 @@ class DiskBounds(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
 
-class FeedbackFooter(unittest.TestCase):
-    def test_footer_only_with_a_valid_https_url(self):
-        import pathlib
-        app, d = helpers.make_app(public=True, invite_code=None)
+class PublisherFooter(unittest.TestCase):
+    def _body(self, content, path="/how?lang=en"):
+        d = tempfile.mkdtemp(prefix="atelier-test-")
         try:
-            c = helpers.Client(app)
-            self.assertNotIn('class="feedback"', c.text(c.get('/how')))
+            if content is not None:
+                (pathlib.Path(d) / "publisher.json").write_text(content)
+            from atelier_app.app import App
+            c = helpers.Client(App(d, port=8770, public=True, invite_code=None))
+            return c.text(c.get(path))
         finally:
-            helpers.cleanup(d)
-        for url, shown in (("https://example.org/contact", True), ("javascript:alert(1)", False), ('https://x"onmouseover=1', False)):
-            d = tempfile.mkdtemp(prefix="atelier-test-")
-            try:
-                (pathlib.Path(d) / "feedback-url").write_text(url + "\n")
-                from atelier_app.app import App
-                c = helpers.Client(App(d, port=8770, public=True, invite_code=None))
-                body = c.text(c.get('/how?lang=en'))
-                self.assertEqual('class="feedback"' in body, shown, url)
-                if shown:
-                    self.assertIn('href="https://example.org/contact"', body)
-                    self.assertIn("Share it", body)
-                    fr = c.text(c.get('/how?lang=fr'))
-                    self.assertIn("Partagez-les", fr)
-            finally:
-                shutil.rmtree(d, ignore_errors=True)
-        from atelier_app import views
-        views.FEEDBACK_URL = None
+            shutil.rmtree(d, ignore_errors=True)
+            from atelier_app import views
+            views.PUBLISHER = None
+
+    def test_footer_states_the_publisher_with_a_link(self):
+        good = json.dumps({"name": "CPLT", "url": "https://cplt.tech", "feedback_url": "https://cplt.tech/contact"})
+        for path in ("/how?lang=en", "/join?lang=en"):
+            body = self._body(good, path)
+            self.assertIn("Atelier is offered by <strong>CPLT</strong>", body)
+            self.assertIn('href="https://cplt.tech"', body)
+            self.assertIn('>cplt.tech</a>', body)
+            self.assertIn('href="https://cplt.tech/contact"', body)
+        fr = self._body(good, "/how?lang=fr")
+        self.assertIn("Atelier est proposé par <strong>CPLT</strong>", fr)
+        self.assertIn("Partagez-les", fr)
+
+    def test_no_footer_without_a_valid_file(self):
+        for content in (None, "not json", json.dumps({"name": "X", "url": "javascript:alert(1)"}),
+                        json.dumps({"name": "X", "url": 'https://x"onmouseover=1'}),
+                        json.dumps({"name": "X", "url": "https://x.org", "feedback_url": "http://plain"})):
+            self.assertNotIn('class="publisher"', self._body(content), content)
 
 
 if __name__ == "__main__":
