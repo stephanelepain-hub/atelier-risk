@@ -90,7 +90,7 @@ def risk_map(rows, cal, stage, title, plain=False, lang=None, labelled_by=None):
     for level in safe["levels"]:
         if not re.fullmatch(r"[0-9A-Fa-f]{6}", str(level.get("colour") or "")):
             level["colour"] = "BBBBBB"
-    if plain:  # quick-path pages: no method or calibration name under the map title (plain words, design s.17)
+    if plain:  # quick-path pages: no method or calibration name under the map title (plain words)
         safe["name"] = ""
     return maps.svg(rows, safe, stage=stage, title=title, orientation=cal.get("map_orientation"), lang=lang,
                     labelled_by=labelled_by)
