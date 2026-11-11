@@ -11,7 +11,7 @@
   python3 -m atelier_engine layouts
   python3 -m atelier_engine import   filled.xlsx --cal ID [--layout ID] [--out study.json]
 
-Extra commands are added by a private plugin, if ATELIER_PRIVATE_DIR/plugins holds one (see docs/plugins.md).
+Extra commands can be added by a plugin, if ATELIER_PRIVATE_DIR/plugins holds one.
 """
 import argparse
 import importlib

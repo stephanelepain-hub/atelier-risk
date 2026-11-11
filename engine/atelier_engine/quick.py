@@ -1,6 +1,6 @@
 """Quick path: a short list of known risks, rated now and after extra measures, turned into a normal study.
 
-The quick path is the "known risks list" shape of docs/design/guided-path.md section 17. A person gives a few
+The quick path is the "known risks list" shape of the method. A person gives a few
 answers, ticks the risks of a public catalogue that apply, rates each one in plain words, and ticks measures. This
 module turns those answers (the "quick answers", documented in docs/quick-path.md) into an `atelier-study`
 that `study.validate` accepts and `study.register` can list, with a level before and after.
@@ -611,7 +611,9 @@ def xlsx_notice(quick, cal, catalogue=None):
     """Lines for the header of the Excel export: the honesty statement and the facts, in the study's language."""
     lang = quick.get("lang") if quick.get("lang") in ("en", "fr") else "en"
     f = facts(quick, cal, catalogue)
-    docs = ", ".join(f["documents"]) or ("none" if lang == "en" else "aucun")
+    docs = ", ".join(f["documents"]) or (
+        ("mentioned, not read" if lang == "en" else "mentionné, non lu") if f["document_provided"]
+        else ("none" if lang == "en" else "aucun"))
     missing = ", ".join(f["not_provided"]) or ("none" if lang == "en" else "aucun")
     if lang == "fr":
         band = {"low": "faible", "medium": "moyenne", "high": "élevée"}[f["band"]]

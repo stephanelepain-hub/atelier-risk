@@ -416,6 +416,14 @@ class AssumptionsAndActions(unittest.TestCase):
         self.assertEqual(f2["documents"], ["architecture"])
         self.assertEqual(f2["not_provided"], ["business-impact", "security-baseline"])
 
+    def test_xlsx_notice_says_mentioned_not_read(self):
+        q = answers()
+        self.assertIn("Documents: none.", quick.xlsx_notice(q, CAL)[1])
+        q["profile"]["document"] = {"provided": True, "status": "mentioned, not read"}
+        self.assertIn("Documents: mentioned, not read.", quick.xlsx_notice(q, CAL)[1])
+        q["lang"] = "fr"
+        self.assertIn("Documents : mentionné, non lu.", quick.xlsx_notice(q, CAL)[1])
+
 
 class Honesty(unittest.TestCase):
     def test_statement_constants(self):
