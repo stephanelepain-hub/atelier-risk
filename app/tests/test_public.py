@@ -887,7 +887,7 @@ class LaunchTest(unittest.TestCase):
         st, _, hdrs = self.join_attempt(port, CODE)
         self.assertEqual(st, 303)
         cookies = [v for k, v in hdrs if k.lower() == "set-cookie"]
-        self.assertTrue(any(c.startswith("atelier_ws=") and "HttpOnly; Secure; SameSite=Lax; Path=/" in c for c in cookies))
+        self.assertTrue(any(c.startswith("atelier_session=") and "HttpOnly; Secure; SameSite=Lax; Path=/" in c for c in cookies))
         self.assertEqual(len(list((self.data / "workspaces").iterdir())), 1)
 
     def test_the_socket_address_is_used_without_behind_proxy(self):

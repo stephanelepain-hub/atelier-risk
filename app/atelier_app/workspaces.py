@@ -18,7 +18,7 @@ import time
 from . import auth
 from .storage import Store
 
-COOKIE = "atelier_ws"
+COOKIE = auth.SESSION_COOKIE                  # the same cookie name as the local session; here its value is the workspace id
 ID_RE = re.compile(r"[A-Za-z0-9_-]{43}")        # secrets.token_urlsafe(32): 256 bits
 HASH_RE = re.compile(r"[0-9a-f]{64}")
 MAX_WORKSPACES = 5000

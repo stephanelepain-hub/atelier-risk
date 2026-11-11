@@ -97,8 +97,8 @@ within 10 minutes give 429 for that client. Every other page redirects to `/join
 workspace; `/how` and the static files stay open. `/login`, `/login/once`, `/login/link` and `/logout` answer 404, and
 no token file is created.
 
-**What is stored.** Each workspace is a random 256-bit id kept in the cookie `atelier_ws`
-(`HttpOnly; Secure; SameSite=Lax; Path=/`). On disk only its SHA-256 names the folder:
+**What is stored.** Each workspace is a random 256-bit id kept in the cookie `atelier_session`
+(`HttpOnly; Secure; SameSite=Lax; Path=/`, plus `Max-Age` of 30 days so a visit the next day finds the workspace). On disk only its SHA-256 names the folder:
 
 | Path | Content |
 |---|---|
