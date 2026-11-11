@@ -20,6 +20,10 @@ class NotFound(Exception):
     pass
 
 
+class StudyLimit(Exception):
+    """A workspace already holds its maximum number of studies."""
+
+
 def _fsync_dir(d):
     try:
         fd = os.open(d, os.O_RDONLY)
@@ -54,11 +58,15 @@ def atomic_write(path, data):
 
 
 class Store:
-    def __init__(self, root):
+    def __init__(self, root, max_studies=None, keep_trash=True):
+        """max_studies: refuse `create` beyond this many studies (None = no limit). keep_trash=False removes a deleted
+        study for good (public mode) instead of moving it to studies/trash/."""
+        self.max_studies = max_studies
+        self.keep_trash = keep_trash
         self.root = pathlib.Path(root)
         self.dir = self.root / "studies"
         self.trash = self.dir / "trash"
-        for d in (self.root, self.dir, self.trash):
+        for d in (self.root, self.dir) + ((self.trash,) if keep_trash else ()):
             d.mkdir(parents=True, exist_ok=True, mode=0o700)
             os.chmod(d, 0o700)
         self.lock = threading.Lock()
@@ -107,25 +115,42 @@ class Store:
         out.sort(key=lambda x: -x[2])
         return out
 
+    def _write(self, p, study):
+        data = (json.dumps(study, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
+        if p.exists():
+            atomic_write(p.with_name(p.name + ".bak"), p.read_bytes())
+        atomic_write(p, data)
+
     def save(self, sid, study):
         p = self._path(sid)
-        data = (json.dumps(study, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
         with self.lock:
-            if p.exists():
-                atomic_write(p.with_name(p.name + ".bak"), p.read_bytes())
-            atomic_write(p, data)
+            self._write(p, study)
+
+    def count(self):
+        return sum(1 for p in self.dir.glob("s-*.json") if ID_RE.fullmatch(p.stem))
+
+    def full(self):
+        return self.max_studies is not None and self.count() >= self.max_studies
 
     def create(self, study):
-        sid = self.new_id()
-        self.save(sid, study)
+        with self.lock:
+            if self.full():
+                raise StudyLimit(self.max_studies)
+            sid = self.new_id()
+            self._write(self._path(sid), study)
         return sid
 
     def delete(self, sid):
-        """Move the study (and its .bak) to studies/trash/; nothing is unlinked."""
+        """Move the study (and its .bak) to studies/trash/; nothing is unlinked. Without a trash (public mode) the
+        study and its .bak are removed."""
         p = self._path(sid)
         with self.lock:
             if not p.exists():
                 raise NotFound(sid)
+            if not self.keep_trash:
+                p.unlink()
+                p.with_name(p.name + ".bak").unlink(missing_ok=True)
+                return
             stamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             shutil.move(str(p), str(self.trash / f"{sid}.{stamp}.json"))
             bak = p.with_name(p.name + ".bak")

@@ -431,3 +431,9 @@ details.see-all, details.in-place-box, details.assumed { background: var(--card)
   padding: .8rem 1.2rem; margin: 0 0 1rem; }
 details.see-all > summary, details.in-place-box > summary, details.assumed > summary { cursor: pointer; font-weight: 700; color: var(--accent-dark); font-size: 1.1rem; }
 .conf .cap { color: var(--muted); font-size: .95rem; }
+
+/* public mode: the "Open a saved file" block of the studies page */
+.open-file { margin-top: 1.6rem; max-width: 36rem; }
+.open-file[hidden] { display: none; }
+.open-file form { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.open-file .error:empty { display: none; }

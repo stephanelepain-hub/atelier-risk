@@ -1,7 +1,8 @@
 """Quick-path handlers: the home page and the four screens. Levels, confidence and the study come from the engine."""
 import copy
+import json
 
-from . import calibrations, engine, findings, views_quick
+from . import calibrations, engine, findings, views_public, views_quick
 from .web import HTTPError, Response, redirect
 
 LANGS = ("en", "fr")
@@ -35,6 +36,8 @@ class QuickRoutes:
         router.add("GET", rf"/quick/{SID}/now", self.quick_now)
         router.add("POST", rf"/quick/{SID}/now", self.quick_now_save)
         router.add("GET", rf"/quick/{SID}/results", self.quick_results)
+        if getattr(self, "public", False):
+            router.add("POST", r"/quick/open", self.quick_open)
 
     # ---------- shared ----------
 
@@ -138,6 +141,8 @@ class QuickRoutes:
 
     def quick_new_form(self, req):
         lang = self._lang(req)
+        if self.store_for(req.session).full():   # the study limit of a public workspace: say so before the form is filled in
+            return Response(views_public.limit_page(lang, req.session), 409)
         resp = Response(views_quick.about(req.session, None, lang, self.quick_catalogue(), {}))
         return self._remember(req, resp, lang)
 
@@ -179,6 +184,52 @@ class QuickRoutes:
         self._sync_risks(quick)
         sid = self.store_for(req.session).create(self._quick_build(quick, cal))
         return redirect(f"/quick/{sid}/risks")
+
+    def quick_open(self, req):
+        """Public mode: continue from a study file saved with "Download the study file". The file is read by the page's
+        script and posted as the form field `study`. Only a valid quick-path study is taken in: its answers are checked and
+        the study is built again from them, so the stored copy has the engine's own shape. It gets a new id."""
+        lang = self._lang(req)
+        raw = req.field("study")
+        if len(raw.encode("utf-8")) > views_public.OPEN_MAX:
+            return Response(views_public.open_error_page(lang, "open_big", req.session), 413)
+        saved = self._saved_quick(raw)
+        if saved is None:
+            return Response(views_public.open_error_page(lang, "open_bad", req.session), 400)
+        cal_id, quick = saved
+        try:
+            built = engine.quick_build(quick, calibrations.load(cal_id), self.quick_catalogue())
+            ok = not engine.check(built)["errors"]
+        except Exception:   # a file from outside: any shape that the engine cannot use is simply not accepted
+            ok = False
+        if not ok:
+            return Response(views_public.open_error_page(lang, "open_bad", req.session), 400)
+        sid = self.store_for(req.session).create(built)   # StudyLimit is answered by App.handle
+        step = quick.get("step")
+        return redirect(f"/quick/{sid}/{step if step in ORDER else 'about'}")
+
+    @staticmethod
+    def _saved_quick(raw):
+        """(calibration id, quick answers in the current shape) from the text of a saved study file, or None when it
+        is not a study made with the quick path."""
+        try:
+            st = json.loads(raw)
+        except (ValueError, RecursionError):
+            return None
+        if not isinstance(st, dict) or st.get("format") != "atelier-study":
+            return None
+        quick = st.get("quick")
+        if not isinstance(quick, dict) or quick.get("format") != QUICK_FORMAT["format"]:
+            return None
+        if not isinstance(quick.get("profile"), dict) or not isinstance(quick.get("risks"), list):
+            return None
+        cal_id = calibrations.of_study(st)
+        if not calibrations.exists(cal_id):
+            return None
+        try:
+            return cal_id, engine.quick_migrate(copy.deepcopy(quick))
+        except Exception:
+            return None
 
     def quick_about(self, req, sid):
         st, quick = self._quick_study(req, sid)

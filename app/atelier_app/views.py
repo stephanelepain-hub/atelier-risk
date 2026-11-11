@@ -95,9 +95,13 @@ def badge(chk):
 
 
 NAV = {"en": {"home": "Home", "list": "Studies", "logout": "Log out", "how": "How it works",
+              "forget": "Delete my data",
+              "forget_confirm": "Delete all your data now? Every study in your private space is removed.",
               "expert": "Expert", "expert_on": "Expert mode on",
               "sub": "Risk analysis, step by step", "skip": "Skip to the content"},
        "fr": {"home": "Accueil", "list": "Études", "logout": "Se déconnecter", "how": "Comment ça marche",
+              "forget": "Effacer mes données",
+              "forget_confirm": "Effacer toutes vos données maintenant ? Chaque étude de votre espace privé est supprimée.",
               "expert": "Expert", "expert_on": "Mode expert activé",
               "sub": "L'analyse de risques, pas à pas", "skip": "Aller au contenu"}}
 
@@ -121,7 +125,10 @@ def page(title, body, session=None, cal_id=None, flash="", lang="en", lang_path=
     n = NAV.get(lang, NAV["en"])
     cal_css = f'<link rel="stylesheet" href="/cal/{q(cal_id)}.css">' if cal_id else ""
     logout = ""
-    if session:
+    if session and getattr(session, "public", False):   # public mode: no login, so the way out clears the data
+        logout = (f'<form method="post" action="/forget" class="inline">{csrf_input(session)}'
+                  f'<button class="link" data-confirm="{esc(n["forget_confirm"])}">{esc(n["forget"])}</button></form>')
+    elif session:
         logout = (f'<form method="post" action="/logout" class="inline">{csrf_input(session)}'
                   f'<button class="link">{esc(n["logout"])}</button></form>')
     switch = ""
@@ -207,38 +214,53 @@ def login_page(pre, message=""):
 
 STEP_LABEL = {"about": "About you", "risks": "Risks", "now": "Now and after", "results": "Results"}
 
+LIST_T = {
+    "en": {"title": "Studies", "none": "not a quick-path study", "empty": "Your studies will be listed here.",
+           "first": "Start your first one", "name": "Name", "where": "Where you stopped", "mod": "Last modified",
+           "actions": "Actions", "new": "New study", "open": "Open", "expert": "Expert view", "delete": "Delete",
+           "no_name": "(no name)", "steps": STEP_LABEL},
+    "fr": {"title": "Études", "none": "pas une étude du parcours rapide", "empty": "Vos études seront listées ici.",
+           "first": "Commencer la première", "name": "Nom", "where": "Où vous vous êtes arrêté", "mod": "Dernière modification",
+           "actions": "Actions", "new": "Nouvelle étude", "open": "Ouvrir", "expert": "Vue experte", "delete": "Effacer",
+           "no_name": "(sans nom)",
+           "steps": {"about": "Vous", "risks": "Risques", "now": "Maintenant et après", "results": "Résultats"}},
+}
 
-def study_list(rows, session, flash=""):
+
+def study_list(rows, session, flash="", lang="en", extra="", switch=False):
     """rows: [(sid, st, mtime, step)]; step is the quick-path screen to reopen, or None when the file was not made
-    with the quick path (it can only be deleted, or opened in expert view when Expert mode is on)."""
+    with the quick path (it can only be deleted, or opened in expert view when Expert mode is on). `extra` is a block
+    added under the table (public mode: "Open a saved file"); `switch` adds the EN / FR switch (public mode)."""
+    t = LIST_T.get(lang, LIST_T["en"])
     expert = bool(getattr(session, "expert", False))
     trs = []
     for sid, st, mtime, step in rows:
         meta = (st or {}).get("study") if isinstance(st, dict) else None
         meta = meta if isinstance(meta, dict) else {}
-        name = meta.get("name") or "(no name)"
+        name = meta.get("name") or t["no_name"]
         if step:
             title = f'<a href="/quick/{sid}/{step}">{esc(name)}</a>'
-            opener = f'<a href="/quick/{sid}/{step}">Open</a> '
+            opener = f'<a href="/quick/{sid}/{step}">{esc(t["open"])}</a> '
         else:
             title, opener = esc(name), ""
         if expert:
-            opener += f'<a href="/s/{sid}">Expert view</a> '
+            opener += f'<a href="/s/{sid}">{esc(t["expert"])}</a> '
             if not step:
                 title = f'<a href="/s/{sid}">{esc(name)}</a>'
         trs.append(f"""<tr>
 <td>{title}</td>
-<td>{esc(STEP_LABEL.get(step, "not a quick-path study"))}</td>
+<td>{esc(t["steps"].get(step, t["none"]))}</td>
 <td class="nowrap">{when(mtime)}</td>
-<td class="actions">{opener}<a href="/s/{sid}/delete" class="danger">Delete</a></td>
+<td class="actions">{opener}<a href="/s/{sid}/delete" class="danger">{esc(t["delete"])}</a></td>
 </tr>""")
-    table = ("<p class=\"empty\">Your studies will be listed here. <a href=\"/quick/new\">Start your first one</a>.</p>" if not trs else
-             "<table class=\"list\"><thead><tr><th>Name</th><th>Where you stopped</th><th>Last modified</th>"
-             "<th>Actions</th></tr></thead><tbody>" + "".join(trs) + "</tbody></table>")
-    body = f"""<h1>Studies</h1>
+    table = (f"<p class=\"empty\">{esc(t['empty'])} <a href=\"/quick/new\">{esc(t['first'])}</a>.</p>" if not trs else
+             f"<table class=\"list\"><thead><tr><th>{esc(t['name'])}</th><th>{esc(t['where'])}</th><th>{esc(t['mod'])}</th>"
+             f"<th>{esc(t['actions'])}</th></tr></thead><tbody>" + "".join(trs) + "</tbody></table>")
+    body = f"""<h1>{esc(t["title"])}</h1>
 {table}
-<p><a class="button" href="/quick/new">New study</a></p>"""
-    return page("Studies", body, session, flash=flash)
+<p><a class="button" href="/quick/new">{esc(t["new"])}</a></p>
+{extra}"""
+    return page(t["title"], body, session, flash=flash, lang=lang, lang_path="/studies" if switch else None)
 
 
 # ---------- study pages ----------

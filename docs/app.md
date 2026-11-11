@@ -69,6 +69,64 @@ WantedBy=default.target
 - Logging in sets a session cookie (`HttpOnly`, `SameSite=Strict`). Sessions live in memory: a restart logs you
   out. A session expires after 12 hours without use.
 
+## Public mode
+
+An optional mode for an internet server (for example for beta testers). The default, local mode is unchanged.
+It is meant to sit behind a reverse proxy that serves HTTPS (the cookies are `Secure`) and passes requests to the
+app on the loopback address.
+
+```bash
+python3 app/serve.py --public [--invite-code-file PATH] [--behind-proxy] [--data-dir DIR] [--port 8770]
+```
+
+| Flag | Meaning |
+|---|---|
+| `--public` | public mode: no token login, an anonymous private workspace for each visitor |
+| `--invite-code-file PATH` | a file with the invite code on its first line. The server starts only when the file is readable by its owner alone (for example `chmod 600`). Without this flag no code is asked. Needs `--public` |
+| `--behind-proxy` | take the client address for the join rate limit from `X-Real-IP`, set by the local reverse proxy; an absent or invalid header falls back to the socket address. Without the flag the socket address is used |
+
+In code: `App(data_dir, port=..., public=True, invite_code="...", behind_proxy=False)`; `invite_code=None` asks for no code.
+The `Host` header must be one the app accepts: have the proxy pass `Host: 127.0.0.1:<port>`, or add the public name
+with `--allow-remote --allowed-host name` (the bind address stays on loopback).
+
+**Join.** A visitor without a workspace sees `/join`: one line about Atelier, the honesty statement, a Start button and,
+when a code is set, an Invite code field. The form carries the same anti-forgery pair as the local login form (hidden
+field `pre` and a matching cookie). A right code (compared in constant time) creates a workspace, sets the session
+cookie and redirects to `/`. A wrong code gives 403 and a kind message; more than 10 wrong codes from one client address
+within 10 minutes give 429 for that client. Every other page redirects to `/join` (303) while there is no valid
+workspace; `/how` and the static files stay open. `/login`, `/login/once`, `/login/link` and `/logout` answer 404, and
+no token file is created.
+
+**What is stored.** Each workspace is a random 256-bit id kept in the cookie `atelier_ws`
+(`HttpOnly; Secure; SameSite=Lax; Path=/`). On disk only its SHA-256 names the folder:
+
+| Path | Content |
+|---|---|
+| `<data>/workspaces/<sha256 hex>/` | one workspace (mode 0700) |
+| `.../last_seen` | empty file; its modification time is the last visit (any page updates it) |
+| `.../studies/<id>.json`, `.json.bak` | the visitor's studies, same format as local mode |
+
+The form token (CSRF) is derived from the cookie value, so it needs no server memory and survives a restart. A study
+URL of another workspace answers 404. In public mode, Delete removes a study and its `.bak` for good (there is no
+trash folder).
+
+**Clean-up.** `App.purge_idle(days=30)` deletes every workspace whose `last_seen` is older than `days`; the server runs
+it at start and then every hour. `POST /forget` (with the form token) deletes the visitor's workspace at once, clears
+the cookie and shows a goodbye page. The header shows "Delete my data" (FR "Effacer mes données") in place of "Log out".
+
+**Limits.** 20 studies per workspace (the 21st shows a kind page and the New study form shows it too, HTTP 409);
+5000 workspaces in total (`/join` shows a kind "We are full for now" page, HTTP 503). Request bodies stay capped at 5 MB.
+
+**Continue from a saved file.** The studies page has "Open a saved file". A small script (`app/static/app.js`, same
+origin, the Content-Security-Policy is unchanged) reads the chosen file and posts its text as the urlencoded field
+`study` to `POST /quick/open` (with the form token; the route exists in public mode only). The file is at most 512 KB
+(larger: 413). Only a study made with the quick path is taken in, as written by "Download the study file": the app checks the answers
+and builds the study again from them, so what is stored has the engine's own shape. Anything else gives 400 and a
+kind message. The study lands in the visitor's workspace with a new id and opens at the screen where it was saved.
+
+**How it works.** In public mode the "Your data" section says that the answers stay in a private space that only the
+browser can open, cleared after 30 days without a visit or at any time with Delete my data.
+
 ## Where data lives
 
 | Path | Content |
@@ -80,6 +138,7 @@ WantedBy=default.target
 | `tmp/` | private temporary files of the Excel export, removed right after each download |
 | `server.log`, `run/` | the launcher's server log and pid file |
 | `token` | the login token (mode 0600) |
+| `workspaces/` | public mode only, see Public mode |
 
 Saves are atomic: the app writes a temporary file in the same directory, then renames it over the old one.
 
@@ -147,6 +206,7 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 | `app/atelier_app/calibrations.py` | calibration lookup: the published calibration only |
 | `app/atelier_app/storage.py` | study files |
 | `app/atelier_app/auth.py` | token, one-time links, sessions, CSRF |
+| `app/atelier_app/workspaces.py`, `views_public.py` | public mode: workspaces, join limit, clean-up; join, goodbye, limit pages and the saved-file form |
 | `app/atelier_app/config.py`, `web.py`, `server.py` | settings, HTTP plumbing, the server |
 | `app/static/` | the CSS and JS files the pages load |
 | `app/tests/` | unit tests (`python3 -m unittest discover -s app/tests -t .`); `no_openpyxl.py` runs the same tests as if openpyxl were missing (the Excel tests skip) |
@@ -158,4 +218,4 @@ Saves are atomic: the app writes a temporary file in the same directory, then re
 - No HTTPS: it relies on staying on the loopback address.
 - It is a first view built from your answers and a public list of typical risks. It is not an audit.
 - Two browser tabs editing the same study: the last save wins (the `.bak` keeps the version before it).
-- The study list and the login page are in English only.
+- In local mode the study list and the login page are in English only (in public mode the study list and the new pages follow the language).

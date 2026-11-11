@@ -1,4 +1,6 @@
 """The application: routes, authentication and CSRF gates, security headers, study handlers."""
+import hmac
+import ipaddress
 import json
 import os
 import pathlib
@@ -8,10 +10,10 @@ import threading
 import traceback
 import urllib.parse
 
-from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_quick
+from . import STATIC_DIR, auth, calibrations, config, engine, findings, labels, views, views_how, views_public, views_quick, workspaces
 from .expert_routes import ExpertRoutes
 from .quick_routes import ORDER, QuickRoutes
-from .storage import NotFound, Store
+from .storage import NotFound, Store, StudyLimit
 from .web import HTTPError, Request, Response, Router, redirect
 
 MAX_UPLOAD = config.MAX_UPLOAD
@@ -39,15 +41,29 @@ def allowed_hosts_for(port, extra=()):
 
 
 class App(ExpertRoutes, QuickRoutes):
-    def __init__(self, data_dir, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD):
+    def __init__(self, data_dir, port=config.DEFAULT_PORT, extra_hosts=(), max_upload=MAX_UPLOAD,
+                 public=False, invite_code=None, behind_proxy=False):
+        """public=True is the internet edition: no token login; each visitor gets an anonymous private workspace
+        (see workspaces.py). invite_code (a string, or None for none) is asked on the join screen. behind_proxy=True
+        reads the client address from X-Real-IP (set by the local reverse proxy) instead of the socket address."""
         self.data_dir = pathlib.Path(data_dir)
-        self.store = Store(self.data_dir)
+        self.public = bool(public)
+        self.invite_code = (invite_code.strip() or None) if isinstance(invite_code, str) else None
+        self.behind_proxy = bool(behind_proxy)
+        self.data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.tmp_dir = self.data_dir / "tmp"
         self.tmp_dir.mkdir(exist_ok=True, mode=0o700)
         os.chmod(self.tmp_dir, 0o700)
         self.token_path = self.data_dir / "token"
-        token, self.token_created = auth.load_or_create_token(self.token_path)
-        self.auth = auth.Auth(token)
+        if self.public:   # no login token, no shared study store: every visitor has a workspace of their own
+            self.store, self.token_created, self.auth = None, False, auth.Auth("")
+            self.workspaces = workspaces.Workspaces(self.data_dir)
+            self.join_limiter = workspaces.JoinLimiter()
+        else:
+            self.store = Store(self.data_dir)
+            token, self.token_created = auth.load_or_create_token(self.token_path)
+            self.auth = auth.Auth(token)
+            self.workspaces = None
         self.max_upload = max_upload
         self.extra_hosts = tuple(extra_hosts)
         self.set_port(port)
@@ -55,12 +71,32 @@ class App(ExpertRoutes, QuickRoutes):
         self.router = self._routes()
 
     def body_limit(self, path):
-        """Request body cap: max_upload for every request."""
+        """Request body cap: max_upload for every request; the saved-file upload of public mode has its own cap
+        (the file is at most OPEN_MAX bytes; the form encoding of a JSON file may need up to three times that)."""
+        if self.public and path == "/quick/open":
+            return min(self.max_upload, 3 * views_public.OPEN_MAX + 8192)
         return self.max_upload
 
     def store_for(self, session):
-        """The study store of a session's user. A local install has one user and one store."""
+        """The study store of a session's user. A local install has one user and one store; in public mode each
+        workspace has its own."""
+        if self.public:
+            return self.workspaces.store(session.user)
         return self.store
+
+    def client_address(self, req):
+        """The address the rate limit counts: X-Real-IP behind the local proxy (when it holds an address), else the
+        socket address."""
+        if self.behind_proxy:
+            try:
+                return str(ipaddress.ip_address(req.headers.get("x-real-ip", "").strip()))
+            except ValueError:
+                pass
+        return req.peer or "unknown"
+
+    def purge_idle(self, days=workspaces.IDLE_DAYS):
+        """Public mode: delete every workspace not visited for `days` days. Returns how many were deleted."""
+        return self.workspaces.purge_idle(days) if self.public else 0
 
     def set_port(self, port):
         self.port = port
@@ -74,13 +110,18 @@ class App(ExpertRoutes, QuickRoutes):
         self.add_expert_routes(r)
         r.add("GET", r"/how", self.how, public=True)
         r.add("POST", r"/expert", self.expert_switch)
-        r.add("GET", r"/login", self.login_form, public=True)
-        r.add("POST", r"/login", self.login, public=True)
-        r.add("GET", r"/login/once", self.login_once, public=True)
+        if self.public:
+            r.add("GET", r"/join", self.join_form, public=True)
+            r.add("POST", r"/join", self.join, public=True)
+            r.add("POST", r"/forget", self.forget)
+        else:
+            r.add("GET", r"/login", self.login_form, public=True)
+            r.add("POST", r"/login", self.login, public=True)
+            r.add("GET", r"/login/once", self.login_once, public=True)
+            r.add("POST", r"/logout", self.logout)
+            r.add("POST", r"/login/link", self.login_link)
         r.add("GET", r"/static/([a-z]+\.(?:css|js))", self.static, public=True)
         r.add("GET", r"/static/brand/logo\.svg", self.brand_logo, public=True)
-        r.add("POST", r"/logout", self.logout)
-        r.add("POST", r"/login/link", self.login_link)
         r.add("GET", r"/studies", self.index)
         r.add("GET", r"/cal/([A-Za-z0-9._%-]+)\.css", self.cal_css)
         r.add("GET", rf"/s/{SID}/delete", self.delete_confirm)
@@ -98,11 +139,13 @@ class App(ExpertRoutes, QuickRoutes):
             if len(req.body) > limit:
                 raise HTTPError(413, f"request body over {limit // (1024 * 1024)} MB")
             fn, args, public = self.router.match(req.method, req.path)
-            req.session = self.auth.get(req.cookies.get(auth.SESSION_COOKIE))
+            req.session = self._workspace_session(req) if self.public else self.auth.get(req.cookies.get(auth.SESSION_COOKIE))
             if req.session:
                 req.session.expert = req.cookies.get(EXPERT_COOKIE) == "1"
                 req.session.path = req.path if req.method == "GET" else ""
             if not public and not req.session:
+                if self.public:   # no workspace (new visitor, or an expired one): the join screen
+                    return self.secure(redirect("/join"))
                 if req.method in ("GET", "HEAD"):
                     return self.secure(redirect("/login"))
                 raise HTTPError(403, "not logged in")
@@ -115,6 +158,8 @@ class App(ExpertRoutes, QuickRoutes):
             resp = Response(views.error_page(e.status, e.message, req.session), e.status)
         except NotFound:
             resp = Response(views.error_page(404, "not found", req.session), 404)
+        except StudyLimit:
+            resp = Response(views_public.limit_page(self._lang(req), req.session), 409)
         except Exception:
             traceback.print_exc(file=sys.stderr)
             resp = Response(views.error_page(500, "internal error (details in the server log)", req.session), 500)
@@ -136,6 +181,57 @@ class App(ExpertRoutes, QuickRoutes):
         if not isinstance(st, dict):
             raise HTTPError(500, "the study file is not a JSON object")
         return st
+
+    # ---------- public mode: join, workspace, forget ----------
+
+    def _workspace_session(self, req):
+        """The session of the workspace named by the cookie, or None. Every page a visitor opens counts as a visit."""
+        wid = req.cookies.get(workspaces.COOKIE)
+        h = self.workspaces.find(wid)
+        if h is None:
+            return None
+        if not req.path.startswith(("/static/", "/cal/")):
+            self.workspaces.touch(h)
+        return self.workspaces.session(wid, h)
+
+    def join_form(self, req, message_key="", status=200):
+        if req.session:
+            return redirect("/")
+        lang = self._lang(req)
+        if self.workspaces.full():
+            return self._remember(req, Response(views_public.full_page(lang), 503, headers=[("Retry-After", "3600")]), lang)
+        pre = auth.secrets.token_urlsafe(24)
+        resp = Response(views_public.join_page(pre, lang, self.invite_code is not None, message_key), status)
+        resp.header("Set-Cookie", f"{auth.PRE_COOKIE}={pre}; HttpOnly; Secure; SameSite=Strict; Path=/join")
+        return self._remember(req, resp, lang)
+
+    def join(self, req):
+        if req.session:
+            return redirect("/")
+        pre_c, pre_f = req.cookies.get(auth.PRE_COOKIE, ""), req.field("pre")
+        if not pre_c or not pre_f or not hmac.compare_digest(pre_c.encode("utf-8"), pre_f.encode("utf-8")):
+            return self.join_form(req, "expired", 403)
+        client = self.client_address(req)
+        if self.join_limiter.locked(client):
+            return self.join_form(req, "wait", 429)
+        if self.invite_code is not None and not hmac.compare_digest(req.field("code").strip().encode("utf-8"),
+                                                                    self.invite_code.encode("utf-8")):
+            self.join_limiter.fail(client)
+            return self.join_form(req, "bad_code", 403)
+        if self.workspaces.full():
+            return self.join_form(req)
+        wid = self.workspaces.create()
+        resp = redirect("/")
+        resp.header("Set-Cookie", workspaces.cookie_header(wid))
+        resp.header("Set-Cookie", f"{auth.PRE_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/join; Max-Age=0")
+        return resp
+
+    def forget(self, req):
+        """Delete the visitor's workspace at once, clear the cookie, say goodbye."""
+        self.workspaces.remove(req.session.user)
+        resp = Response(views_public.goodbye_page(self._lang(req)))
+        resp.header("Set-Cookie", workspaces.clear_cookie_header())
+        return resp
 
     # ---------- auth ----------
 
@@ -199,7 +295,7 @@ class App(ExpertRoutes, QuickRoutes):
 
     def how(self, req):
         lang = self._lang(req)
-        return self._remember(req, Response(views_how.how(req.session, lang)), lang)
+        return self._remember(req, Response(views_how.how(req.session, lang, self.public)), lang)
 
     # ---------- static ----------
 
@@ -232,7 +328,11 @@ class App(ExpertRoutes, QuickRoutes):
             qk = st.get("quick") if isinstance(st, dict) else None
             step = (qk.get("step") if qk.get("step") in ORDER else "about") if isinstance(qk, dict) else None
             rows.append((sid, st, mtime, step))
-        return Response(views.study_list(rows, req.session, req.arg("f")))
+        if not self.public:
+            return Response(views.study_list(rows, req.session, req.arg("f")))
+        lang = self._lang(req)
+        return self._remember(req, Response(views.study_list(rows, req.session, req.arg("f"), lang,
+                                                             views_public.open_form(req.session, lang), True)), lang)
 
     def delete_confirm(self, req, sid):
         return Response(views.confirm_delete(sid, self._load(req, sid), req.session))

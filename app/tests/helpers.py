@@ -39,7 +39,7 @@ class Client:
         self.app = app
         self.cookies = {}
 
-    def req(self, method, path, form=None, body=b"", ctype=None, host=HOST, headers=None):
+    def req(self, method, path, form=None, body=b"", ctype=None, host=HOST, headers=None, peer=None):
         h = {"Host": host} if host is not None else {}
         if self.cookies:
             h["Cookie"] = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
@@ -49,7 +49,7 @@ class Client:
         if ctype:
             h["Content-Type"] = ctype
         h.update(headers or {})
-        resp = self.app.handle(Request(method, path, h, body))
+        resp = self.app.handle(Request(method, path, h, body, peer=peer))
         for sc in resp.all("Set-Cookie"):
             kv = sc.split(";")[0]
             k, _, v = kv.partition("=")

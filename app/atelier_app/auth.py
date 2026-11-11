@@ -38,11 +38,12 @@ def load_or_create_token(path):
 
 
 class Session:
-    __slots__ = ("sid", "csrf", "seen", "user", "expert", "path")
+    __slots__ = ("sid", "csrf", "seen", "user", "expert", "path", "public")
 
     def __init__(self, user):
         self.user = user
         self.expert = False  # set from the `expert` cookie on every request (see App.handle)
+        self.public = False  # True for a public-mode workspace session (the header then offers "Delete my data")
         self.path = ""       # the page being shown (GET only), so the Expert switch can return to it
         self.sid = secrets.token_urlsafe(32)
         self.csrf = secrets.token_urlsafe(32)

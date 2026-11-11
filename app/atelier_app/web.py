@@ -12,13 +12,14 @@ class HTTPError(Exception):
 
 
 class Request:
-    def __init__(self, method, target, headers=None, body=b""):
+    def __init__(self, method, target, headers=None, body=b"", peer=None):
         self.method = method.upper()
         parts = urllib.parse.urlsplit(target)
         self.path = parts.path or "/"
         self.query = urllib.parse.parse_qs(parts.query, keep_blank_values=True)
         self.headers = {k.lower(): v for k, v in (headers or {}).items()}
         self.body = body
+        self.peer = peer  # the socket address of the client, when the server knows it
         self.cookies = {}
         raw = self.headers.get("cookie")
         if raw:

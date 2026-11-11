@@ -38,6 +38,9 @@ T = {
         "h_honesty": "Honesty statement",
         "h_data": "Your data",
         "data": "Your data stays on the computer that runs Atelier: your answers are saved there, and only there.",
+        "data_public": "Your answers stay in a private space that only your browser can open. It is cleared after 30 days "
+                       "without a visit, and you can clear it yourself at any time with Delete my data. Download your "
+                       "results or the study file to keep a copy.",
         "h_indep": "Independence",
         "indep": "Atelier is an independent project, separate from ANSSI, SGDSN and Club EBIOS. "
                  "EBIOS is a registered trademark of SGDSN.",
@@ -74,6 +77,9 @@ T = {
         "h_honesty": "Déclaration d'honnêteté",
         "h_data": "Vos données",
         "data": "Vos données restent sur l'ordinateur qui fait tourner Atelier : vos réponses y sont enregistrées, et seulement là.",
+        "data_public": "Vos réponses restent dans un espace privé que seul votre navigateur peut ouvrir. Il est effacé après "
+                       "30 jours sans visite, et vous pouvez l'effacer vous-même à tout moment avec Effacer mes données. "
+                       "Téléchargez vos résultats ou le fichier d'étude pour en garder une copie.",
         "h_indep": "Indépendance",
         "indep": "Atelier est un projet indépendant, distinct de l'ANSSI, du SGDSN et du Club EBIOS. "
                  "EBIOS est une marque déposée du SGDSN.",
@@ -82,7 +88,7 @@ T = {
 }
 
 
-def how(session, lang):
+def how(session, lang, public=False):
     t = T[lang if lang in T else "en"]
     lang = lang if lang in T else "en"
     levels = [labels.LEVEL_LABEL[lang][k] for k in ("Low", "Medium", "High")]
@@ -103,7 +109,7 @@ def how(session, lang):
 <section class="card"><h2>{esc(t["h_conf"])}</h2><p>{esc(t["conf"].format(n=engine.NO_DOCUMENT_CEILING))}</p></section>
 <aside class="honesty" aria-labelledby="how-honesty-h"><h2 id="how-honesty-h">{esc(t["h_honesty"])}</h2>
 <p lang="{lang}">{html.escape(engine.HONESTY[lang], quote=False)}</p></aside>
-<section class="card"><h2>{esc(t["h_data"])}</h2><p>{esc(t["data"])}</p></section>
+<section class="card"><h2>{esc(t["h_data"])}</h2><p>{esc(t["data_public"] if public else t["data"])}</p></section>
 <section class="card"><h2>{esc(t["h_indep"])}</h2><p>{esc(t["indep"])}</p></section>
 <p><a href="/?lang={lang}">{esc(t["back"])}</a></p>
 </article>"""
