@@ -222,13 +222,15 @@ class BuildStudy(unittest.TestCase):
 
     def test_a_measure_shared_by_two_risks_is_one_measure(self):
         q = answers()
-        shared = [e for e in q["risks"] if e["id"] in ("D01", "D02")]
-        for e in shared:
-            e["extra"] = ["mfa"]
+        q["measures"] = {"in_place": [], "extra": ["mfa"], "assessed": True}
         st = quick.build_study(q, CAL)
         m = [x for x in st["measures"] if x["id"] == "M-mfa"]
         self.assertEqual(len(m), 1)
-        self.assertEqual(sorted(m[0]["risks"]), ["D01", "D02"])
+        listing = sorted(r["id"] for r in quick.load_catalogue()["risks"]
+                         if r["id"] in {e["id"] for e in q["risks"]} and "mfa" in {x["id"] for x in r["measures"]})
+        self.assertIn("D01", listing)
+        self.assertIn("D02", listing)
+        self.assertEqual(sorted(m[0]["risks"]), listing)
 
     def test_french_study_uses_french_labels(self):
         st = quick.build_study(answers(lang="fr"), CAL)
@@ -408,21 +410,26 @@ class AssumptionsAndActions(unittest.TestCase):
 
     def test_facts(self):
         f = quick.facts(answers(), CAL)
-        self.assertEqual(f["not_provided"], ["architecture", "business-impact", "security-baseline"])
-        self.assertFalse(f["document_provided"])
-        q = answers()
-        q["profile"]["document"] = {"provided": True, "kind": "architecture"}
-        f2 = quick.facts(q, CAL)
-        self.assertEqual(f2["documents"], ["architecture"])
-        self.assertEqual(f2["not_provided"], ["business-impact", "security-baseline"])
+        self.assertEqual(set(f), {"answers", "assumptions", "catalogue_values", "confidence", "band", "risks", "ceiling"})
+        self.assertEqual(f["ceiling"], quick.NO_DOCUMENT_CEILING)
+        self.assertEqual(quick.NO_DOCUMENT_CEILING, 75)
+        self.assertLessEqual(f["confidence"], 75)
 
-    def test_xlsx_notice_says_mentioned_not_read(self):
-        q = answers()
-        self.assertIn("Documents: none yet.", quick.xlsx_notice(q, CAL)[1])
-        q["profile"]["document"] = {"provided": True, "status": "mentioned, not read"}
-        self.assertIn("Documents: mentioned, not read.", quick.xlsx_notice(q, CAL)[1])
-        q["lang"] = "fr"
-        self.assertIn("Documents : mentionné, non lu.", quick.xlsx_notice(q, CAL)[1])
+    def test_xlsx_notice_has_no_document_talk_and_one_confidence_line(self):
+        for lang, line in (("en", "Confidence grows as you answer more questions yourself."),
+                           ("fr", "La confiance grandit à mesure que vous répondez vous-même à plus de questions.")):
+            q = answers()
+            q["lang"] = lang
+            head = quick.xlsx_notice(q, CAL)
+            self.assertEqual(head[0], quick.HONESTY[lang])
+            self.assertIn(line, head[1])
+            self.assertIn("75", head[1])
+            q["profile"]["document"] = {"provided": True, "status": "mentioned, not read"}   # an old study still carrying it
+            head = quick.xlsx_notice(q, CAL)
+            self.assertIn(line, head[1])
+            blob = " ".join(head).lower()
+            for gone in ("document", "architecture", "impact", "baseline", "socle", "mentioned", "mentionné"):
+                self.assertNotIn(gone, blob, (lang, gone))
 
 
 class PositiveWording(unittest.TestCase):
@@ -444,12 +451,160 @@ class PositiveWording(unittest.TestCase):
             for text in self.texts(lang):
                 self.assertIsNone(rx.search(text), (lang, text))
 
-    def test_the_excel_notice_names_the_documents_to_add(self):
+    def test_the_extra_sheets_are_named_in_the_study_language(self):
         q = answers()
-        self.assertIn("To add: architecture document, business impact analysis, security baseline.", quick.xlsx_notice(q, CAL)[1])
         q["lang"] = "fr"
-        self.assertIn("À ajouter : document d'architecture, analyse d'impact sur l'activité, socle de sécurité.", quick.xlsx_notice(q, CAL)[1])
         self.assertEqual([t for t, _ in quick.xlsx_sheets(q, CAL)], ["Hypothèses", "Actions"])
+
+
+class OrgWideMeasures(unittest.TestCase):
+    """Round 3, item 1: a measure is answered once, for the whole business."""
+
+    def setUp(self):
+        self.cat = quick.load_catalogue()
+
+    def kept_with(self, q, mid):
+        return [r["id"] for r in quick.assess(q, self.cat) if mid in {m["id"] for m in r["def"]["measures"]}]
+
+    def test_one_answer_applies_to_every_risk_that_lists_the_measure(self):
+        q = answers()
+        q["measures"] = {"in_place": ["mfa"], "extra": ["awareness"], "assessed": True}
+        rows = quick.assess(q, self.cat)
+        listing = [r for r in rows if "mfa" in {m["id"] for m in r["def"]["measures"]}]
+        self.assertGreater(len(listing), 2)
+        for r in listing:
+            self.assertIn("mfa", r["in_place"], r["id"])
+            self.assertNotIn("mfa", r["extra"], r["id"])
+        for r in rows:       # never in place for one risk and planned for another
+            self.assertFalse(set(r["in_place"]) & set(r["extra"]), r["id"])
+        placed = {m for r in rows for m in r["in_place"]}
+        planned = {m for r in rows for m in r["extra"]}
+        self.assertEqual(placed & planned, set())
+        self.assertEqual(placed, {"mfa"})
+        self.assertEqual(planned, {"awareness"})
+
+    def test_a_measure_in_both_lists_is_in_place_only(self):
+        q = answers()
+        q["measures"] = {"in_place": ["mfa"], "extra": ["mfa", "updates"]}
+        self.assertEqual(quick.org_measures(q), {"in_place": ["mfa"], "extra": ["updates"], "assessed": False})
+
+    def test_the_list_holds_each_measure_once_for_the_kept_risks_only(self):
+        q = answers()
+        listed = quick.measure_list(q, self.cat)
+        ids = [m["id"] for m in listed]
+        self.assertEqual(len(ids), len(set(ids)))
+        want = {m["id"] for r in self.cat["risks"] if r["id"] in {e["id"] for e in q["risks"]} for m in r["measures"]}
+        self.assertEqual(set(ids), want)
+        self.assertTrue(all(m["en"] and m["fr"] and m["risks"] for m in listed))
+        for e in q["risks"]:
+            e["decision"] = "discard" if e["id"] != "A08" else "keep"
+            e["reason"] = "x"
+        self.assertEqual([m["id"] for m in quick.measure_list(q, self.cat)], ["battery", "spares", "manual_fallback"])
+
+    def old_shape(self):
+        q = answers()
+        by = {e["id"]: e for e in q["risks"]}
+        by["D01"].update(in_place=["updates"], extra=["mfa"], assessed=True)
+        by["D02"].update(in_place=[], extra=["updates", "awareness"], assessed=True)
+        by["D03"].update(extra=["mfa"])
+        return q, by
+
+    def test_old_answers_in_place_if_any_risk_said_so_else_planned_if_any_said_so(self):
+        q, _ = self.old_shape()
+        org = quick.org_measures(q)
+        self.assertEqual(org["in_place"], ["updates"])             # in place for D01, planned for D02: in place
+        self.assertEqual(org["extra"], ["mfa", "awareness"])       # planned for D01 and D03; planned for D02
+        self.assertTrue(org["assessed"])
+
+    def test_old_answers_of_a_discarded_risk_are_left_out(self):
+        q, by = self.old_shape()
+        by["D03"]["decision"] = "discard"
+        by["D03"]["reason"] = "x"
+        by["D03"]["in_place"] = ["password_manager"]
+        self.assertNotIn("password_manager", quick.org_measures(q)["in_place"])
+
+    def test_migrate_moves_the_answers_and_changes_nothing_on_a_second_call(self):
+        q, _ = self.old_shape()
+        before = [r["in_place"] + ["|"] + r["extra"] for r in quick.assess(q, self.cat)]
+        quick.migrate(q)
+        self.assertEqual(q["measures"], {"in_place": ["updates"], "extra": ["mfa", "awareness"], "assessed": True})
+        for e in q["risks"]:
+            for k in ("in_place", "extra", "assessed"):
+                self.assertNotIn(k, e)
+        again = copy.deepcopy(q)
+        quick.migrate(again)
+        self.assertEqual(again, q)
+        after = quick.assess(q, self.cat)
+        self.assertEqual(len(after), len(before))
+        for r in after:        # one answer for the whole business: nothing is both in place and planned
+            self.assertFalse(set(r["in_place"]) & set(r["extra"]))
+
+    def check_study(self, q):
+        st = quick.build_study(q, CAL)
+        self.assertEqual(study.validate(st, CAL)["errors"], [])
+        listed = quick.measure_list(q, self.cat)
+        self.assertEqual([b["reference"] for b in st["baseline"]],
+                         [m["en"] for m in listed if m["id"] in q["measures"]["in_place"]])
+        self.assertEqual(len({b["id"] for b in st["baseline"]}), len(st["baseline"]))
+        self.assertEqual(len({m["id"] for m in st["measures"]}), len(st["measures"]))
+        self.assertTrue(st["measures"])
+
+    def test_the_study_stays_valid_with_org_wide_answers(self):
+        q = answers()
+        q["measures"] = {"in_place": ["updates"], "extra": ["mfa", "awareness"], "assessed": True}
+        self.check_study(q)
+
+    def test_the_study_stays_valid_with_migrated_answers(self):
+        self.check_study(quick.migrate(self.old_shape()[0]))
+
+    def test_likelihood_after_counts_the_extra_measures_each_risk_lists(self):
+        q = answers()
+        q["measures"] = {"in_place": [], "extra": ["backup_offline", "updates", "mfa"], "assessed": True}
+        rows = {r["id"]: r for r in quick.assess(q, self.cat)}
+        self.assertEqual(rows["D01"]["extra"], ["backup_offline", "updates", "mfa"])
+        self.assertEqual(rows["D01"]["likelihood_target"], quick.likelihood_after(rows["D01"]["likelihood"], 3))
+        self.assertEqual(rows["D02"]["extra"], ["mfa"])
+        self.assertEqual(rows["D02"]["likelihood_target"], quick.likelihood_after(rows["D02"]["likelihood"], 1))
+
+    def test_a_measure_renamed_in_the_catalogue_keeps_its_old_answers(self):
+        q = answers()
+        q["measures"] = {"in_place": ["documentation"], "extra": [], "assessed": True}
+        self.assertEqual(quick.org_measures(q)["in_place"], ["key_tasks"])
+        ids = {m["id"] for r in self.cat["risks"] for m in r["measures"]}
+        self.assertIn("key_tasks", ids)
+        self.assertNotIn("documentation", ids)
+
+    def test_a_malformed_measures_object_is_refused(self):
+        for bad in ({"in_place": "mfa"}, {"extra": [1]}, ["mfa"]):
+            q = answers()
+            q["measures"] = bad
+            with self.assertRaises(quick.QuickError):
+                quick.assess(q, self.cat)
+
+    def test_the_assumption_about_measures_is_one_line_without_codes(self):
+        q = answers()
+        ass = quick.assumptions(q, CAL)
+        self.assertEqual(len([a for a in ass if a["what"] == "measures"]), 1)
+        q["measures"] = {"in_place": ["mfa"], "extra": [], "assessed": True}
+        ass = quick.assumptions(q, CAL)
+        self.assertEqual([a for a in ass if a["what"] == "measures"], [])
+        for a in ass:
+            for lang in ("en", "fr"):
+                self.assertIsNone(re.search(r"\b[DAC]\d\d?\b", a["text"][lang]), a["text"][lang])
+
+
+class CatalogueReasons(unittest.TestCase):
+    def test_every_risk_has_a_short_reason_in_both_languages(self):
+        for r in quick.load_catalogue()["risks"]:
+            for lang in ("en", "fr"):
+                self.assertTrue(r["why"][lang].strip(), (r["id"], lang))
+                self.assertLessEqual(len(r["why"][lang].split()), 14, (r["id"], lang))
+
+    def test_a_risk_without_a_reason_is_refused(self):
+        cat = quick.load_catalogue()
+        del cat["risks"][0]["why"]
+        with self.assertRaises(quick.QuickError):
+            quick.check_catalogue(cat)
 
 
 class Honesty(unittest.TestCase):
@@ -457,13 +612,12 @@ class Honesty(unittest.TestCase):
         self.assertEqual(set(quick.HONESTY), {"en", "fr"})
         # the exact English text of the owner's brief, pinned by hash so that the text itself stays in one place
         self.assertEqual(hashlib.sha256(quick.HONESTY["en"].encode("utf-8")).hexdigest(),
-                         "02f1e09c76e2938862de6d93b89bf8dca6c15c61df681c8c15a1f6f9283e52a0")
-        self.assertIn("treat it as a first view.", quick.HONESTY["en"])
-        self.assertTrue(quick.HONESTY["fr"].startswith("Cette analyse reflète uniquement"))
-        self.assertIn("première vue", quick.HONESTY["fr"])
+                         "0ac33950bfa9045452891fadb7888bc0039643da87b0a988df3f57a56491c085")
+        self.assertEqual(quick.HONESTY["en"], "These results come only from your answers. They are a first view, as good as the answers you gave.")
+        self.assertEqual(quick.HONESTY["fr"], "Ces résultats viennent uniquement de vos réponses. C'est une première vue, aussi juste que vos réponses.")
 
     def test_the_text_is_written_once_in_the_engine_package_and_app(self):
-        needle = "reflects only the " + "answers you gave"
+        needle = "come only from " + "your answers"
         hits = []
         for base in (ROOT / "engine", ROOT / "app"):
             for f in base.rglob("*.py"):

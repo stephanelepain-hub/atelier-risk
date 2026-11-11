@@ -188,6 +188,7 @@ def take_severities(st, cal, only=None):
 
 QuickError = quick_mod.QuickError
 HONESTY = quick_mod.HONESTY
+CONFIDENCE_LINE = quick_mod.CONFIDENCE_LINE
 DOWNTIME_KEYS = list(quick_mod.DOWNTIME)
 SENSITIVITY_KEYS = list(quick_mod.SENSITIVITY)
 LIKELIHOOD_KEYS = {"deliberate": list(quick_mod.LIKELIHOOD_DELIBERATE), "accidental": list(quick_mod.LIKELIHOOD_ACCIDENTAL)}
@@ -207,6 +208,21 @@ def quick_suggest(profile, cat):
 
 def quick_shortlist(profile, cat, limit=quick_mod.SHORTLIST_LIMIT):
     return quick_mod.shortlist(profile, cat, limit)
+
+
+def quick_measure_list(quick, cat):
+    """The measures of the kept risks, each once (the screen "Now and after" asks about them once)."""
+    return quick_mod.measure_list(quick, cat)
+
+
+def quick_org_measures(quick):
+    """{"in_place": [...], "extra": [...], "assessed": bool}: the measure answers of the whole business."""
+    return quick_mod.org_measures(quick)
+
+
+def quick_migrate(quick):
+    """Quick answers in the current shape (measure answers moved from the risks to quick["measures"]), in place."""
+    return quick_mod.migrate(quick)
 
 
 def quick_assess(quick, cat):

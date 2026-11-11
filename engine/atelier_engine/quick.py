@@ -32,12 +32,8 @@ MAX_VALUES = 5
 
 # The honesty statement. This is the only place the text is written; pages and exports read these constants.
 HONESTY = {
-    "en": "This analysis reflects only the answers you gave and the documents you provided. It is only as good as "
-          "that information. Without source documents (architecture, business impact, security baseline) treat it "
-          "as a first view.",
-    "fr": "Cette analyse reflète uniquement les réponses que vous avez données et les documents que vous avez "
-          "fournis. Sa qualité dépend entièrement de ces informations. Sans documents sources (architecture, "
-          "impacts métier, socle de sécurité), considérez-la comme une première vue.",
+    "en": "These results come only from your answers. They are a first view, as good as the answers you gave.",
+    "fr": "Ces résultats viennent uniquement de vos réponses. C'est une première vue, aussi juste que vos réponses.",
 }
 
 # Plain answers and the level the engine gives them (Atelier rule, beyond the guide).
@@ -47,8 +43,7 @@ LIKELIHOOD_DELIBERATE = {"unlikely": 1, "possible": 2, "likely": 3, "very_likely
 LIKELIHOOD_ACCIDENTAL = {"never": 1, "once": 2, "sometimes": 3, "often": 4}
 UNKNOWN_LEVEL = 3          # severity input when the person does not know (cautious)
 CUSTOM_LIKELIHOOD = 2      # likelihood of a risk added by the person, when they do not say
-DOCUMENT_KINDS = ("architecture", "business-impact", "security-baseline", "other")
-MISSING_DOCUMENTS = ("architecture", "business-impact", "security-baseline")
+DOCUMENT_KINDS = ("architecture", "business-impact", "security-baseline", "other")   # kept for studies saved earlier
 
 SEVERITY_WORDS = {
     "en": {1: "Minor: a nuisance", 2: "Significant: it hurts for a few days", 3: "Serious: lasting damage or a high cost",
@@ -99,7 +94,7 @@ def check_catalogue(cat):
         seen.add(rid)
         if r.get("family") not in FAMILIES:
             errs.append(f"risk {rid}: family must be one of {FAMILIES}")
-        for k in ("title", "description"):
+        for k in ("title", "description", "why"):
             if not all((r.get(k) or {}).get(lang) for lang in ("en", "fr")):
                 errs.append(f"risk {rid}: {k} needs en and fr text")
         if not r.get("criteria") or any(c not in CRITERIA for c in r["criteria"]):
@@ -229,12 +224,64 @@ def shortlist(profile, catalogue=None, limit=SHORTLIST_LIMIT):
     return out + rest[:max(0, limit - len(out))]
 
 
-def _norm_measures(ids, allowed):
+def org_measures(quick):
+    """The measure answers of the whole business: {"in_place": [ids], "extra": [ids], "assessed": bool}.
+
+    A measure is answered once, whatever the number of risks that list it. Quick answers carry them in
+    `quick["measures"]`. Answers saved in the old shape (per risk: `in_place`, `extra`, `assessed` on each entry of
+    `risks`) are read the same way, without changing `quick`: over the kept risks, a measure counts as in place if any
+    risk said in place, else as planned if any said planned. "In place" wins over "planned" for one measure."""
+    m = quick.get("measures")
+    if isinstance(m, dict):
+        in_place = _norm_ids(m.get("in_place"))
+        extra = [x for x in _norm_ids(m.get("extra")) if x not in in_place]
+        return {"in_place": in_place, "extra": extra, "assessed": bool(m.get("assessed"))}
+    in_place, extra, assessed = [], [], False
+    kept = [e for e in quick.get("risks") or [] if isinstance(e, dict) and e.get("decision") == "keep"]
+    for e in kept:
+        in_place += [x for x in _norm_ids(e.get("in_place")) if x not in in_place]
+        assessed = assessed or bool(e.get("assessed"))
+    for e in kept:
+        extra += [x for x in _norm_ids(e.get("extra")) if x not in extra and x not in in_place]
+    return {"in_place": in_place, "extra": extra, "assessed": assessed}
+
+
+def migrate(quick):
+    """Put quick answers in the current shape, in place, and return them: the measure answers move from the risks to
+    `quick["measures"]` (see `org_measures`). Calling it again changes nothing."""
+    quick["measures"] = org_measures(quick)
+    for e in quick.get("risks") or []:
+        if isinstance(e, dict):
+            for k in ("in_place", "extra", "assessed"):
+                e.pop(k, None)
+    return quick
+
+
+LEGACY_MEASURE_IDS = {"documentation": "key_tasks"}      # a measure renamed in the catalogue: answers saved before keep counting
+
+
+def _norm_ids(ids):
     out = []
-    for m in ids or []:
-        if m in allowed and m not in out:
+    for m in ids if isinstance(ids, list) else []:
+        m = LEGACY_MEASURE_IDS.get(m, m) if isinstance(m, str) else m
+        if isinstance(m, str) and m and m not in out:
             out.append(m)
     return out
+
+
+def measure_list(quick, catalogue=None):
+    """Every measure of the kept risks, each once, in order of first appearance:
+    [{"id", "en", "fr", "risks": [ids of the kept risks that list it]}]."""
+    cat = catalogue or load_catalogue()
+    by_id = _by_id(cat)
+    out = {}
+    for e in quick.get("risks") or []:
+        if not isinstance(e, dict) or e.get("decision") != "keep":
+            continue
+        d = _risk_def(e, by_id, cat)
+        for m in d["measures"]:
+            out.setdefault(m["id"], {"id": m["id"], "en": m["en"], "fr": m["fr"], "risks": []})["risks"].append(d["id"])
+    return list(out.values())
 
 
 def _risk_def(entry, cat_by_id, cat):
@@ -284,6 +331,11 @@ def validate_quick(quick, catalogue=None):
         table = LIKELIHOOD_DELIBERATE if d["family"] == "deliberate" else LIKELIHOOD_ACCIDENTAL
         if ans not in (None, "", "dont_know") and ans not in table:
             raise QuickError(f"{e['id']}: likelihood answer {ans!r} is not one of {sorted(table)}")
+    m = quick.get("measures")
+    if m is not None:
+        if not isinstance(m, dict) or any(not isinstance(m.get(k, []), list) or any(not isinstance(x, str) for x in m.get(k, []))
+                                          for k in ("in_place", "extra")):
+            raise QuickError("measures: in_place and extra must be lists of measure ids")
     prof = _profile(quick)
     for key, table in (("downtime", DOWNTIME), ("sensitivity", SENSITIVITY)):
         a = _slot(prof, key).get("answer")
@@ -350,14 +402,15 @@ def assess(quick, catalogue=None):
     validate_quick(quick, cat)
     by_id = _by_id(cat)
     profile = _profile(quick)
+    org = org_measures(quick)
     rows = []
     for e in quick.get("risks") or []:
         if e["decision"] != "keep":
             continue
         d = _risk_def(e, by_id, cat)
-        allowed = {m["id"] for m in d["measures"]}
-        in_place = _norm_measures(e.get("in_place"), allowed)
-        extra = [m for m in _norm_measures(e.get("extra"), allowed) if m not in in_place]
+        ids = [m["id"] for m in d["measures"]]
+        in_place = [m for m in ids if m in org["in_place"]]
+        extra = [m for m in ids if m in org["extra"] and m not in in_place]
         proposed, known = _severity(d, profile)
         sev = e.get("severity") or {}
         if sev.get("value") is not None:
@@ -383,7 +436,7 @@ def assess(quick, catalogue=None):
                      "likelihood_answer": ans if lik_src == "answer" else None,
                      "likelihood_target": likelihood_after(now, len(extra)),
                      "in_place": in_place, "extra": extra,
-                     "in_place_source": "answer" if e.get("assessed") else "default",
+                     "in_place_source": "answer" if org["assessed"] else "default",
                      "source": "answer" if d.get("custom") else "catalogue"})
     return rows
 
@@ -462,40 +515,37 @@ def assumptions(quick, cal, catalogue=None):
         title = r["def"]["title"]
         if r["severity_source"] == "default":
             out.append({"kind": "default", "scope": "risk", "risk": r["id"], "what": "severity", "value": r["severity"],
-                        "text": _t(f"{r['id']} {title['en']}: severity {r['severity']} proposed from a typical value and a cautious default.",
-                                   f"{r['id']} {title['fr']} : gravité {r['severity']} proposée à partir d'une valeur typique et d'une valeur par défaut prudente.")})
+                        "text": _t(f"{title['en']}: severity {r['severity']} proposed from a typical value and a cautious default.",
+                                   f"{title['fr']} : gravité {r['severity']} proposée à partir d'une valeur typique et d'une valeur par défaut prudente.")})
         elif r["severity_source"] == "catalogue":
             out.append({"kind": "catalogue", "scope": "risk", "risk": r["id"], "what": "severity", "value": r["severity"],
-                        "text": _t(f"{r['id']} {title['en']}: severity {r['severity']} is our proposal, kept as it is.",
-                                   f"{r['id']} {title['fr']} : gravité {r['severity']} proposée, conservée telle quelle.")})
+                        "text": _t(f"{title['en']}: severity {r['severity']} is our proposal, kept as it is.",
+                                   f"{title['fr']} : gravité {r['severity']} proposée, conservée telle quelle.")})
         if r["likelihood_source"] == "default":
             why = _t("not sure", "pas sûr") if r["likelihood_flag"] == "dont_know" else _t("left open", "laissé ouvert")
             out.append({"kind": "dont_know" if r["likelihood_flag"] == "dont_know" else "default", "scope": "risk", "risk": r["id"],
                         "what": "likelihood", "value": r["likelihood"],
-                        "text": _t(f"{r['id']} {title['en']}: likelihood {r['likelihood']} is a typical value ({why['en']}).",
-                                   f"{r['id']} {title['fr']} : vraisemblance {r['likelihood']} est une valeur typique ({why['fr']}).")})
-        if r["in_place_source"] == "default":
-            out.append({"kind": "default", "scope": "risk", "risk": r["id"], "what": "measures", "value": [],
-                        "text": _t(f"{r['id']} {title['en']}: measures already in place, none assumed yet.",
-                                   f"{r['id']} {title['fr']} : mesures déjà en place, aucune supposée pour l'instant.")})
+                        "text": _t(f"{title['en']}: likelihood {r['likelihood']} is a typical value ({why['en']}).",
+                                   f"{title['fr']} : vraisemblance {r['likelihood']} est une valeur typique ({why['fr']}).")})
+    if rows and rows[0]["in_place_source"] == "default":      # the measures are answered once, for the whole business
+        out.append({"kind": "default", "scope": "measures", "risk": None, "what": "measures", "value": [],
+                    "text": _t("Measures already in place: none assumed yet.",
+                               "Mesures déjà en place : aucune supposée pour l'instant.")})
     return out
 
 
 def facts(quick, cal, catalogue=None):
-    """The one-line facts of the results page and exports: documents, answers, assumptions, confidence."""
-    doc = _slot(_profile(quick), "document")
-    given = [doc.get("kind")] if doc.get("provided") and doc.get("kind") else []
+    """Counts behind the results: answers given, assumptions, confidence (figure and band), risks kept."""
     rows = assess(quick, catalogue)
     n_answers = sum(1 for k in ("activity", "values", "tools", "downtime", "sensitivity")
                     if slot_source(_slot(_profile(quick), k)) == "answer")
     n_answers += sum((r["severity_source"] == "answer") + (r["likelihood_source"] == "answer") for r in rows)
     ass = assumptions(quick, cal, catalogue)
     conf = confidence(quick, catalogue)
-    return {"documents": given, "document_provided": bool(doc.get("provided")),
-            "not_provided": [k for k in MISSING_DOCUMENTS if k not in given],
-            "answers": n_answers, "assumptions": len(ass),
+    return {"answers": n_answers, "assumptions": len(ass),
             "catalogue_values": len([a for a in ass if a["kind"] == "catalogue"]),
-            "confidence": conf, "band": confidence_band(conf), "risks": len(rows)}
+            "confidence": conf, "band": confidence_band(conf), "risks": len(rows),
+            "ceiling": 100 if document_provided(quick) else NO_DOCUMENT_CEILING}
 
 
 def top_actions(quick, cal, n=5, catalogue=None):
@@ -523,7 +573,9 @@ def top_actions(quick, cal, n=5, catalogue=None):
 
 def build_study(quick, cal, catalogue=None):
     """A normal study (docs/study-format.md) from the quick answers. Every element carries `source` (document,
-    answer, catalogue or default); risks also carry `sources` for severity and likelihood.
+    answer, catalogue or default); risks also carry `sources` for severity and likelihood. The measure answers are
+    those of the whole business (`org_measures`): each measure is in place, planned or open once, for every kept risk
+    that lists it.
 
     Mapping (design s.17): About you fills `study`, business values and supporting assets; each kept risk becomes a
     feared event and a risk; a deliberate risk also becomes a risk origin with its target objective, one strategic
@@ -607,26 +659,22 @@ def _label(items, key, lang):
 
 # ---------------------------------------------------------------- exports
 
+CONFIDENCE_LINE = {"en": "Confidence grows as you answer more questions yourself.",
+                   "fr": "La confiance grandit à mesure que vous répondez vous-même à plus de questions."}
+
+
 def xlsx_notice(quick, cal, catalogue=None):
-    """Lines for the header of the Excel export: the honesty statement and the facts, in the study's language."""
+    """Lines for the header of the Excel export: the honesty statement and the counts, in the study's language."""
     lang = quick.get("lang") if quick.get("lang") in ("en", "fr") else "en"
     f = facts(quick, cal, catalogue)
-    names = {"architecture": ("architecture document", "document d'architecture"),
-             "business-impact": ("business impact analysis", "analyse d'impact sur l'activité"),
-             "security-baseline": ("security baseline", "socle de sécurité"),
-             "other": ("other document", "autre document")}
-    name = lambda k: names.get(k, (k, k))[0 if lang == "en" else 1]  # noqa: E731
-    docs = ", ".join(name(k) for k in f["documents"]) or (
-        ("mentioned, not read" if lang == "en" else "mentionné, non lu") if f["document_provided"]
-        else ("none yet" if lang == "en" else "aucun pour l'instant"))
-    missing = ", ".join(name(k) for k in f["not_provided"]) or ("none" if lang == "en" else "aucun")
+    upto = {"en": f", up to {f['ceiling']}%", "fr": f", jusqu'à {f['ceiling']} %"} if f["ceiling"] < 100 else {"en": "", "fr": ""}
     if lang == "fr":
         band = {"low": "faible", "medium": "moyenne", "high": "élevée"}[f["band"]]
-        line = (f"Documents : {docs}. À ajouter : {missing}. Réponses : {f['answers']}. Hypothèses à confirmer : "
-                f"{f['assumptions']}. Confiance : {f['confidence']} % ({band}).")
+        line = (f"Réponses : {f['answers']}. Hypothèses à confirmer : {f['assumptions']}. "
+                f"Confiance : {f['confidence']} % ({band}){upto['fr']}. {CONFIDENCE_LINE['fr']}")
     else:
-        line = (f"Documents: {docs}. To add: {missing}. Answers: {f['answers']}. Assumptions to confirm: "
-                f"{f['assumptions']}. Confidence: {f['confidence']}% ({f['band']}).")
+        line = (f"Answers: {f['answers']}. Assumptions to confirm: {f['assumptions']}. "
+                f"Confidence: {f['confidence']}% ({f['band']}){upto['en']}. {CONFIDENCE_LINE['en']}")
     return [HONESTY[lang], line]
 
 

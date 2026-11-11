@@ -1,4 +1,6 @@
 """The "How it works" page (GET /how): plain words, EN and FR, for a business owner."""
+import html
+
 from . import engine, labels
 from .views import esc, page
 
@@ -32,7 +34,7 @@ T = {
         "grid": "The grid crosses the two: the more it would matter and the more likely it is, the higher the level.",
         "h_conf": "What the confidence figure means",
         "conf": "It shows how much of the picture rests on your own answers rather than on typical values. Each answer "
-                "adds to it. A source document would count in full, so with answers alone the figure reaches {n}% at most.",
+                "adds to it, up to {n}%. Confidence grows as you answer more questions yourself.",
         "h_honesty": "Honesty statement",
         "h_data": "Your data",
         "data": "Your data stays on the computer that runs Atelier: your answers are saved there, and only there.",
@@ -68,7 +70,7 @@ T = {
         "grid": "La grille croise les deux : plus c'est important et plus c'est vraisemblable, plus le niveau monte.",
         "h_conf": "Ce que veut dire le chiffre de confiance",
         "conf": "Il montre la part de la vue d'ensemble qui repose sur vos réponses plutôt que sur des valeurs typiques. "
-                "Chaque réponse l'augmente. Un document source compterait pleinement : avec vos seules réponses, le chiffre atteint {n} % au plus.",
+                "Chaque réponse l'augmente, jusqu'à {n} %. La confiance grandit à mesure que vous répondez vous-même à plus de questions.",
         "h_honesty": "Déclaration d'honnêteté",
         "h_data": "Vos données",
         "data": "Vos données restent sur l'ordinateur qui fait tourner Atelier : vos réponses y sont enregistrées, et seulement là.",
@@ -100,7 +102,7 @@ def how(session, lang):
 <p><b>{esc(t["lvl"])}</b>: {esc(", ".join(levels))}.</p><p class="hint">{esc(t["grid"])}</p></section>
 <section class="card"><h2>{esc(t["h_conf"])}</h2><p>{esc(t["conf"].format(n=engine.NO_DOCUMENT_CEILING))}</p></section>
 <aside class="honesty" aria-labelledby="how-honesty-h"><h2 id="how-honesty-h">{esc(t["h_honesty"])}</h2>
-<p lang="{lang}">{esc(engine.HONESTY[lang])}</p></aside>
+<p lang="{lang}">{html.escape(engine.HONESTY[lang], quote=False)}</p></aside>
 <section class="card"><h2>{esc(t["h_data"])}</h2><p>{esc(t["data"])}</p></section>
 <section class="card"><h2>{esc(t["h_indep"])}</h2><p>{esc(t["indep"])}</p></section>
 <p><a href="/?lang={lang}">{esc(t["back"])}</a></p>

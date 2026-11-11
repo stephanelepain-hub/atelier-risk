@@ -8,7 +8,6 @@ SID = r"(s-[0-9]{8}-[0-9a-f]{8})"
 NEXT_STEP = {"about": "risks", "risks": "now", "now": "results", "results": "results"}
 ORDER = ("about", "risks", "now", "results")
 QUICK_FORMAT = {"format": "atelier-quick", "version": "0.1"}
-DOC_STATUS = "mentioned, not read"
 
 
 def _lines(text):
@@ -68,6 +67,7 @@ class QuickRoutes:
         quick = st.get("quick")
         if not isinstance(quick, dict):
             raise HTTPError(404, "this study was not made with the quick path")
+        engine.quick_migrate(quick)   # answers saved per risk become answers for the whole business (the next save keeps them so)
         return st, quick
 
     def _cal(self, st):
@@ -130,7 +130,7 @@ class QuickRoutes:
 
     def quick_new_form(self, req):
         lang = self._lang(req)
-        resp = Response(views_quick.about(req.session, None, lang, self.quick_catalogue(), {}, doc_yes=req.arg("doc") == "1"))
+        resp = Response(views_quick.about(req.session, None, lang, self.quick_catalogue(), {}))
         return self._remember(req, resp, lang)
 
     def _parse_about(self, req, cat):
@@ -157,9 +157,7 @@ class QuickRoutes:
                 "values": {"value": values[:engine.MAX_VALUES] if "values" not in errors else values, "dont_know": bool(req.field("values_dk"))},
                 "tools": {"value": tools, "dont_know": bool(req.field("tools_dk"))},
                 "downtime": plain("downtime", engine.DOWNTIME_KEYS),
-                "sensitivity": plain("sensitivity", engine.SENSITIVITY_KEYS),
-                "document": ({"provided": True, "status": DOC_STATUS} if req.field("has_doc") == "yes"
-                             else {"provided": False})}
+                "sensitivity": plain("sensitivity", engine.SENSITIVITY_KEYS)}
         return prof, errors
 
     def quick_new(self, req):
@@ -286,7 +284,10 @@ class QuickRoutes:
             rows = self._rows(quick, cal)
             entries = {e["id"]: e for e in quick["risks"]}
             errors = {}
-            state = {"sev": {}, "sevreason": {}, "lik": {}, "in": {}, "extra": {}}
+            listed = [m["id"] for m in engine.quick_measure_list(quick, cat)]    # each measure once, for the whole business
+            answers = {m: req.field(f"m_{m}") for m in listed}
+            answers = {m: (a if a in ("in", "extra") else "") for m, a in answers.items()}
+            state = {"sev": {}, "sevreason": {}, "lik": {}, "m": {}}
             parsed = {}
             for r in rows:
                 rid = r["id"]
@@ -298,18 +299,15 @@ class QuickRoutes:
                 lik = req.field(f"lik_{rid}")
                 if lik not in engine.LIKELIHOOD_KEYS[r["def"]["family"]] and lik != "dont_know":
                     lik = ""
-                order = [m["id"] for m in r["def"]["measures"]]
-                in_place = [m for m in order if req.field(f"m_{rid}_{m}") == "in"]
-                extra = [m for m in order if req.field(f"m_{rid}_{m}") == "extra"]
                 state["sev"][rid], state["sevreason"][rid], state["lik"][rid] = sev, reason, lik
-                state["in"][rid], state["extra"][rid] = in_place, extra
-                parsed[rid] = (sev, reason, lik, in_place, extra)
+                parsed[rid] = (sev, reason, lik)
                 if sev is not None and not reason:
                     errors[rid] = views_quick.tr(lang, "err_sev_reason")
+            state["m"] = answers
             if errors:
                 return Response(views_quick.now(req.session, sid, lang, cat, quick, cal, rows, state, errors,
                                                 edited=self._edited_in_expert_mode(st, quick, cal)), 400)
-            for rid, (sev, reason, lik, in_place, extra) in parsed.items():
+            for rid, (sev, reason, lik) in parsed.items():
                 e = entries[rid]
                 if sev is None:
                     e.pop("severity", None)
@@ -319,7 +317,10 @@ class QuickRoutes:
                     e["likelihood"] = {"answer": lik}
                 else:
                     e.pop("likelihood", None)
-                e["in_place"], e["extra"], e["assessed"] = in_place, extra, True
+            old = engine.quick_org_measures(quick)       # answers for measures not shown now (a risk set aside) stay
+            quick["measures"] = {"in_place": [m for m in old["in_place"] if m not in answers] + [m for m in listed if answers[m] == "in"],
+                                 "extra": [m for m in old["extra"] if m not in answers] + [m for m in listed if answers[m] == "extra"],
+                                 "assessed": True}
             quick["lang"] = lang
             go = req.field("go")
             if go == "next":

@@ -217,6 +217,10 @@
   {
    "id": "D01",
    "family": "deliberate",
+   "why": {
+    "en": "Most businesses keep their daily work on computers.",
+    "fr": "La plupart des entreprises travaillent au quotidien sur ordinateur."
+   },
    "title": {
     "en": "Ransomware locks your files and systems",
     "fr": "Un rançongiciel bloque vos fichiers et vos systèmes"
@@ -277,6 +281,10 @@
   {
    "id": "D02",
    "family": "deliberate",
+   "why": {
+    "en": "Email and online accounts open many doors.",
+    "fr": "La messagerie et les comptes en ligne ouvrent beaucoup de portes."
+   },
    "title": {
     "en": "Stolen email or online passwords",
     "fr": "Vol de mots de passe de messagerie ou de services en ligne"
@@ -325,6 +333,10 @@
   {
    "id": "D03",
    "family": "deliberate",
+   "why": {
+    "en": "Anyone who pays invoices can be a target.",
+    "fr": "Toute personne qui règle des factures peut être visée."
+   },
    "title": {
     "en": "Payment fraud with a fake invoice or a fake manager",
     "fr": "Fraude au paiement par faux virement ou faux dirigeant"
@@ -371,6 +383,10 @@
   {
    "id": "D04",
    "family": "deliberate",
+   "why": {
+    "en": "Customer and staff lists have value to others.",
+    "fr": "Les listes de clients et de salariés ont de la valeur pour d'autres."
+   },
    "title": {
     "en": "Theft of customer or personal data",
     "fr": "Vol de données clients ou de données personnelles"
@@ -424,6 +440,10 @@
   {
    "id": "D05",
    "family": "deliberate",
+   "why": {
+    "en": "A shop page handles customers' card details.",
+    "fr": "Une page de boutique traite les cartes de vos clients."
+   },
    "title": {
     "en": "Online shop or payment page tampered with",
     "fr": "Boutique en ligne ou page de paiement piégée"
@@ -476,6 +496,10 @@
   {
    "id": "D06",
    "family": "deliberate",
+   "why": {
+    "en": "A website is visible to everyone.",
+    "fr": "Un site web est visible de tous."
+   },
    "title": {
     "en": "Website defaced or taken over",
     "fr": "Site web défiguré ou pris en main par un tiers"
@@ -528,6 +552,10 @@
   {
    "id": "D07",
    "family": "deliberate",
+   "why": {
+    "en": "An online service needs to stay reachable.",
+    "fr": "Un service en ligne doit rester joignable."
+   },
    "title": {
     "en": "Website or online service knocked offline by traffic",
     "fr": "Site ou service en ligne saturé par un flot de trafic"
@@ -570,6 +598,10 @@
   {
    "id": "D08",
    "family": "deliberate",
+   "why": {
+    "en": "Designs and customer lists help competitors.",
+    "fr": "Les plans et les fichiers clients intéressent la concurrence."
+   },
    "title": {
     "en": "A competitor gets hold of your know-how",
     "fr": "Un concurrent récupère votre savoir-faire"
@@ -617,6 +649,10 @@
   {
    "id": "D09",
    "family": "deliberate",
+   "why": {
+    "en": "Access can outlast someone's time with you.",
+    "fr": "Un accès peut durer plus longtemps que le départ d'une personne."
+   },
    "title": {
     "en": "A former or unhappy colleague deletes or leaks data",
     "fr": "Un ancien collaborateur ou un collaborateur mécontent supprime ou divulgue des données"
@@ -665,6 +701,10 @@
   {
    "id": "D10",
    "family": "deliberate",
+   "why": {
+    "en": "Sensitive work attracts patient, skilled groups.",
+    "fr": "Un travail sensible attire des groupes patients et compétents."
+   },
    "title": {
     "en": "Targeted spying on sensitive information",
     "fr": "Espionnage ciblé d'informations sensibles"
@@ -717,6 +757,10 @@
   {
    "id": "D11",
    "family": "deliberate",
+   "why": {
+    "en": "One main account can open everything online.",
+    "fr": "Un compte principal peut tout ouvrir en ligne."
+   },
    "title": {
     "en": "Online account or admin console taken over",
     "fr": "Compte en ligne ou console d'administration pris en main"
@@ -775,6 +819,10 @@
   {
    "id": "D12",
    "family": "deliberate",
+   "why": {
+    "en": "Remote access is a door to the office.",
+    "fr": "L'accès à distance est une porte vers le bureau."
+   },
    "title": {
     "en": "Someone gets in through your remote access",
     "fr": "Quelqu'un entre par votre accès à distance"
@@ -823,6 +871,10 @@
   {
    "id": "D13",
    "family": "deliberate",
+   "why": {
+    "en": "Suppliers with access are a way in.",
+    "fr": "Les fournisseurs qui ont un accès sont une voie d'entrée."
+   },
    "title": {
     "en": "A supplier is hacked and it spreads to you",
     "fr": "Un fournisseur est piraté et cela vous atteint aussi"
@@ -877,6 +929,10 @@
   {
    "id": "D14",
    "family": "deliberate",
+   "why": {
+    "en": "Machines and building controls run on networks.",
+    "fr": "Les machines et le bâtiment fonctionnent sur des réseaux."
+   },
    "title": {
     "en": "Machines or building controls tampered with",
     "fr": "Machines ou commandes du bâtiment manipulées"
@@ -929,6 +985,10 @@
   {
    "id": "D15",
    "family": "deliberate",
+   "why": {
+    "en": "Visitors and suppliers plug into machine networks.",
+    "fr": "Visiteurs et fournisseurs se branchent aux réseaux des machines."
+   },
    "title": {
     "en": "Machine network infected through a USB stick or a visitor's laptop",
     "fr": "Réseau des machines infecté par une clé USB ou l'ordinateur d'un visiteur"
@@ -976,6 +1036,10 @@
   {
    "id": "A01",
    "family": "accidental",
+   "why": {
+    "en": "Everyone saves and deletes files every day.",
+    "fr": "Tout le monde enregistre et supprime des fichiers chaque jour."
+   },
    "title": {
     "en": "Important files deleted or overwritten by mistake",
     "fr": "Fichiers importants supprimés ou écrasés par erreur"
@@ -1017,6 +1081,10 @@
   {
    "id": "A02",
    "family": "accidental",
+   "why": {
+    "en": "A backup helps only when it restores well.",
+    "fr": "Une sauvegarde ne sert que si elle se restaure bien."
+   },
    "title": {
     "en": "A restore from backups turns out incomplete",
     "fr": "Une restauration depuis les sauvegardes s'avère incomplète"
@@ -1054,7 +1122,7 @@
      "fr": "Tester une restauration complète une fois par an"
     },
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
@@ -1063,6 +1131,10 @@
   {
    "id": "A03",
    "family": "accidental",
+   "why": {
+    "en": "Messages and shared links go out all day.",
+    "fr": "Messages et liens partagés partent toute la journée."
+   },
    "title": {
     "en": "Message or files sent to the wrong people",
     "fr": "Message ou fichiers envoyés aux mauvaises personnes"
@@ -1103,6 +1175,10 @@
   {
    "id": "A04",
    "family": "accidental",
+   "why": {
+    "en": "Systems change, and updates can surprise.",
+    "fr": "Les systèmes évoluent et les mises à jour peuvent surprendre."
+   },
    "title": {
     "en": "A change or update breaks a system",
     "fr": "Un changement ou une mise à jour casse un système"
@@ -1137,7 +1213,7 @@
      "fr": "Rendre les sauvegardes automatiques et vérifier chaque semaine qu'elles ont eu lieu"
     },
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
@@ -1151,6 +1227,10 @@
   {
    "id": "A05",
    "family": "accidental",
+   "why": {
+    "en": "One wrong setting can open online files.",
+    "fr": "Un mauvais réglage peut ouvrir des fichiers en ligne."
+   },
    "title": {
     "en": "Online storage or database left open by mistake",
     "fr": "Stockage en ligne ou base de données laissé ouvert par erreur"
@@ -1197,6 +1277,10 @@
   {
    "id": "A06",
    "family": "accidental",
+   "why": {
+    "en": "All equipment wears out in time.",
+    "fr": "Tout équipement s'use avec le temps."
+   },
    "title": {
     "en": "A computer, server or disk breaks down",
     "fr": "Un ordinateur, un serveur ou un disque tombe en panne"
@@ -1235,7 +1319,7 @@
      "fr": "Équiper le matériel essentiel d'une alimentation de secours sur batterie"
     },
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
@@ -1244,6 +1328,10 @@
   {
    "id": "A07",
    "family": "accidental",
+   "why": {
+    "en": "Online work depends on the connection.",
+    "fr": "Le travail en ligne dépend de la connexion."
+   },
    "title": {
     "en": "Internet or network down for a long time",
     "fr": "Internet ou réseau coupé pendant longtemps"
@@ -1284,6 +1372,10 @@
   {
    "id": "A08",
    "family": "accidental",
+   "why": {
+    "en": "Everything you use runs on power.",
+    "fr": "Tout ce que vous utilisez fonctionne sur le courant."
+   },
    "title": {
     "en": "Power cut or power surge",
     "fr": "Coupure ou surtension électrique"
@@ -1325,6 +1417,10 @@
   {
    "id": "A09",
    "family": "accidental",
+   "why": {
+    "en": "Online services sometimes stop or close accounts.",
+    "fr": "Les services en ligne s'arrêtent ou ferment parfois des comptes."
+   },
    "title": {
     "en": "An online provider has a long outage or closes your account",
     "fr": "Un prestataire en ligne subit une longue panne ou ferme votre compte"
@@ -1370,6 +1466,10 @@
   {
    "id": "A10",
    "family": "accidental",
+   "why": {
+    "en": "You rely on suppliers for key services.",
+    "fr": "Vous comptez sur des fournisseurs pour des services clés."
+   },
    "title": {
     "en": "A key supplier or IT provider stops serving you",
     "fr": "Un fournisseur clé ou un prestataire informatique cesse de vous servir"
@@ -1401,7 +1501,7 @@
      "fr": "Prévoir dans le contrat le délai de rétablissement du service par le prestataire après une panne"
     },
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
@@ -1415,6 +1515,10 @@
   {
    "id": "A11",
    "family": "accidental",
+   "why": {
+    "en": "Devices travel and sometimes get left behind.",
+    "fr": "Les appareils voyagent et s'oublient parfois."
+   },
    "title": {
     "en": "Laptop, phone or USB drive lost",
     "fr": "Ordinateur portable, téléphone ou clé USB perdu"
@@ -1455,6 +1559,10 @@
   {
    "id": "A12",
    "family": "accidental",
+   "why": {
+    "en": "Equipment has value and is easy to carry.",
+    "fr": "Le matériel a de la valeur et se transporte facilement."
+   },
    "title": {
     "en": "Equipment stolen from the premises or a car",
     "fr": "Matériel volé dans les locaux ou dans une voiture"
@@ -1502,6 +1610,10 @@
   {
    "id": "A13",
    "family": "accidental",
+   "why": {
+    "en": "Every building can meet fire or water.",
+    "fr": "Tout bâtiment peut connaître le feu ou l'eau."
+   },
    "title": {
     "en": "Fire or water damage in the building",
     "fr": "Incendie ou dégât des eaux dans le bâtiment"
@@ -1553,6 +1665,10 @@
   {
    "id": "A14",
    "family": "accidental",
+   "why": {
+    "en": "Weather can close a site for days.",
+    "fr": "La météo peut fermer un site pendant des jours."
+   },
    "title": {
     "en": "Storm, flood or another natural event closes the site",
     "fr": "Tempête, inondation ou autre événement naturel qui ferme le site"
@@ -1598,6 +1714,10 @@
   {
    "id": "A15",
    "family": "accidental",
+   "why": {
+    "en": "Small teams often rely on one key person.",
+    "fr": "Dans les petites équipes, une personne détient souvent le savoir-faire."
+   },
    "title": {
     "en": "Only one person knows how something works",
     "fr": "Une seule personne sait comment fonctionne un élément essentiel"
@@ -1619,7 +1739,7 @@
    "nist_source": "accidental / process error",
    "measures": [
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     },
@@ -1638,6 +1758,10 @@
   {
    "id": "A16",
    "family": "accidental",
+   "why": {
+    "en": "Machines depend on settings and software.",
+    "fr": "Les machines dépendent de réglages et de logiciels."
+   },
    "title": {
     "en": "A machine runs wrongly after an operator or software error",
     "fr": "Une machine fonctionne mal après une erreur d'opérateur ou de logiciel"
@@ -1675,7 +1799,7 @@
      "fr": "Disposer d'un équipement de remplacement ou d'un remplacement rapide pour le matériel essentiel"
     },
     {
-     "id": "documentation",
+     "id": "key_tasks",
      "en": "Write down how key tasks are done and train a deputy",
      "fr": "Écrire comment les tâches clés sont faites et former un suppléant"
     }
@@ -1684,6 +1808,10 @@
   {
    "id": "A17",
    "family": "accidental",
+   "why": {
+    "en": "Shops change often, and checkout matters most.",
+    "fr": "Les boutiques évoluent souvent et le paiement compte le plus."
+   },
    "title": {
     "en": "Website or shop errors after a change",
     "fr": "Erreurs sur le site ou la boutique après un changement"

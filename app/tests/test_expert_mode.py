@@ -231,7 +231,7 @@ class HowPageTest(qp.Base):
                      "conforms with ISO/IEC 27005:2022",
                      'href="https://cyber.gouv.fr/securisation/analyse-des-risques/methode-ebios-rm"',
                      'href="https://messervices.cyber.gouv.fr/guides/la-methode-ebios-risk-manager-le-guide"',
-                     "ANSSI guide, version 1.5", "NIST SP 800-30", "75% at most",
+                     "ANSSI guide, version 1.5", "NIST SP 800-30", "up to 75%", "Confidence grows as you answer more questions yourself.",
                      "stays on the computer that runs Atelier",
                      "Atelier is an independent project, separate from ANSSI, SGDSN and Club EBIOS. "
                      "EBIOS is a registered trademark of SGDSN."):

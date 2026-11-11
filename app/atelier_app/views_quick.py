@@ -3,6 +3,8 @@
 Text is in English and French (T). Every piece of user or catalogue text goes through esc(). Levels, confidence and
 the honesty statement are the engine's; nothing here computes a level.
 """
+import html as html_mod
+
 from . import engine, labels
 from .views import csrf_input, esc, level_classes, page, when
 
@@ -10,16 +12,12 @@ STEPS = ("about", "risks", "now", "results")
 
 T = {
     "en": {
-        'home_title': 'Know your main risks in about 30 minutes',
-        'home_lead': 'A few plain questions, about 30 minutes, and you see what already works and what to do first. Anyone can do it.',
+        'home_title': 'Know your main risks in about 15 minutes',
+        'home_page_title': 'Know your main risks',
+        'home_lead': 'A few plain questions show what already works and what to do first.',
+        'start': 'Start',
         'built_on': 'Built on EBIOS Risk Manager, the method of ANSSI, the French national cybersecurity agency',
         'built_on_link': 'How it works',
-        'way1': 'Start from scratch',
-        'way1_text': 'Answer simple questions (about 30 minutes).',
-        'way1_go': 'Start',
-        'way2': 'I have a document',
-        'way2_text': 'Mention your architecture, impact analysis or security baseline: we note it in your results.',
-        'way2_go': 'Start, with a document',
         'continue': 'Pick up where you left off',
         'continue_none': 'Your analyses will appear here, ready to pick up later.',
         'all_studies': 'All your saved studies',
@@ -33,7 +31,6 @@ T = {
         'back': 'Back',
         'continue_btn': 'Save and continue',
         'save_btn': 'Save',
-        'optional': 'optional',
         'dk': 'Not sure',
         'about_title': 'About you',
         'about_lead': 'Answer what you can. Anything you are unsure about gets a typical value, and we tell you.',
@@ -49,11 +46,6 @@ T = {
         'q_downtime_ex': 'For example: email, orders and the till all stop at once.',
         'q_sensitivity': 'How sensitive is the information you hold?',
         'q_sensitivity_ex': 'For example: would a customer, a patient or a regulator be upset to see it?',
-        'q_doc': 'Do you have a document about your systems or risks?',
-        'q_doc_ex': 'For example an architecture description, an impact analysis or a security baseline. Your answer is noted in the results as “document mentioned, not read”.',
-        'doc_yes': 'Yes, I have one',
-        'doc_no': 'Not for now',
-        'doc_mentioned': 'document mentioned, not read',
         'downtime_hours': 'Within a few hours',
         'downtime_day': 'Within a day or two',
         'downtime_days': 'Within a week',
@@ -91,11 +83,13 @@ T = {
         'risks_count': '{k} of {n} risks kept',
         'none_kept': 'Keep at least one risk to continue.',
         'now_title': 'Now and after',
-        'now_lead': 'For each risk: how much it would matter, how likely it is, what you already do and what you could add. We work out the levels for you.',
+        'now_lead': 'Rate each risk, then tick what you already do and what you would add.',
+        'now_risks_h': 'Your risks',
+        'now_meas_h': 'What helps your whole business',
+        'now_meas_lead': 'Answer each measure once. It counts for every risk it helps with.',
+        'sev_q': 'How much would it matter to you?',
         'now_empty': 'Choose your risks first, then come back here.',
         'now_empty_cta': 'Choose your risks',
-        'sev_q': 'How much would it matter to you?',
-        'sev_proposed': 'We suggest',
         'sev_keep': 'Keep our suggestion',
         'sev_reason': 'Why another level?',
         'sev_reason_ph': 'Needed when you choose another level',
@@ -112,36 +106,36 @@ T = {
         'lik_sometimes': 'Yes, a few times',
         'lik_often': 'Yes, regularly',
         'measures': 'What helps',
-        'measures_hint': 'For each measure: do you already do it, or would you add it?',
         'm_none': 'Later',
         'm_in': 'Already in place',
         'm_extra': 'Add to my plan',
         'now_level': 'Now',
         'after_level': 'After your extra measures',
-        'levels_note': 'Levels are worked out by the engine from your answers.',
         'save_stay': 'Save',
         'save_next': 'Save and see the results',
         'err_row': 'Check this risk: {msg}',
         'res_title': 'Your results',
-        'res_lead': 'Here is what you already have in place, then what to do next.',
+        'see_all': 'See all your risks ({n})',
+        'in_place_h': 'Already in place ({n})',
+        'rough': 'Rough guide',
+        'rough_text': 'time and who are estimates.',
+        'map_key': 'Your risks on the maps',
+        'conf_cap': 'up to {n}%',
+        'assumed_h': 'What we assumed ({n})',
         'in_place': 'Already in place',
         'in_place_none': 'Tick what you already do in “Now and after”: it appears here.',
+        'risks_h': 'Your risks',
         'map_now': 'Now',
         'map_after': 'After your extra measures',
-        'map_legend': 'Risks on the maps',
-        'map_section': 'Where you stand',
         'risk_col': 'Risk',
         'now_col': 'Now',
         'after_col': 'After',
         'conf': 'Confidence',
-        'conf_text': 'How much of this rests on what you told us, rather than on assumptions.',
         'band_low': 'low',
         'band_medium': 'medium',
         'band_high': 'high',
-        'conf_cap': 'With answers alone, confidence reaches up to {n}%.',
         'top5': 'Your top actions',
         'top5_empty': 'Tick the measures you would add in “Now and after”: your actions appear here.',
-        'top5_for': 'Helps with',
         'assumptions': 'What we assumed',
         'assumptions_lead': 'Places where we used a typical value. Check them when you can.',
         'assumptions_none': 'Every question was answered by you.',
@@ -149,16 +143,6 @@ T = {
         'kind_default': 'Left open',
         'kind_dont_know': 'Not sure',
         'kind_catalogue': 'Typical value kept',
-        'facts_docs': 'Documents',
-        'facts_none': 'none yet',
-        'facts_missing': 'To add',
-        'facts_answers': 'Answers',
-        'facts_assumptions': 'Assumptions to confirm',
-        'doc_note': 'Your document is noted. The confidence figure reflects your answers.',
-        'doc_architecture_short': 'architecture document',
-        'doc_business-impact_short': 'business impact analysis',
-        'doc_security-baseline_short': 'security baseline',
-        'doc_other_short': 'other document',
         'export': 'Download Excel',
         'xlsx_missing': 'Add the openpyxl package to enable the Excel download. The study file download is ready now.',
         'export_json': 'Download the study file',
@@ -169,19 +153,14 @@ T = {
         'gap_lbl': 'To strengthen',
         'evid_lbl': 'Based on',
         'fix_lbl': 'Next step',
-        'risks_h': 'Your risks',
     },
     "fr": {
-        'home_title': 'Connaître vos principaux risques en 30 minutes environ',
-        'home_lead': 'Quelques questions simples, environ 30 minutes, et vous voyez ce qui fonctionne déjà et par quoi commencer. Chacun peut le faire.',
+        'home_title': 'Connaître vos principaux risques en 15 minutes environ',
+        'home_page_title': 'Connaître vos principaux risques',
+        'home_lead': 'Quelques questions simples montrent ce qui fonctionne déjà et par quoi commencer.',
+        'start': 'Commencer',
         'built_on': "Fondé sur EBIOS Risk Manager, la méthode de l'ANSSI, l'agence nationale française de la cybersécurité",
         'built_on_link': 'Comment ça marche',
-        'way1': 'Partir de zéro',
-        'way1_text': 'Répondre à des questions simples (environ 30 minutes).',
-        'way1_go': 'Commencer',
-        'way2': "J'ai un document",
-        'way2_text': "Mentionnez votre architecture, analyse d'impact ou socle de sécurité : nous le notons dans vos résultats.",
-        'way2_go': 'Commencer, avec un document',
         'continue': 'Reprendre là où vous en étiez',
         'continue_none': 'Vos analyses apparaîtront ici, prêtes à être reprises.',
         'all_studies': 'Toutes vos études enregistrées',
@@ -195,7 +174,6 @@ T = {
         'back': 'Retour',
         'continue_btn': 'Enregistrer et continuer',
         'save_btn': 'Enregistrer',
-        'optional': 'facultatif',
         'dk': 'Pas sûr',
         'about_title': 'Vous',
         'about_lead': 'Répondez à ce que vous pouvez. Ce dont vous êtes peu sûr reçoit une valeur typique, et nous vous le disons.',
@@ -211,17 +189,12 @@ T = {
         'q_downtime_ex': "Par exemple : la messagerie, les commandes et la caisse s'arrêtent en même temps.",
         'q_sensitivity': 'Quelle est la sensibilité des informations que vous détenez ?',
         'q_sensitivity_ex': 'Par exemple : un client, un patient ou une autorité serait-il contrarié de les voir ?',
-        'q_doc': 'Avez-vous un document sur vos systèmes ou vos risques ?',
-        'q_doc_ex': "Par exemple une description d'architecture, une analyse d'impact ou un socle de sécurité. Votre réponse est notée dans les résultats (« document mentionné, non lu »).",
-        'doc_yes': "Oui, j'en ai un",
-        'doc_no': "Pas pour l'instant",
-        'doc_mentioned': 'document mentionné, non lu',
         'downtime_hours': 'En quelques heures',
         'downtime_day': 'En un jour ou deux',
         'downtime_days': 'En une semaine',
         'downtime_week': "Nous tiendrions plus d'une semaine",
         'sens_public': "Surtout publiques, ou d'un intérêt limité pour d'autres",
-        'sens_internal': 'Internes, avec un impact faible si elles fuitaient',
+        'sens_internal': 'Internes, sans grande conséquence si elles fuitaient',
         'sens_confidential': 'Données de clients, personnelles ou financières',
         'sens_critical': 'Secrets, données de santé ou juridiques : une fuite serait grave',
         'err_name': "Donnez un nom à l'analyse (200 caractères au plus).",
@@ -253,11 +226,13 @@ T = {
         'risks_count': '{k} risques gardés sur {n}',
         'none_kept': 'Gardez au moins un risque pour continuer.',
         'now_title': 'Maintenant et après',
-        'now_lead': 'Pour chaque risque : son importance, sa vraisemblance, ce que vous faites déjà et ce que vous pourriez ajouter. Nous calculons les niveaux pour vous.',
+        'now_lead': 'Notez chaque risque, puis cochez ce que vous faites déjà et ce que vous ajouteriez.',
+        'now_risks_h': 'Vos risques',
+        'now_meas_h': 'Ce qui aide toute votre activité',
+        'now_meas_lead': "Répondez une fois par mesure. Elle compte pour tous les risques qu'elle aide.",
+        'sev_q': 'Quelle importance cela aurait-il pour vous ?',
         'now_empty': "Choisissez d'abord vos risques, puis revenez ici.",
         'now_empty_cta': 'Choisir vos risques',
-        'sev_q': 'Quelle importance cela aurait-il pour vous ?',
-        'sev_proposed': 'Nous proposons',
         'sev_keep': 'Garder notre proposition',
         'sev_reason': 'Pourquoi un autre niveau ?',
         'sev_reason_ph': 'Nécessaire si vous choisissez un autre niveau',
@@ -274,36 +249,36 @@ T = {
         'lik_sometimes': 'Oui, quelques fois',
         'lik_often': 'Oui, régulièrement',
         'measures': 'Ce qui aide',
-        'measures_hint': "Pour chaque mesure : la faites-vous déjà, ou l'ajouteriez-vous ?",
         'm_none': 'Plus tard',
         'm_in': 'Déjà en place',
         'm_extra': 'À ajouter à mon plan',
         'now_level': 'Maintenant',
         'after_level': 'Après vos mesures supplémentaires',
-        'levels_note': 'Les niveaux sont calculés par le moteur à partir de vos réponses.',
         'save_stay': 'Enregistrer',
         'save_next': 'Enregistrer et voir les résultats',
         'err_row': 'Vérifiez ce risque : {msg}',
         'res_title': 'Vos résultats',
-        'res_lead': "Voici ce que vous avez déjà en place, puis ce qu'il y a à faire ensuite.",
+        'see_all': 'Voir tous vos risques ({n})',
+        'in_place_h': 'Déjà en place ({n})',
+        'rough': "Ordre d'idée",
+        'rough_text': 'durée et qui sont des estimations.',
+        'map_key': 'Vos risques sur les cartes',
+        'conf_cap': "jusqu'à {n} %",
+        'assumed_h': 'Ce que nous avons supposé ({n})',
         'in_place': 'Déjà en place',
         'in_place_none': 'Cochez ce que vous faites déjà dans « Maintenant et après » : cela apparaît ici.',
+        'risks_h': 'Vos risques',
         'map_now': 'Maintenant',
         'map_after': 'Après vos mesures supplémentaires',
-        'map_legend': 'Les risques sur les cartes',
-        'map_section': 'Où vous en êtes',
         'risk_col': 'Risque',
         'now_col': 'Maintenant',
         'after_col': 'Après',
         'conf': 'Confiance',
-        'conf_text': 'La part de ces résultats qui repose sur vos réponses plutôt que sur des hypothèses.',
         'band_low': 'faible',
         'band_medium': 'moyenne',
         'band_high': 'élevée',
-        'conf_cap': "Avec vos seules réponses, la confiance monte jusqu'à {n} %.",
         'top5': 'Vos actions prioritaires',
         'top5_empty': 'Cochez les mesures que vous ajouteriez dans « Maintenant et après » : vos actions apparaissent ici.',
-        'top5_for': 'Aide pour',
         'assumptions': 'Ce que nous avons supposé',
         'assumptions_lead': 'Des endroits où nous avons utilisé une valeur typique. Vérifiez-les quand vous le pouvez.',
         'assumptions_none': 'Vous avez répondu à toutes les questions.',
@@ -311,16 +286,6 @@ T = {
         'kind_default': 'Laissé ouvert',
         'kind_dont_know': 'Pas sûr',
         'kind_catalogue': 'Valeur typique conservée',
-        'facts_docs': 'Documents',
-        'facts_none': "aucun pour l'instant",
-        'facts_missing': 'À ajouter',
-        'facts_answers': 'Réponses',
-        'facts_assumptions': 'Hypothèses à confirmer',
-        'doc_note': 'Votre document est noté. Le chiffre de confiance reflète vos réponses.',
-        'doc_architecture_short': "document d'architecture",
-        'doc_business-impact_short': "analyse d'impact sur l'activité",
-        'doc_security-baseline_short': 'socle de sécurité',
-        'doc_other_short': 'autre document',
         'export': 'Télécharger Excel',
         'xlsx_missing': "Ajoutez le paquet openpyxl pour activer le téléchargement Excel. Le fichier d'étude se télécharge dès maintenant.",
         'export_json': "Télécharger le fichier d'étude",
@@ -331,7 +296,6 @@ T = {
         'gap_lbl': 'À renforcer',
         'evid_lbl': "D'après",
         'fix_lbl': 'Prochaine étape',
-        'risks_h': 'Vos risques',
     },
 }
 
@@ -349,8 +313,10 @@ def _pick(d, lang):
 
 
 def honesty_box(lang):
+    # a constant text in an element, not in an attribute: only & < > need escaping, so the apostrophe stays readable
+    text = html_mod.escape(engine.HONESTY.get(lang) or engine.HONESTY["en"], quote=False)
     return (f'<aside class="honesty" aria-labelledby="honesty-h"><h2 id="honesty-h">{esc(tr(lang, "honesty"))}</h2>'
-            f'<p lang="{esc(lang)}">{esc(engine.HONESTY.get(lang) or engine.HONESTY["en"])}</p></aside>')
+            f'<p lang="{esc(lang)}">{text}</p></aside>')
 
 
 def stepper(sid, current, lang, reachable=True):
@@ -383,12 +349,6 @@ def _err(msg):
 
 def home(session, lang, recent, flash=""):
     """recent: [(sid, name, mtime, step)] quick studies, newest first."""
-    ways = [("1", "/quick/new", "way1", "primary"), ("2", "/quick/new?doc=1", "way2", "")]
-    cards = "".join(
-        f'<a class="way {cls}" href="{href}{"&" if "?" in href else "?"}lang={lang}"><span class="way-n" aria-hidden="true">{n}</span>'
-        f'<span class="way-t">{esc(tr(lang, key))}</span><span class="way-d">{esc(tr(lang, key + "_text"))}</span>'
-        f'<span class="way-go">{esc(tr(lang, key + "_go"))} <span aria-hidden="true">&rarr;</span></span></a>'
-        for n, href, key, cls in ways)
     if recent:
         rows = "".join(
             f'<li><a href="/quick/{sid}/{step}?lang={lang}"><span class="r-name">{esc(name)}</span>'
@@ -398,17 +358,17 @@ def home(session, lang, recent, flash=""):
         cont = f'<p class="empty-state">{esc(tr(lang, "continue_none"))}</p>'
     built = (f'<p class="built-on">{esc(tr(lang, "built_on"))}. '
              f'<a href="/how?lang={lang}">{esc(tr(lang, "built_on_link"))}</a></p>')
-    body = f"""<section class="hero"><h1>{esc(tr(lang, "home_title"))}</h1>{built}<p class="lead">{esc(tr(lang, "home_lead"))}</p></section>
+    body = f"""<section class="hero"><h1>{esc(tr(lang, "home_title"))}</h1>{built}<p class="lead">{esc(tr(lang, "home_lead"))}</p>
+<p><a class="button primary big" href="/quick/new?lang={lang}">{esc(tr(lang, "start"))} <span aria-hidden="true">&rarr;</span></a></p></section>
 {honesty_box(lang)}
-<section class="ways" aria-label="{esc(tr(lang, "home_title"))}">{cards}</section>
 <section class="continue"><h2>{esc(tr(lang, "continue"))}</h2>{cont}
 <p><a href="/studies">{esc(tr(lang, "all_studies"))}</a></p></section>"""
-    return page(tr(lang, "home_title"), body, session, flash=flash, lang=lang, lang_path="/")
+    return page(tr(lang, "home_page_title"), body, session, flash=flash, lang=lang, lang_path="/")
 
 
 # ------------------------------------------------------------------ screen 1: about you
 
-def about(session, sid, lang, cat, state, errors=None, doc_yes=False, edited=False, flash=""):
+def about(session, sid, lang, cat, state, errors=None, edited=False, flash=""):
     """state: the profile being edited (the "profile" object of the quick answers, or what was typed)."""
     errors = errors or {}
     prof = state or {}
@@ -435,10 +395,6 @@ def about(session, sid, lang, cat, state, errors=None, doc_yes=False, edited=Fal
                       f'{" checked" if current == "dont_know" else ""}><span class="c-t">{esc(tr(lang, "dk"))}</span></label>')
     cur_down = "dont_know" if slot("downtime").get("dont_know") else slot("downtime").get("answer")
     cur_sens = "dont_know" if slot("sensitivity").get("dont_know") else slot("sensitivity").get("answer")
-    doc_has = bool(doc_yes or slot("document").get("provided"))
-    doc_radios = "".join(
-        f'<label class="choice"><input type="radio" name="has_doc" value="{v}"{" checked" if (v == "yes") == doc_has else ""}>'
-        f'<span class="c-t">{esc(tr(lang, "doc_" + v))}</span></label>' for v in ("yes", "no"))
     action = f"/quick/{sid}/about" if sid else "/quick/new"
     body = f"""{stepper(sid, "about", lang, reachable=bool(sid))}
 <h1>{esc(tr(lang, "about_title"))}</h1><p class="lead">{esc(tr(lang, "about_lead"))}</p>
@@ -459,8 +415,6 @@ def about(session, sid, lang, cat, state, errors=None, doc_yes=False, edited=Fal
 <div class="choice-grid">{radios("downtime", engine.DOWNTIME_KEYS, "downtime_", cur_down)}</div></fieldset>
 <fieldset class="q"><legend><span class="q-t">{esc(tr(lang, "q_sensitivity"))}</span><span class="example">{esc(tr(lang, "q_sensitivity_ex"))}</span></legend>
 <div class="choice-grid">{radios("sensitivity", engine.SENSITIVITY_KEYS, "sens_", cur_sens)}</div></fieldset>
-<fieldset class="q doc"><legend><span class="q-t">{esc(tr(lang, "q_doc"))}</span> <span class="opt">({esc(tr(lang, "optional"))})</span><span class="example">{esc(tr(lang, "q_doc_ex"))}</span></legend>
-<div class="choice-grid">{doc_radios}</div></fieldset>
 <div class="actions"><button class="primary big">{esc(tr(lang, "continue_btn"))} <span aria-hidden="true">&rarr;</span></button></div>
 </form>"""
     return page(tr(lang, "about_title"), body, session, lang=lang, lang_path=action)
@@ -574,66 +528,76 @@ def _level_chip(cal, name, cls, lang="en"):
     return f'<span class="lvl {cls.get(name, "")}">{esc(labels.level_label(cal, name, lang))}</span>'
 
 
+def numbers(rows):
+    """{risk id: 1..n}: the plain numbers shown for the risks on the pages and the maps (codes stay in Expert mode and Excel)."""
+    return {r["id"]: i for i, r in enumerate(rows, 1)}
+
+
+def _risk_row(lang, cal, cls, r, n, e, state, errors):
+    rid, d = r["id"], r["def"]
+    sev_value = (state.get("sev") or {}).get(rid, (e.get("severity") or {}).get("value"))
+    sev_reason = (state.get("sevreason") or {}).get(rid, (e.get("severity") or {}).get("reason") or "")
+    lik_value = (state.get("lik") or {}).get(rid, (e.get("likelihood") or {}).get("answer") or "")
+    words = labels.SEVERITY_WORDS[lang]
+    proposed = r["severity_proposed"]
+    sev_opts = f'<option value="">{esc(tr(lang, "sev_keep"))} ({esc(words[proposed].split(":")[0])})</option>' + "".join(
+        f'<option value="{k}"{" selected" if sev_value == k or str(sev_value) == str(k) else ""}>{esc(words[k])}</option>'
+        for k in (1, 2, 3, 4) if k != proposed)
+    fam = d["family"]
+    lik_opts = f'<option value="">{esc(tr(lang, "lik_skip"))}</option>' + "".join(
+        f'<option value="{k}"{" selected" if lik_value == k else ""}>{esc(tr(lang, "lik_" + k))}</option>' for k in engine.LIKELIHOOD_KEYS[fam]) + (
+        f'<option value="dont_know"{" selected" if lik_value == "dont_know" else ""}>{esc(tr(lang, "dk"))}</option>')
+    sev_err = errors.get(rid)
+    return f"""<article class="risk-row{" has-error" if sev_err else ""}" id="risk-{esc(rid)}">
+<h3><span class="rid">{n}</span> {esc(_pick(d["title"], lang))}</h3>
+<div class="rr"><div class="blk sev"><label for="sev-{esc(rid)}">{esc(tr(lang, "sev_q"))}</label>
+<select id="sev-{esc(rid)}" name="sev_{esc(rid)}">{sev_opts}</select></div>
+<div class="blk lik"><label for="lik-{esc(rid)}">{esc(tr(lang, "lik_" + fam))}</label>
+<select id="lik-{esc(rid)}" name="lik_{esc(rid)}">{lik_opts}</select></div></div>
+<div class="reason{" needed" if sev_err else ""}"><label for="sr-{esc(rid)}">{esc(tr(lang, "sev_reason"))}</label>
+<input id="sr-{esc(rid)}" name="sevreason_{esc(rid)}" value="{esc(sev_reason)}" maxlength="500" placeholder="{esc(tr(lang, "sev_reason_ph"))}">{_err(sev_err)}</div>
+<p class="result" aria-live="polite"><span>{esc(tr(lang, "now_level"))}: {_level_chip(cal, r["level"], cls, lang)}</span>
+<span aria-hidden="true">&rarr;</span>
+<span>{esc(tr(lang, "after_level"))}: {_level_chip(cal, r["level_target"], cls, lang)}</span></p></article>"""
+
+
+def _measure_groups(lang, measures, current):
+    """The measures of the kept risks, each once, under a few plain headings. `current`: {measure id: "in" | "extra" | ""}."""
+    groups = {g: [] for g in labels.GROUPS}
+    for m in measures:
+        mid = m["id"]
+        cur = current.get(mid, "")
+        radios = "".join(
+            f'<label class="seg-opt"><input type="radio" name="m_{esc(mid)}" value="{v}"{" checked" if cur == v else ""}>'
+            f'<span>{esc(tr(lang, "m_" + (v or "none")))}</span></label>' for v in ("", "in", "extra"))
+        groups[labels.group_of(mid)].append(
+            f'<div class="meas-row" role="group" aria-labelledby="mt-{esc(mid)}"><p class="m-t" id="mt-{esc(mid)}">{esc(_pick(m, lang))}</p>'
+            f'<div class="seg">{radios}</div></div>')
+    return "".join(f'<fieldset class="blk meas"><legend><span class="q-t">{esc(labels.group_title(g, lang))}</span></legend>{"".join(groups[g])}</fieldset>'
+                   for g in labels.GROUPS if groups[g])
+
+
 def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edited=False, flash=""):
     """rows: engine.quick_compute rows (one per kept risk). state: {"sev": {id: v}, "sevreason": {id: t}, "lik": {id: v},
-    "in": {id: [..]}, "extra": {id: [..]}} when a form was refused, to show what was typed."""
+    "m": {measure id: "in" | "extra" | ""}} when a form was refused, to show what was typed.
+    The measures are answered once for the whole business: each is listed once, whatever the number of risks."""
     errors = errors or {}
     state = state or {}
     cls = level_classes(cal)
     saved = {e["id"]: e for e in quick.get("risks") or []}
-    cards = []
-    for r in rows:
-        rid, d = r["id"], r["def"]
-        e = saved[rid]
-        sev_value = (state.get("sev") or {}).get(rid, (e.get("severity") or {}).get("value"))
-        sev_reason = (state.get("sevreason") or {}).get(rid, (e.get("severity") or {}).get("reason") or "")
-        lik_value = (state.get("lik") or {}).get(rid, (e.get("likelihood") or {}).get("answer") or "")
-        in_place = set((state.get("in") or {}).get(rid, r["in_place"]))
-        extra = set((state.get("extra") or {}).get(rid, r["extra"]))
-        words = labels.SEVERITY_WORDS[lang]
-        proposed = r["severity_proposed"]
-        sev_opts = f'<option value="">{esc(tr(lang, "sev_keep"))} ({esc(words[proposed].split(":")[0])})</option>' + "".join(
-            f'<option value="{n}"{" selected" if sev_value == n or str(sev_value) == str(n) else ""}>{esc(words[n])}</option>'
-            for n in (1, 2, 3, 4) if n != proposed)
-        fam = d["family"]
-        lik_opts = f'<option value="">{esc(tr(lang, "lik_skip"))}</option>' + "".join(
-            f'<option value="{k}"{" selected" if lik_value == k else ""}>{esc(tr(lang, "lik_" + k))}</option>' for k in engine.LIKELIHOOD_KEYS[fam]) + (
-            f'<option value="dont_know"{" selected" if lik_value == "dont_know" else ""}>{esc(tr(lang, "dk"))}</option>')
-
-        def measure_rows():
-            out = []
-            for m in d["measures"]:
-                cur = "in" if m["id"] in in_place else ("extra" if m["id"] in extra else "")
-                name = f"m_{rid}_{m['id']}"
-                radios = "".join(
-                    f'<label class="seg-opt"><input type="radio" name="{esc(name)}" value="{v}"{" checked" if cur == v else ""}>'
-                    f'<span>{esc(tr(lang, "m_" + (v or "none")))}</span></label>' for v in ("", "in", "extra"))
-                out.append(f'<div class="meas-row" role="group" aria-labelledby="mt-{esc(rid)}-{esc(m["id"])}">'
-                           f'<p class="m-t" id="mt-{esc(rid)}-{esc(m["id"])}">{esc(_pick(m, lang))}</p><div class="seg">{radios}</div></div>')
-            return "".join(out)
-        result = (f'<p class="result" aria-live="polite"><span>{esc(tr(lang, "now_level"))}: {_level_chip(cal, r["level"], cls, lang)}</span>'
-                  f'<span aria-hidden="true">&rarr;</span>'
-                  f'<span>{esc(tr(lang, "after_level"))}: {_level_chip(cal, r["level_target"], cls, lang)}</span></p>')
-        sev_err = errors.get(rid)
-        cards.append(f"""<article class="row-card{" has-error" if sev_err else ""}" id="risk-{esc(rid)}">
-<header><h2><span class="rid">{esc(rid)}</span> {esc(_pick(d["title"], lang))}</h2><p class="r-desc">{esc(_pick(d["description"], lang))}</p></header>
-<div class="row-grid">
-<div class="blk sev"><label for="sev-{esc(rid)}"><span class="q-t">{esc(tr(lang, "sev_q"))}</span></label>
-<p class="proposed">{esc(tr(lang, "sev_proposed"))}: <strong>{esc(words[proposed])}</strong></p>
-<select id="sev-{esc(rid)}" name="sev_{esc(rid)}">{sev_opts}</select>
-<div class="reason{" needed" if sev_err else ""}"><label for="sr-{esc(rid)}">{esc(tr(lang, "sev_reason"))}</label>
-<input id="sr-{esc(rid)}" name="sevreason_{esc(rid)}" value="{esc(sev_reason)}" maxlength="500" placeholder="{esc(tr(lang, "sev_reason_ph"))}">{_err(sev_err)}</div></div>
-<div class="blk lik"><label for="lik-{esc(rid)}"><span class="q-t">{esc(tr(lang, "lik_" + fam))}</span></label>
-<select id="lik-{esc(rid)}" name="lik_{esc(rid)}">{lik_opts}</select></div>
-</div>
-<fieldset class="blk meas"><legend><span class="q-t">{esc(tr(lang, "measures"))}</span> <small>{esc(tr(lang, "measures_hint"))}</small></legend>{measure_rows()}</fieldset>{result}</article>""")
-    if cards:
-        main = "".join(cards)
+    if rows:
+        org = engine.quick_org_measures(quick)
+        current = {m: "in" for m in org["in_place"]}
+        current.update({m: "extra" for m in org["extra"]})
+        current.update(state.get("m") or {})
+        risk_rows = "".join(_risk_row(lang, cal, cls, r, i, saved[r["id"]], state, errors) for i, r in enumerate(rows, 1))
+        meas = _measure_groups(lang, engine.quick_measure_list(quick, cat), current)
         actions = (f'<div class="actions"><a class="button secondary" href="/quick/{sid}/risks">{esc(tr(lang, "back"))}</a>'
                    f'<button class="secondary big" name="go" value="stay">{esc(tr(lang, "save_stay"))}</button>'
                    f'<button class="primary big" name="go" value="next">{esc(tr(lang, "save_next"))} <span aria-hidden="true">&rarr;</span></button></div>')
         form = (f'<form method="post" action="/quick/{sid}/now" class="flow wide">{csrf_input(session)}<input type="hidden" name="lang" value="{esc(lang)}">'
-                f'<p class="hint">{esc(tr(lang, "levels_note"))}</p>{main}{actions}</form>')
+                f'<section class="card"><h2>{esc(tr(lang, "now_risks_h"))}</h2>{risk_rows}</section>'
+                f'<section class="card"><h2>{esc(tr(lang, "now_meas_h"))}</h2><p class="hint">{esc(tr(lang, "now_meas_lead"))}</p>{meas}</section>{actions}</form>')
     else:
         form = (f'<div class="empty-state"><p>{esc(tr(lang, "now_empty"))}</p>'
                 f'<a class="button primary" href="/quick/{sid}/risks">{esc(tr(lang, "now_empty_cta"))}</a></div>')
@@ -646,31 +610,17 @@ def now(session, sid, lang, cat, quick, cal, rows, state=None, errors=None, edit
 # ------------------------------------------------------------------ screen 4: results
 
 def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions, assumptions, fnd, edited=False, can_xlsx=True):
+    """Order: the closing summary, your top actions, the maps with their numbered risk list, "See all your risks"
+    and "Already in place" (both collapsed), then confidence, the honesty statement, assumptions, downloads and the
+    closing line again."""
     cls = level_classes(cal)
     conf, band = facts["confidence"], facts["band"]
-    doc_names = ", ".join(tr(lang, f"doc_{k}_short") for k in facts["documents"])
-    if facts["document_provided"]:
-        doc_names = ", ".join(x for x in (doc_names, tr(lang, "doc_mentioned")) if x)
-    doc_names = doc_names or tr(lang, "facts_none")
-    missing = ", ".join(tr(lang, f"doc_{k}_short") for k in facts["not_provided"]) or tr(lang, "facts_none")
-    line = (f'{tr(lang, "facts_docs")}: {doc_names}. {tr(lang, "facts_missing")}: {missing}. '
-            f'{tr(lang, "facts_answers")}: {facts["answers"]}. {tr(lang, "facts_assumptions")}: {facts["assumptions"]}. '
-            f'{tr(lang, "conf")}: {conf} % ({tr(lang, "band_" + band)}).')
-    doc_note = f'<p class="hint">{esc(tr(lang, "doc_note"))}</p>' if facts["document_provided"] else ""
-    cap = f'<p class="hint">{esc(tr(lang, "conf_cap", n=engine.NO_DOCUMENT_CEILING))}</p>' if not facts["document_provided"] else ""
-    # 1. what is already in place: the measures ticked "already in place", each once
-    seen, placed = set(), []
-    for r in rows:
-        texts = {m["id"]: m for m in r["def"]["measures"]}
-        for mid in r["in_place"]:
-            if mid in texts and mid not in seen:
-                seen.add(mid)
-                placed.append(labels.short_action(mid, lang) or _pick(texts[mid], lang))
-    if placed:
-        inplace = (f'<ul class="in-place">{"".join(f"<li>{esc(t)}</li>" for t in placed)}</ul>')
-    else:
-        inplace = f'<p class="empty-state">{esc(tr(lang, "in_place_none"))}</p>'
-    # 2. what to do next: each action in three short lines
+    num = numbers(rows)
+    # 1. the summary: one positive line
+    closing = f'<p class="closing" role="status">{esc(fnd["closing"])}</p>' if fnd["closing"] else ""
+    summary = f'<p class="summary" role="status">{esc(fnd["closing"])}</p>' if fnd["closing"] else ""
+
+    # 2. your top actions: three short lines each, one "Rough guide" label above them
     def three(f):
         return (f'<p class="f-gap"><b>{esc(tr(lang, "gap_lbl"))}</b> {esc(f["gap"])}</p>'
                 f'<p class="f-evid"><b>{esc(tr(lang, "evid_lbl"))}</b> {esc(f["evidence"])}</p>'
@@ -681,55 +631,65 @@ def results(session, sid, lang, cat, quick, cal, rows, reg_rows, facts, actions,
         top = f'<ol class="actions-list">{acts}</ol>'
     else:
         top = f'<p class="empty-state">{esc(tr(lang, "top5_empty"))}</p>'
-    # 3. where you stand
-    maps = ""
+
+    # 3. the maps, with a short numbered list of the risks next to them
     if reg_rows:
         dcal = labels.display_cal(cal, lang)  # plain names on the maps; the numbers and colours are the engine's
-        maps = (f'<div class="maps"><figure><figcaption id="map-now">{esc(tr(lang, "map_now"))}</figcaption>'
-                f'{engine.risk_map(reg_rows, dcal, "now", tr(lang, "map_now"), plain=True, lang=lang, labelled_by="map-now")}</figure>'
+        plain_rows = [dict(r, id=str(num.get(r["id"], r["id"]))) for r in reg_rows]
+        key = "".join(f'<li value="{num[r["id"]]}">{esc(_pick(r["def"]["title"], lang))}</li>' for r in rows)
+        maps = (f'<div class="maps-wrap"><div class="maps"><figure><figcaption id="map-now">{esc(tr(lang, "map_now"))}</figcaption>'
+                f'{engine.risk_map(plain_rows, dcal, "now", tr(lang, "map_now"), plain=True, lang=lang, labelled_by="map-now")}</figure>'
                 f'<figure><figcaption id="map-after">{esc(tr(lang, "map_after"))}</figcaption>'
-                f'{engine.risk_map(reg_rows, dcal, "target", tr(lang, "map_after"), plain=True, lang=lang, labelled_by="map-after")}</figure></div>')
-        legend = "".join(
-            f'<tr><th scope="row">{esc(r["id"])}</th><td>{esc(_pick(r["def"]["title"], lang))}</td>'
-            f'<td>{_level_chip(cal, r["level"], cls, lang)}</td><td>{_level_chip(cal, r["level_target"], cls, lang)}</td></tr>' for r in rows)
-        maps += (f'<details class="legend-table"><summary>{esc(tr(lang, "map_legend"))}</summary><div class="scroll"><table class="list">'
-                 f'<thead><tr><th>#</th><th>{esc(tr(lang, "risk_col"))}</th><th>{esc(tr(lang, "now_col"))}</th><th>{esc(tr(lang, "after_col"))}</th></tr></thead>'
-                 f'<tbody>{legend}</tbody></table></div></details>')
+                f'{engine.risk_map(plain_rows, dcal, "target", tr(lang, "map_after"), plain=True, lang=lang, labelled_by="map-after")}</figure></div>'
+                f'<div class="map-key"><h3>{esc(tr(lang, "map_key"))}</h3><ol>{key}</ol></div></div>')
     else:
         maps = (f'<div class="empty-state"><p>{esc(tr(lang, "now_empty"))}</p>'
                 f'<a class="button primary" href="/quick/{sid}/risks">{esc(tr(lang, "now_empty_cta"))}</a></div>')
+
+    # 4. collapsed: all the risks, and what is already in place
+    risk_items = "".join(
+        f'<article class="risk-finding"><h3><span class="rid">{num[f["id"]]}</span> {esc(f["title"])} '
+        f'{_level_chip(cal, r["level"], cls, lang)} <span aria-hidden="true">&rarr;</span> '
+        f'{_level_chip(cal, r["level_target"], cls, lang)}</h3>{three(f)}</article>'
+        for f, r in zip(fnd["risks"], rows))
+    all_risks = (f'<details class="see-all"><summary>{esc(tr(lang, "see_all", n=len(rows)))}</summary>{risk_items}</details>'
+                 if risk_items else "")
+    placed = [labels.short_action(m["id"], lang) or _pick(m, lang) for m in engine.quick_measure_list(quick, cat)
+              if m["id"] in engine.quick_org_measures(quick)["in_place"]]
+    in_place = (f'<details class="in-place-box"><summary>{esc(tr(lang, "in_place_h", n=len(placed)))}</summary>'
+                + (f'<ul class="in-place">{"".join(f"<li>{esc(t)}</li>" for t in placed)}</ul>' if placed else
+                   f'<p class="empty-state">{esc(tr(lang, "in_place_none"))}</p>') + '</details>')
+
+    # 5. below: confidence (one plain line), honesty, assumptions, downloads
     kinds = {"default": "kind_default", "dont_know": "kind_dont_know", "catalogue": "kind_catalogue"}
     main_ass = [a for a in assumptions if a["kind"] != "catalogue"]
     cat_ass = [a for a in assumptions if a["kind"] == "catalogue"]
 
     def li(a):
         return f'<li><span class="badge k-{esc(a["kind"])}">{esc(tr(lang, kinds[a["kind"]]))}</span> {esc(_pick(a["text"], lang))}</li>'
-    ass = (f'<ul class="assumptions">{"".join(li(a) for a in main_ass)}</ul>' if main_ass else f'<p class="ok">{esc(tr(lang, "assumptions_none"))}</p>')
-    if cat_ass:
-        ass += f'<details><summary>{esc(tr(lang, "assumptions_kept"))} ({len(cat_ass)})</summary><ul class="assumptions">{"".join(li(a) for a in cat_ass)}</ul></details>'
+    ass_inner = (f'<p class="hint">{esc(tr(lang, "assumptions_lead"))}</p>'
+                 + (f'<ul class="assumptions">{"".join(li(a) for a in main_ass)}</ul>' if main_ass else f'<p class="ok">{esc(tr(lang, "assumptions_none"))}</p>')
+                 + (f'<ul class="assumptions">{"".join(li(a) for a in cat_ass)}</ul>' if cat_ass else ""))
+    ass = f'<details class="assumed"><summary>{esc(tr(lang, "assumed_h", n=len(assumptions)))}</summary>{ass_inner}</details>'
+    ceiling = facts.get("ceiling", 100)
+    cap = f' <span class="cap">{esc(tr(lang, "conf_cap", n=ceiling))}</span>' if ceiling < 100 else ""
     export = (f'<a class="button primary" href="/s/{sid}/export.xlsx">{esc(tr(lang, "export"))}</a>' if can_xlsx else
               f'<p class="notice" role="note">{esc(tr(lang, "xlsx_missing"))}</p>')
     expert = (f'<a class="button secondary" href="/s/{sid}" rel="nofollow">{esc(tr(lang, "expert"))}</a>'
               if getattr(session, "expert", False) else "")
-    risk_items = "".join(
-        f'<article class="risk-finding"><h3><span class="rid">{esc(f["id"])}</span> {esc(f["title"])} '
-        f'{_level_chip(cal, r["level"], cls, lang)} <span aria-hidden="true">&rarr;</span> '
-        f'{_level_chip(cal, r["level_target"], cls, lang)}</h3>{three(f)}</article>'
-        for f, r in zip(fnd["risks"], rows))
-    risk_block = f'<section class="card"><h2>{esc(tr(lang, "risks_h"))}</h2>{risk_items}</section>' if risk_items else ""
-    closing = f'<p class="closing" role="status">{esc(fnd["closing"])}</p>' if fnd["closing"] else ""
+    rough = html_mod.escape(tr(lang, "rough"), quote=False)       # a label in an element: the apostrophe of "Ordre d'idée" stays readable
     body = f"""{stepper(sid, "results", lang)}
-<h1>{esc(tr(lang, "res_title"))}</h1><p class="lead">{esc(tr(lang, "res_lead"))}</p>
-{_edited_banner(lang, edited)}
-<section class="card"><h2>{esc(tr(lang, "in_place"))} ({len(placed)})</h2>{inplace}</section>
-<section class="card"><h2>{esc(tr(lang, "top5"))}</h2>{top}</section>
-<section class="card"><h2>{esc(tr(lang, "map_section"))}</h2>{maps}</section>
-{risk_block}
-<section class="card conf"><div class="conf-n"><span class="big-n">{conf}%</span><span class="band b-{esc(band)}">{esc(tr(lang, "band_" + band))}</span></div>
+<h1>{esc(tr(lang, "res_title"))}</h1>
+{_edited_banner(lang, edited)}{summary}
+<section class="card"><h2>{esc(tr(lang, "top5"))}</h2><p class="rough"><b>{rough}</b> {esc(tr(lang, "rough_text"))}</p>{top}</section>
+<section class="card maps-card">{maps}</section>
+{all_risks}
+{in_place}
+<section class="card conf"><div class="conf-n"><span class="big-n">{conf}%</span><span class="band b-{esc(band)}">{esc(tr(lang, "band_" + band))}</span>{cap}</div>
 <div><h2>{esc(tr(lang, "conf"))}</h2><progress max="100" value="{conf}" aria-label="{esc(tr(lang, "conf"))}">{conf}%</progress>
-<p>{esc(tr(lang, "conf_text"))}</p>{cap}{doc_note}<p class="facts">{esc(line)}</p></div></section>
+<p>{esc(engine.CONFIDENCE_LINE[lang])}</p></div></section>
 {honesty_box(lang)}
-<section class="card"><h2>{esc(tr(lang, "assumptions"))}</h2><p class="hint">{esc(tr(lang, "assumptions_lead"))}</p>{ass}</section>
+{ass}
 <section class="card next-steps"><div class="btns">{export}
 <a class="button secondary" href="/s/{sid}/export.json">{esc(tr(lang, "export_json"))}</a>
 <a class="button secondary" href="/quick/{sid}/about">{esc(tr(lang, "edit_answers"))}</a>{expert}</div></section>

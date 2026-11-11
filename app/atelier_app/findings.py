@@ -4,7 +4,6 @@ Each line is one short sentence of at most 15 words. Nothing here computes a lev
 extra measures come from the engine's rows (engine.quick_compute) and the person's own answers.
 """
 from . import labels
-from .views_quick import tr
 
 MAX_WORDS = 15
 LABEL_KEYS = ("gap_lbl", "evid_lbl", "fix_lbl")
@@ -14,49 +13,49 @@ TXT = {
         "more": "{t} (+{n} more)",
         "gap_open": "{k} of {m} helpful measures are still to add.",
         "gap_done": "All {m} helpful measures are in place.",
-        "ev_lik_deliberate": "You said “{x}” for how likely it is.",
-        "ev_lik_accidental": "You said “{x}” when asked if it happened.",
         "ev_sev": "You rated it “{x}”, noting: {why}",
-        "ev_sens": "You said your information is “{x}”.",
-        "ev_down": "You said a stop would matter “{x}”.",
-        "ev_tools": "You said you use: {x}.",
-        "ev_values": "You said “{x}” matters most.",
-        "ev_typical": "A typical value for businesses like yours.",
+        "ev_sens": {"internal": "Your information is for internal use.", "confidential": "Customer data is confidential for you.",
+                    "critical": "Your information is highly sensitive."},
+        "ev_down": {"hours": "A stop of your tools would hurt within hours.",
+                    "day": "A stop of your tools would hurt within a day or two."},
+        "ev_tool": {"remote": "Some of you work away from the office.", "cloud": "You keep files or email online.",
+                    "provider": "An outside company looks after your IT.", "website": "You have a website.",
+                    "shop": "You use an online shop.", "industrial": "Your machines run on computers."},
         "fix_done": "Review your measures yearly: an hour, a manager.",
-        "close_land": "With your {m} planned actions, {k} of your {n} risks {move} to {lv}.",
-        "close_land_1": "With your planned action, {k} of your {n} risks {move} to {lv}.",
-        "close_better": "With your {m} planned actions, {k} of your {n} risks {improve} by a level.",
-        "close_better_1": "With your planned action, {k} of your {n} risks {improve} by a level.",
-        "close_start": "Your {m} planned actions are a first step on {n} risks.",
-        "close_start_1": "Your planned action is a first step on {n} risks.",
+        "close_land": "With {m} actions, {k} of your {n} risks {move} to {lv}.",
+        "close_land_1": "With 1 action, {k} of your {n} risks {move} to {lv}.",
+        "close_better": "With {m} actions, {k} of your {n} risks {improve} by a level.",
+        "close_better_1": "With 1 action, {k} of your {n} risks {improve} by a level.",
+        "close_start": "Your {m} actions are a first step on {n} risks.",
+        "close_start_1": "Your action is a first step on {n} risks.",
         "close_now": "{k} of your {n} risks {are} already at {lv}.",
         "verbs": {"move": ("move", "moves"), "improve": ("improve", "improves"), "are": ("are", "is")},
         "close_map": "You have mapped {n} risks: a solid start for choosing your first actions.",
-        "or": " or ", "more_tools": "{a} and {n} more",
+        "or": " or ",
     },
     "fr": {
         "more": "{t} (+{n} autres)",
         "gap_open": "{k} mesures utiles sur {m} restent à ajouter.",
         "gap_done": "Les {m} mesures utiles sont en place.",
-        "ev_lik_deliberate": "Vous avez répondu « {x} » pour la probabilité.",
-        "ev_lik_accidental": "Vous avez répondu « {x} » : est-ce arrivé ?",
         "ev_sev": "Vous l'avez noté « {x} », avec cette remarque : {why}",
-        "ev_sens": "Selon vous, vos informations sont « {x} ».",
-        "ev_down": "Selon vous, un arrêt compterait « {x} ».",
-        "ev_tools": "Vous avez dit utiliser : {x}.",
-        "ev_values": "Vous avez dit que « {x} » compte le plus.",
-        "ev_typical": "Une valeur typique pour des entreprises comme la vôtre.",
+        "ev_sens": {"internal": "Vos informations sont à usage interne.", "confidential": "Les données clients sont confidentielles chez vous.",
+                    "critical": "Vos informations sont très sensibles."},
+        "ev_down": {"hours": "Un arrêt de vos outils ferait mal en quelques heures.",
+                    "day": "Un arrêt de vos outils ferait mal en un jour ou deux."},
+        "ev_tool": {"remote": "Une partie de l'équipe travaille hors du bureau.", "cloud": "Vous gardez fichiers ou messagerie en ligne.",
+                    "provider": "Une entreprise extérieure s'occupe de votre informatique.", "website": "Vous avez un site web.",
+                    "shop": "Vous utilisez une boutique en ligne.", "industrial": "Vos machines fonctionnent par ordinateur."},
         "fix_done": "Revoir vos mesures chaque année : une heure, un responsable.",
-        "close_land": "Avec vos {m} actions prévues, {k} de vos {n} risques {move} à {lv}.",
-        "close_land_1": "Avec votre action prévue, {k} de vos {n} risques {move} à {lv}.",
-        "close_better": "Avec vos {m} actions prévues, {k} de vos {n} risques {improve} un niveau.",
-        "close_better_1": "Avec votre action prévue, {k} de vos {n} risques {improve} un niveau.",
-        "close_start": "Vos {m} actions prévues sont un premier pas sur {n} risques.",
-        "close_start_1": "Votre action prévue est un premier pas sur {n} risques.",
+        "close_land": "Avec {m} actions, {k} de vos {n} risques {move} à {lv}.",
+        "close_land_1": "Avec 1 action, {k} de vos {n} risques {move} à {lv}.",
+        "close_better": "Avec {m} actions, {k} de vos {n} risques {improve} un niveau.",
+        "close_better_1": "Avec 1 action, {k} de vos {n} risques {improve} un niveau.",
+        "close_start": "Vos {m} actions sont un premier pas sur {n} risques.",
+        "close_start_1": "Votre action est un premier pas sur {n} risques.",
         "close_now": "{k} de vos {n} risques {are} déjà à {lv}.",
         "verbs": {"move": ("passent", "passe"), "improve": ("gagnent", "gagne"), "are": ("sont", "est")},
         "close_map": "Vous avez cartographié {n} risques : un bon départ pour choisir vos premières actions.",
-        "or": " ou ", "more_tools": "{a} et {n} autres",
+        "or": " ou ",
     },
 }
 
@@ -85,34 +84,34 @@ def risk_title(r, lang, n=12):
 
 
 def evidence(r, quick, cat, lang):
-    """Which of the person's own answers led to this risk's rating, quoted; a typical value when none applies."""
+    """Why this risk is on the list, in the business's own terms: the person's note on the severity when there is
+    one, then what the About-you answers say (a tool used, how sensitive the information is, how soon a stop hurts),
+    then the catalogue's own reason for the risk. The likelihood answer is never quoted: it is how the likelihood is
+    rated, so quoting it would explain nothing."""
     t = _t(lang)
-    fam = r["def"]["family"]
-    if r["likelihood_source"] == "answer" and r.get("likelihood_answer"):
-        x = tr(lang, "lik_" + r["likelihood_answer"])
-        return t["ev_lik_" + fam].format(x=_cut(x.split(":")[0].strip(), 5))
+    d = r["def"]
     if r["severity_source"] == "answer" and r["severity_reason"]:
         x = labels.SEVERITY_LABEL[lang][r["severity"]]
         return t["ev_sev"].format(x=x, why="“" + _cut(r["severity_reason"], 7) + "”")
     prof = quick.get("profile") or {}
-    crit = r["def"].get("criteria") or []
-    sens = (prof.get("sensitivity") or {}).get("answer")
-    if sens and sens != "dont_know" and "confidentiality" in crit:
-        return t["ev_sens"].format(x=_cut(tr(lang, "sens_" + sens).split(":")[0].strip(), 6))
-    down = (prof.get("downtime") or {}).get("answer")
-    if down and down != "dont_know" and "availability" in crit:
-        return t["ev_down"].format(x=_cut(tr(lang, "downtime_" + down), 5))
     tool_ids = (prof.get("tools") or {}).get("value") or []
-    names = [_pick(x, lang) for x in cat["tools"] if x["id"] in tool_ids]
-    if names:
-        a = _cut(names[0], 5)
-        x = a if len(names) == 1 else t["more_tools"].format(a=a, n=len(names) - 1)
-        return t["ev_tools"].format(x=x)
-    vals = (prof.get("values") or {}).get("value") or []
-    vals = [str(v).strip() for v in vals if str(v).strip()]
-    if vals:
-        return t["ev_values"].format(x=_cut(vals[0], 6))
-    return t["ev_typical"]
+    packs = set(d.get("packs") or [])
+    if not d.get("custom") and "all" not in packs:
+        for tool in cat["tools"]:            # a tool the person ticked that brings this risk (office IT is too broad to quote)
+            tp = set(tool.get("packs") or [])
+            if tool["id"] in tool_ids and tool["id"] in t["ev_tool"] and tp & packs:
+                return t["ev_tool"][tool["id"]]
+    crit = d.get("criteria") or []
+    sens = (prof.get("sensitivity") or {}).get("answer")
+    if sens in t["ev_sens"] and "confidentiality" in crit:
+        return t["ev_sens"][sens]
+    down = (prof.get("downtime") or {}).get("answer")
+    if down in t["ev_down"] and "availability" in crit:
+        return t["ev_down"][down]
+    why = (d.get("why") or {})
+    if why.get(lang) or why.get("en"):
+        return _pick(why, lang)
+    return _cut(_pick(d.get("description") or {}, lang), MAX_WORDS)
 
 
 def fix(measure_id, texts, lang):
@@ -134,14 +133,14 @@ def _next_measure(r):
     return None
 
 
-def risk_item(r, quick, cat, lang):
+def risk_item(r, quick, cat, lang, n=None):
     t = _t(lang)
     ms = r["def"]["measures"]
     missing = [m for m in ms if m["id"] not in r["in_place"]]
     gap = t["gap_open"].format(k=len(missing), m=len(ms)) if missing else t["gap_done"].format(m=len(ms))
     mid = _next_measure(r)
     texts = {m["id"]: m for m in ms}
-    return {"id": r["id"], "title": risk_title(r, lang, 14), "gap": gap, "evidence": evidence(r, quick, cat, lang),
+    return {"id": r["id"], "n": n, "title": risk_title(r, lang, 14), "gap": gap, "evidence": evidence(r, quick, cat, lang),
             "fix": fix(mid, texts, lang) if mid else t["fix_done"]}
 
 
@@ -189,5 +188,5 @@ def closing(rows, cal, lang):
 def build(quick, cat, cal, rows, actions, lang):
     by_id = {r["id"]: r for r in rows}
     return {"actions": [action_item(a, by_id, quick, cat, lang) for a in actions],
-            "risks": [risk_item(r, quick, cat, lang) for r in rows],
+            "risks": [risk_item(r, quick, cat, lang, i) for i, r in enumerate(rows, 1)],
             "closing": closing(rows, cal, lang)}

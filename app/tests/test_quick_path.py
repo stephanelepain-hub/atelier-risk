@@ -64,37 +64,46 @@ class Base(unittest.TestCase):
         form = {"lang": lang, "go": go}
         for i, rid in enumerate(ids):
             form[f"lik_{rid}"] = (["likely", "possible", "very_likely"] if rid.startswith("D") else ["sometimes", "once", "often", "never"])[i % 3]
-            ms = re.findall(rf'name="m_{rid}_([^"]+)" value="extra"', html)
-            if i % 2 == 0:
-                for m in ms[:3]:
-                    form[f"m_{rid}_{m}"] = "extra"
-            elif i % 3 == 1:
-                form[f"m_{rid}_{ms[0]}"] = "in"
+        ms = re.findall(r'name="m_([^"]+)" value="extra"', html)     # each measure is answered once, for the whole business
+        for i, m in enumerate(ms):
+            if i % 3 == 0:
+                form[f"m_{m}"] = "extra"
+            elif i % 7 == 1:
+                form[f"m_{m}"] = "in"
         for rid, over in (per_risk or {}).items():
             form.update(over)
         return self.post(f"/quick/{sid}/now", form), ids
 
 
 class HomeTest(Base):
-    def test_home_has_the_honesty_statement_and_two_ways_in(self):
+    def test_home_has_the_honesty_statement_and_one_clear_start(self):
         t = self.page("/")
-        self.assertIn(engine.HONESTY["en"], t)
+        self.assertEqual(t.count(engine.HONESTY["en"]), 1)
         self.assertIn('href="/quick/new?lang=en"', t)
-        self.assertRegex(t, r'href="/quick/new\?doc=1&(amp;)?lang=en"')
+        self.assertNotIn("doc=1", t)
         self.assertIn('href="/studies"', t)
-        self.assertIn("Start from scratch", t)
-        self.assertIn("I have a document", t)
-        self.assertEqual(t.count('<a class="way'), 2)
-        for gone in ("I already have a risk analysis", "/reviews", "workshop"):
-            self.assertNotIn(gone, t.lower() if gone.islower() else t, gone)
-        self.assertIn("Built on EBIOS Risk Manager, the method of ANSSI, the French national cybersecurity agency", t)
-        self.assertIn('href="/how?lang=en"', t)
+        self.assertEqual(len(re.findall(r'<a class="button primary big"', t)), 1)
+        self.assertIn(">Start <", t)
+        self.assertNotIn('<a class="way', t)
+        for gone in ("I have a document", "Start from scratch", "I already have a risk analysis", "/reviews", "workshop"):
+            self.assertNotIn(gone, t, gone)
+
+    def test_home_says_15_minutes_once_and_the_subtitle_is_one_line(self):
+        for lang, phrase in (("en", "15 minutes"), ("fr", "15 minutes")):
+            t = self.page(f"/?lang={lang}")
+            self.assertEqual(t.count(phrase), 1, lang)
+            self.assertNotIn("30 minutes", t)
+            self.assertEqual(len(re.findall(r'<p class="lead">', t)), 1)
+            lead = re.search(r'<p class="lead">(.*?)</p>', t).group(1)
+            self.assertLessEqual(len(lead.split()), 16, lead)          # one line of the page
+            self.assertEqual(re.findall(r"[.!?]", lead.rstrip(".")), [], lead)  # one sentence
 
     def test_french_home(self):
         t = self.page("/?lang=fr")
         self.assertIn(engine.HONESTY["fr"], t)
         self.assertIn('<html lang="fr">', t)
-        self.assertIn("Partir de zéro", t)
+        self.assertIn("Commencer", t)
+        self.assertNotIn("J'ai un document", t)
 
     def test_language_choice_is_remembered_by_cookie(self):
         self.page("/?lang=fr")
@@ -202,7 +211,8 @@ class WalkTest(Base):
         conf = engine.quick_confidence(st["quick"], self.cat)
         self.assertLessEqual(conf, 75)
         self.assertIn(f'<span class="big-n">{conf}%</span>', t)
-        self.assertIn("With answers alone, confidence reaches up to 75%.", t)
+        self.assertIn("Confidence grows as you answer more questions yourself.", t)
+        self.assertIn("up to 75%", t)
         actions = re.findall(r'<span class="a-n">(\d)</span>', t)
         self.assertEqual(actions, [str(i) for i in range(1, len(actions) + 1)])
         self.assertTrue(1 <= len(actions) <= 5)
@@ -210,14 +220,15 @@ class WalkTest(Base):
         rows = engine.quick_compute(st["quick"], self.cal, self.cat)
         reg, _ = engine.register(st, self.cal)
         self.assertEqual([r["id"] for r in reg], [r["id"] for r in rows])
-        for r in rows:
-            m = re.search(rf'<th scope="row">{r["id"]}</th><td>.*?</td><td><span class="lvl [^"]*">([^<]+)</span></td><td><span class="lvl [^"]*">([^<]+)</span></td>', t)
+        listing = t.split('<details class="see-all">')[1].split("</details>")[0]
+        for i, r in enumerate(rows, 1):
+            m = re.search(rf'<span class="rid">{i}</span> .*?<span class="lvl [^"]*">([^<]+)</span> <span aria-hidden="true">&rarr;</span> '
+                          rf'<span class="lvl [^"]*">([^<]+)</span></h3>', listing)
             self.assertIsNotNone(m, r["id"])
             # the engine's level, shown under its plain name (Low / Moderate / High) on this English page
             self.assertEqual((m.group(1), m.group(2)), (labels.level_label(self.cal, r["level"], "en"),
                                                         labels.level_label(self.cal, r["level_target"], "en")))
-        # facts line
-        self.assertIn("To add: architecture document, business impact analysis, security baseline.", t)
+        self.assertNotIn("Documents", t)
 
     def test_the_stored_study_is_a_normal_valid_study_one_row_per_kept_risk(self):
         sid = self.start()
@@ -249,7 +260,11 @@ class WalkTest(Base):
         self.assertEqual(r.get("Location"), f"/quick/{sid}/now?f=saved")
         self.assertEqual(self.study(sid)["quick"]["step"], "now")
         self.assertIn("Saved.", self.page(f"/quick/{sid}/now?f=saved"))
-        self.assertTrue(all(e.get("assessed") for e in self.study(sid)["quick"]["risks"] if e["decision"] == "keep"))
+        q = self.study(sid)["quick"]
+        self.assertTrue(q["measures"]["assessed"])
+        for e in q["risks"]:     # the answers belong to the whole business, not to one risk
+            for k in ("in_place", "extra", "assessed"):
+                self.assertNotIn(k, e)
         self.rate_all(sid, go="next")
         self.assertEqual(self.study(sid)["quick"]["step"], "results")
 
@@ -357,15 +372,14 @@ class ValidationTest(Base):
         self.assertNotIn("severity", e)
         self.assertNotIn("likelihood", e)
 
-    def test_a_measure_not_in_the_risk_list_is_dropped(self):
+    def test_a_measure_not_in_the_list_is_dropped(self):
         sid = self.start()
         self.keep_all(sid)
-        rid = re.findall(r'id="risk-([^"]+)"', self.page(f"/quick/{sid}/now"))[0]
-        mine = [m["id"] for r in self.cat["risks"] if r["id"] == rid for m in r["measures"]]
-        self.post(f"/quick/{sid}/now", {"lang": "en", "go": "stay", f"m_{rid}_not-a-measure": "extra", f"m_{rid}_{mine[0]}": "in",
-                                        f"m_{rid}_{mine[1]}": "extra", f"m_{rid}_{mine[2]}": "bogus"})
-        e = next(e for e in self.study(sid)["quick"]["risks"] if e["id"] == rid)
-        self.assertEqual((e["in_place"], e["extra"]), ([mine[0]], [mine[1]]))     # unknown measures and values are dropped
+        mine = re.findall(r'name="m_([^"]+)" value="extra"', self.page(f"/quick/{sid}/now"))
+        self.post(f"/quick/{sid}/now", {"lang": "en", "go": "stay", "m_not-a-measure": "extra", f"m_{mine[0]}": "in",
+                                        f"m_{mine[1]}": "extra", f"m_{mine[2]}": "bogus"})
+        measures = self.study(sid)["quick"]["measures"]
+        self.assertEqual((measures["in_place"], measures["extra"]), ([mine[0]], [mine[1]]))     # unknown measures and values are dropped
 
     def test_name_is_required_and_the_form_keeps_what_was_typed(self):
         form = {"name": " ", "activity": "We bake", "values": "a\nb\nc\nd\ne\nf", "tools": ["office"], "lang": "en"}
@@ -445,7 +459,7 @@ class ConfidenceAndAssumptionsTest(Base):
         self.keep_all(sid)
         t = self.page(f"/quick/{sid}/results")
         self.assertIn("Left open", t)
-        self.assertIn("measures already in place, none assumed yet", t)
+        self.assertIn("Measures already in place: none assumed yet.", t)
         risks = self.study(sid)["risks"]
         self.assertTrue(all(r["sources"]["likelihood"] == "default" for r in risks))
 
@@ -462,8 +476,11 @@ class ConfidenceAndAssumptionsTest(Base):
         self.assertLessEqual(self.conf(sid), 75)
 
 
-class DocumentTest(Base):
-    """The document question is a plain yes/no flag: nothing is uploaded, stored or read."""
+class NoDocumentTalkTest(Base):
+    """Small businesses have no architecture document, impact analysis or security baseline: the public screens
+    do not ask for one, and the answers of an older form that did are ignored."""
+    WORDS = ("document", "architecture", "impact analysis", "security baseline", "business impact", "socle de sécurité",
+             "analyse d'impact", "d'architecture", "mentioned, not read", "mentionné")
 
     def start_doc(self, answer):
         form = {"csrf": self.c.csrf("/quick/new"), "name": "With document", "activity": "x", "values": "a", "tools": ["office"],
@@ -472,54 +489,51 @@ class DocumentTest(Base):
             form["has_doc"] = answer
         return self.c.post("/quick/new", form)
 
-    def test_yes_is_stored_as_a_flag_and_listed_as_mentioned_not_read(self):
-        r = self.start_doc("yes")
-        self.assertEqual(r.status, 303)
-        sid = sid_of(r)
-        doc = self.study(sid)["quick"]["profile"]["document"]
-        self.assertEqual(doc, {"provided": True, "status": "mentioned, not read"})
+    def test_the_about_form_has_no_document_question(self):
+        for path in ("/quick/new", "/quick/new?doc=1"):
+            t = self.page(path)
+            self.assertNotIn("has_doc", t, path)
+            self.assertNotIn("Do you have a document", t, path)
+            self.assertNotIn('type="file"', t, path)
+            self.assertNotIn("multipart", t, path)
+
+    def test_an_old_form_answer_is_ignored(self):
+        for answer in ("yes", "no", None, "maybe"):
+            sid = sid_of(self.start_doc(answer))
+            self.assertNotIn("document", self.study(sid)["quick"]["profile"], answer)
         self.keep_all(sid)
         self.rate_all(sid)
         t = self.page(f"/quick/{sid}/results")
-        self.assertIn("Documents: document mentioned, not read.", t)
-        self.assertIn("Your document is noted. The confidence figure reflects your answers.", t)
-        self.assertIn("To add: architecture document, business impact analysis, security baseline.", t)
-        # nothing was drawn from a document: no element carries source "document"
+        self.assertIn("Confidence grows as you answer more questions yourself.", t)
         st = self.study(sid)
         for key in engine.COLLECTIONS:
             for x in st[key]:
                 self.assertNotEqual(x["source"], "document")
         self.assertEqual(engine.check(st)["errors"], [])
 
-    def test_no_or_unanswered_is_not_provided(self):
-        for answer in ("no", None, "maybe"):
-            sid = sid_of(self.start_doc(answer))
-            self.assertEqual(self.study(sid)["quick"]["profile"]["document"], {"provided": False}, answer)
-        t = self.page(f"/quick/{sid}/results")
-        self.assertNotIn("mentioned, not read", t)
-        self.assertIn("With answers alone, confidence reaches up to 75%.", t)
+    def test_no_public_screen_talks_about_documents_in_either_language(self):
+        for lang in ("en", "fr"):
+            sid = self.start(lang=lang)
+            self.keep_all(sid, lang=lang)
+            self.rate_all(sid, lang=lang)
+            paths = ["/", "/quick/new", f"/quick/{sid}/about", f"/quick/{sid}/risks", f"/quick/{sid}/now",
+                     f"/quick/{sid}/results", "/how", "/studies"]
+            for path in paths:
+                t = self.page(path + ("&" if "?" in path else "?") + f"lang={lang}").split("<main", 1)[1].lower()
+                for w in self.WORDS:
+                    self.assertNotIn(w, t, (lang, path, w))
 
-    def test_the_form_has_no_file_input_and_no_multipart(self):
-        for path in ("/quick/new", "/quick/new?doc=1"):
-            t = self.page(path)
-            self.assertNotIn('type="file"', t, path)
-            self.assertNotIn("multipart", t, path)
-            self.assertIn('name="has_doc" value="yes"', t)
-            self.assertIn('name="has_doc" value="no"', t)
-
-    def test_the_second_way_in_preselects_yes_and_the_first_no(self):
-        self.assertRegex(self.page("/quick/new?doc=1"), r'name="has_doc" value="yes" checked')
-        t = self.page("/quick/new")
-        self.assertRegex(t, r'name="has_doc" value="no" checked')
-        self.assertNotRegex(t, r'name="has_doc" value="yes" checked')
-
-    def test_changing_the_answer_on_the_about_screen(self):
-        sid = sid_of(self.start_doc("yes"))
-        self.assertRegex(self.page(f"/quick/{sid}/about"), r'name="has_doc" value="yes" checked')
-        form = {"name": "With document", "activity": "x", "values": "a", "tools": ["office"], "downtime": "day",
-                "sensitivity": "internal", "lang": "en", "has_doc": "no"}
-        self.assertEqual(self.post(f"/quick/{sid}/about", form).status, 303)
-        self.assertEqual(self.study(sid)["quick"]["profile"]["document"], {"provided": False})
+    @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl is not installed")
+    def test_the_excel_export_has_no_document_talk(self):
+        import openpyxl
+        for lang in ("en", "fr"):
+            sid = self.start(lang=lang)
+            self.keep_all(sid, lang=lang)
+            self.rate_all(sid, lang=lang)
+            wb = openpyxl.load_workbook(io.BytesIO(self.c.get(f"/s/{sid}/export.xlsx?lang={lang}").body))
+            blob = " ".join(str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None).lower()
+            for w in self.WORDS:
+                self.assertNotIn(w, blob, (lang, w))
 
     def test_the_document_routes_and_storage_are_gone(self):
         sid = sid_of(self.start_doc("yes"))
@@ -617,8 +631,9 @@ class ExportTest(Base):
         wb = openpyxl.load_workbook(io.BytesIO(r.body))
         first = wb.worksheets[0]
         self.assertEqual(first["A1"].value, engine.HONESTY["en"])
-        self.assertTrue(first["A2"].value.startswith("Documents: none yet. To add: architecture document, business impact analysis, security baseline."))
+        self.assertNotIn("Documents", first["A2"].value)
         self.assertIn("Confidence:", first["A2"].value)
+        self.assertIn("Confidence grows as you answer more questions yourself.", first["A2"].value)
         header_row = next(i for i, row in enumerate(first.iter_rows(values_only=True), 1) if row[0] == "id")
         self.assertEqual([c.value for c in first[header_row]][:5], ["id", "label", "severity", "likelihood", "level"])
         st = self.study(sid)
@@ -878,8 +893,10 @@ class RoundTwoShortlistTest(Base):
         sid = self.small()
         self.keep_all_ticked(sid)
         now = self.page(f"/quick/{sid}/now")
-        self.assertEqual(len(re.findall(r'<article class="row-card', now)), 10)
-        self.assertEqual(self.page(f"/quick/{sid}/results").count('<th scope="row">'), 10)
+        self.assertEqual(len(re.findall(r'<article class="risk-row', now)), 10)
+        res = self.page(f"/quick/{sid}/results")
+        self.assertEqual(res.count('<article class="risk-finding">'), 10)
+        self.assertEqual(len(re.findall(r'<li value="\d+">', res)), 10)
         self.assertEqual(len(self.study(sid)["risks"]), 10)
 
     def keep_all_ticked(self, sid):
@@ -951,7 +968,7 @@ class RoundTwoLanguageTest(Base):
             t = self.page(f"/quick/{sid}/now?lang={lang}")
             self.assertNotRegex(t, r"\(G[1-4]\b")
             self.assertNotIn("G4 Critique", t)
-            self.assertIn('<p class="proposed">', t)
+            self.assertIn("Keep our suggestion (", t) if lang == "en" else self.assertIn("Garder notre proposition (", t)
 
     def test_severity_words_agree_with_the_map_labels(self):
         self.assertEqual([engine.SEVERITY_WORDS["en"][n].split(":")[0] for n in (1, 2, 3, 4)],
@@ -1004,12 +1021,6 @@ class RoundTwoLayoutTest(Base):
         self.assertRegex(css, r"\.row-card \.blk\.sev \{[^}]*white-space: normal")  # the old nowrap `.sev` rule no longer leaks in
         self.assertRegex(css, r"@media \(max-width: 900px\) \{ \.row-grid \{ grid-template-columns: minmax\(0, 1fr\); \} \}")
 
-    def test_document_question_is_a_yes_no_choice_with_title_and_optional_inline(self):
-        t = self.page("/quick/new")
-        m = re.search(r'<fieldset class="q doc"><legend>(.*?)</legend>', t)
-        self.assertIsNotNone(m)
-        self.assertIn("Do you have a document about your systems or risks?", m.group(1))
-        self.assertIn("(optional)", m.group(1))
 
 
 class RoundTwoLogoTest(Base):

@@ -80,8 +80,14 @@ def display_cal(cal, lang):
 
 
 # ---- one short name, a rough "how long or how much" and "who can do it" for each measure of the catalogue ----
-# These are rough guides written for Atelier, not measured figures and not from a standard. A test checks that every
-# measure of the catalogue has an entry and that every line built from them stays within 15 words.
+# These are rough guides written for Atelier, not measured figures and not from a standard. Only figures that suit any
+# small business are used (FIGURES below: ranges and plain words, no precise price). A test checks that every
+# measure of the catalogue has an entry, that every figure is one of FIGURES and that every line built from them
+# stays within 15 words.
+FIGURES = (("under an hour", "moins d'une heure"), ("an hour or two", "une heure ou deux"), ("a few hours", "quelques heures"),
+           ("half a day", "une demi-journée"), ("a day or two", "un jour ou deux"), ("a few minutes", "quelques minutes"),
+           ("a short call", "un court appel"), ("free", "gratuit"), ("small monthly fee", "petit abonnement mensuel"),
+           ("small one-off cost", "petit achat unique"))
 WHO = {
     "you": ("you", "vous"),
     "it": ("your IT contact", "votre contact informatique"),
@@ -95,48 +101,48 @@ WHO = {
 # measure id: (short name EN, short name FR, how long or how much EN, FR, who)
 EFFORT = {
     "backup_offline": ("Keep tested backups offline or elsewhere", "Garder des sauvegardes testées hors ligne", "half a day", "une demi-journée", "it"),
-    "updates": ("Install updates quickly", "Installer vite les mises à jour", "an hour to start", "une heure pour démarrer", "it"),
-    "mfa": ("Turn on a second sign-in step", "Activer une seconde étape de connexion", "about an hour", "environ une heure", "it"),
-    "awareness": ("Show people what fake messages look like", "Montrer à quoi ressemblent les faux messages", "30 minutes", "30 minutes", "manager"),
-    "protection": ("Run protection software on every computer", "Installer un logiciel de protection partout", "about an hour", "environ une heure", "it"),
-    "incident_plan": ("Write a one-page incident plan", "Écrire un plan d'incident d'une page", "2 hours", "2 heures", "manager"),
-    "password_manager": ("Use a password manager", "Utiliser un gestionnaire de mots de passe", "about an hour", "environ une heure", "it"),
-    "monitoring": ("Switch on sign-in alerts", "Activer les alertes de connexion", "about an hour", "environ une heure", "it"),
-    "payment_check": ("Confirm payment changes by phone", "Confirmer les changements par téléphone", "one call each time", "un appel à chaque fois", "pay"),
+    "updates": ("Install updates quickly", "Installer vite les mises à jour", "under an hour", "moins d'une heure", "it"),
+    "mfa": ("Turn on a second sign-in step", "Activer une seconde étape de connexion", "under an hour", "moins d'une heure", "it"),
+    "awareness": ("Show people what fake messages look like", "Montrer à quoi ressemblent les faux messages", "under an hour", "moins d'une heure", "manager"),
+    "protection": ("Run protection software on every computer", "Installer un logiciel de protection partout", "under an hour", "moins d'une heure", "it"),
+    "incident_plan": ("Write a one-page incident plan", "Écrire un plan d'incident d'une page", "an hour or two", "une heure ou deux", "manager"),
+    "password_manager": ("Use a password manager", "Utiliser un gestionnaire de mots de passe", "under an hour", "moins d'une heure", "it"),
+    "monitoring": ("Switch on sign-in alerts", "Activer les alertes de connexion", "under an hour", "moins d'une heure", "it"),
+    "payment_check": ("Confirm payment changes by phone", "Confirmer les changements par téléphone", "a few minutes", "quelques minutes", "pay"),
     "least_access": ("Give people only the access they need", "Donner à chacun seulement les accès utiles", "a few hours", "quelques heures", "it"),
     "data_minimise": ("Keep only the personal data you need", "Garder seulement les données personnelles utiles", "a few hours", "quelques heures", "manager"),
     "payment_provider": ("Let a certified provider take card payments", "Confier les cartes à un prestataire certifié", "a day or two", "un jour ou deux", "web"),
-    "site_updates": ("Keep the website software up to date", "Tenir à jour le logiciel du site", "an hour a month", "une heure par mois", "web"),
-    "site_checks": ("Watch the website and test checkout", "Surveiller le site et tester le paiement", "30 minutes a month", "30 minutes par mois", "web"),
-    "admin_accounts": ("Keep few administrator accounts", "Limiter les comptes administrateur", "a couple of hours", "deux heures", "it"),
-    "backup_auto": ("Automate backups and check them weekly", "Automatiser les sauvegardes et les vérifier", "about an hour", "environ une heure", "it"),
-    "traffic_filter": ("Add a traffic-filtering service", "Filtrer le trafic du site", "a day plus a fee", "un jour plus un abonnement", "web"),
-    "contract_outage": ("Agree restore times with providers", "Convenir de délais de rétablissement", "one conversation", "une discussion", "manager"),
-    "data_rules": ("Set clear rules on sharing data", "Fixer des règles de partage des données", "one page, an hour", "une page, une heure", "manager"),
-    "encrypt_devices": ("Encrypt laptops and phones", "Chiffrer ordinateurs portables et téléphones", "30 minutes each", "30 minutes chacun", "it"),
-    "offboarding": ("Remove access on the day someone leaves", "Retirer les accès le jour d'un départ", "15 minutes each time", "15 minutes à chaque fois", "manager"),
+    "site_updates": ("Keep the website software up to date", "Tenir à jour le logiciel du site", "under an hour", "moins d'une heure", "web"),
+    "site_checks": ("Watch the website and test checkout", "Surveiller le site et tester le paiement", "under an hour", "moins d'une heure", "web"),
+    "admin_accounts": ("Keep few administrator accounts", "Limiter les comptes administrateur", "an hour or two", "une heure ou deux", "it"),
+    "backup_auto": ("Automate backups and check them weekly", "Automatiser les sauvegardes et les vérifier", "an hour or two", "une heure ou deux", "it"),
+    "traffic_filter": ("Add a traffic-filtering service", "Filtrer le trafic du site", "small monthly fee", "petit abonnement mensuel", "web"),
+    "contract_outage": ("Agree restore times with providers", "Convenir de délais de rétablissement", "a short call", "un court appel", "manager"),
+    "data_rules": ("Set clear rules on sharing data", "Fixer des règles de partage des données", "an hour or two", "une heure ou deux", "manager"),
+    "encrypt_devices": ("Encrypt laptops and phones", "Chiffrer ordinateurs portables et téléphones", "an hour or two", "une heure ou deux", "it"),
+    "offboarding": ("Remove access on the day someone leaves", "Retirer les accès le jour d'un départ", "a few minutes", "quelques minutes", "manager"),
     "segmentation": ("Put key systems on a separate network", "Séparer les systèmes clés du reste", "a day or two", "un jour ou deux", "it"),
-    "share_review": ("Review online sharing settings", "Revoir les réglages de partage en ligne", "30 minutes", "30 minutes", "it"),
-    "own_copy": ("Keep your own copy of online data", "Garder votre copie des données en ligne", "about an hour", "environ une heure", "it"),
+    "share_review": ("Review online sharing settings", "Revoir les réglages de partage en ligne", "under an hour", "moins d'une heure", "it"),
+    "own_copy": ("Keep your own copy of online data", "Garder votre copie des données en ligne", "an hour or two", "une heure ou deux", "it"),
     "remote_access": ("Protect remote access", "Protéger l'accès à distance", "a few hours", "quelques heures", "it"),
-    "vendor_access": ("Give suppliers named accounts", "Donner un accès nominatif aux fournisseurs", "about an hour", "environ une heure", "it"),
+    "vendor_access": ("Give suppliers named accounts", "Donner un accès nominatif aux fournisseurs", "an hour or two", "une heure ou deux", "it"),
     "exit_plan": ("Note your alternatives to each supplier", "Noter vos solutions de remplacement", "a few hours", "quelques heures", "manager"),
     "ics_isolation": ("Keep machine controls off the office network", "Séparer les machines du réseau de bureau", "a day or two", "un jour ou deux", "it"),
     "manual_fallback": ("Practise key tasks by hand", "Prévoir les tâches clés à la main", "a few hours", "quelques heures", "manager"),
-    "usb_scan": ("Scan USB sticks before use", "Analyser les clés USB avant usage", "about an hour", "environ une heure", "it"),
-    "restore_test": ("Test a full restore", "Tester une restauration complète", "half a day yearly", "une demi-journée par an", "it"),
-    "documentation": ("Document key tasks, train a deputy", "Documenter les tâches clés, former un suppléant", "a few hours", "quelques heures", "manager"),
-    "recipient_check": ("Check the recipient before sending", "Vérifier le destinataire avant l'envoi", "a minute each time", "une minute à chaque fois", "team"),
-    "change_control": ("Test changes first, keep a way back", "Tester d'abord, garder un retour arrière", "about an hour", "environ une heure", "it"),
-    "spares": ("Keep a spare for key equipment", "Prévoir un équipement de remplacement", "a small purchase", "un petit achat", "manager"),
-    "battery": ("Add a battery backup", "Ajouter une alimentation de secours", "a small purchase", "un petit achat", "it"),
-    "dual_link": ("Add a backup internet connection", "Ajouter une connexion internet de secours", "10 minutes with a hotspot", "10 minutes avec un partage mobile", "it"),
-    "device_wipe": ("Enable remote lock and erase", "Activer le verrouillage à distance", "30 minutes", "30 minutes", "it"),
+    "usb_scan": ("Scan USB sticks before use", "Analyser les clés USB avant usage", "under an hour", "moins d'une heure", "it"),
+    "restore_test": ("Test a full restore", "Tester une restauration complète", "half a day", "une demi-journée", "it"),
+    "key_tasks": ("Write down key tasks, train a deputy", "Écrire les tâches clés, former un suppléant", "a few hours", "quelques heures", "manager"),
+    "recipient_check": ("Check the recipient before sending", "Vérifier le destinataire avant l'envoi", "a few minutes", "quelques minutes", "team"),
+    "change_control": ("Test changes first, keep a way back", "Tester d'abord, garder un retour arrière", "an hour or two", "une heure ou deux", "it"),
+    "spares": ("Keep a spare for key equipment", "Prévoir un équipement de remplacement", "small one-off cost", "petit achat unique", "manager"),
+    "battery": ("Add a battery backup", "Ajouter une alimentation de secours", "small one-off cost", "petit achat unique", "it"),
+    "dual_link": ("Add a backup internet connection", "Ajouter une connexion internet de secours", "small monthly fee", "petit abonnement mensuel", "it"),
+    "device_wipe": ("Enable remote lock and erase", "Activer le verrouillage à distance", "under an hour", "moins d'une heure", "it"),
     "physical": ("Lock rooms and escort visitors", "Fermer les locaux, accompagner les visiteurs", "a few hours", "quelques heures", "premises"),
-    "insurance": ("Check what your insurance covers", "Vérifier ce que couvre votre assurance", "a call or email", "un appel ou un courriel", "insurer"),
-    "fire_safety": ("Add fire detection and an outside copy", "Détection incendie et copie externe", "a day plus detectors", "un jour plus des détecteurs", "premises"),
+    "insurance": ("Check what your insurance covers", "Vérifier ce que couvre votre assurance", "a short call", "un court appel", "insurer"),
+    "fire_safety": ("Add fire detection and an outside copy", "Détection incendie et copie externe", "small one-off cost", "petit achat unique", "premises"),
     "alt_site": ("Plan to work from another place", "Prévoir de travailler ailleurs", "a few hours", "quelques heures", "manager"),
-    "surge_flood": ("Keep equipment off floors and pipes", "Surélever le matériel, loin des canalisations", "about an hour", "environ une heure", "premises"),
+    "surge_flood": ("Keep equipment off floors and pipes", "Surélever le matériel, loin des canalisations", "under an hour", "moins d'une heure", "premises"),
 }
 
 
@@ -152,3 +158,35 @@ def effort_line(measure_id, lang):
         return ""
     i = 0 if _lang(lang) == "en" else 1
     return f"{e[2 + i]}, {WHO[e[4]][i]}"
+
+
+
+# ---- measures grouped under a few plain headings on "Now and after" ----
+GROUPS = ("access", "devices", "recovery", "people", "outside")
+GROUP_TITLE = {
+    "en": {"access": "Sign-ins and access", "devices": "Computers and network", "recovery": "Backups and getting back to work",
+           "people": "People and habits", "outside": "Website, suppliers and premises"},
+    "fr": {"access": "Connexions et accès", "devices": "Ordinateurs et réseau", "recovery": "Sauvegardes et reprise du travail",
+           "people": "Équipe et habitudes", "outside": "Site web, fournisseurs et locaux"},
+}
+MEASURE_GROUP = {
+    "mfa": "access", "password_manager": "access", "least_access": "access", "admin_accounts": "access", "offboarding": "access",
+    "remote_access": "access", "vendor_access": "access", "share_review": "access", "monitoring": "access",
+    "updates": "devices", "protection": "devices", "encrypt_devices": "devices", "device_wipe": "devices", "usb_scan": "devices",
+    "segmentation": "devices", "ics_isolation": "devices", "change_control": "devices", "traffic_filter": "devices",
+    "backup_offline": "recovery", "backup_auto": "recovery", "restore_test": "recovery", "own_copy": "recovery",
+    "incident_plan": "recovery", "manual_fallback": "recovery", "alt_site": "recovery", "spares": "recovery",
+    "battery": "recovery", "dual_link": "recovery",
+    "awareness": "people", "payment_check": "people", "recipient_check": "people", "data_minimise": "people",
+    "data_rules": "people", "key_tasks": "people",
+    "payment_provider": "outside", "site_updates": "outside", "site_checks": "outside", "contract_outage": "outside",
+    "exit_plan": "outside", "physical": "outside", "fire_safety": "outside", "surge_flood": "outside", "insurance": "outside",
+}
+
+
+def group_of(measure_id):
+    return MEASURE_GROUP.get(measure_id, "people")
+
+
+def group_title(key, lang):
+    return GROUP_TITLE[_lang(lang)][key]

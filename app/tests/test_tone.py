@@ -195,15 +195,43 @@ class FindingsTest(ToneBase):
             n_risks = len(self.study(sid)["risks"])
             self.assertEqual(html.count('class="risk-finding"'), n_risks)
 
-    def test_the_evidence_quotes_the_persons_own_answers(self):
-        sid = self.start(sensitivity="confidential", downtime="hours")
+    LIK_WORDS = ("Unlikely", "Possible", "Likely", "Very likely", "Peu probable", "Probable", "Très probable",
+                 "Yes, once", "Yes, a few times", "Yes, regularly")
+
+    def evidences(self, html):
+        return re.findall(r'<p class="f-evid"><b>[^<]+</b> ([^<]*)</p>', html)
+
+    def test_the_evidence_quotes_the_business_not_the_likelihood(self):
+        sid = self.start(sensitivity="confidential", downtime="hours")        # tools: office and an online shop
         self.keep_all(sid)
         self.rate_all(sid)
         html = self.page(f"/quick/{sid}/results")
-        self.assertIn("You said “", html)
-        self.assertRegex(html, r"You said (a stop would matter )?“[^”]+”")
+        ev = self.evidences(html)
+        self.assertGreaterEqual(len(ev), 4)
+        for text in ev:
+            self.assertNotIn("You said", text)
+            self.assertNotIn("how likely", text)
+            for w in self.LIK_WORDS:
+                self.assertNotIn(f"“{w}”", text)
+        self.assertIn("Customer data is confidential for you.", ev)
+        self.assertIn("You use an online shop.", ev)
 
-    def test_the_persons_own_values_are_quoted_when_no_other_answer_applies(self):
+    def test_the_evidence_never_quotes_the_likelihood_even_when_it_was_answered(self):
+        sid = self.start(sensitivity="dont_know", downtime="dont_know", tools=[])
+        self.keep_all(sid)
+        form = {"lang": "en", "go": "next"}
+        for r in re.findall(r'id="risk-([^"]+)"', self.page(f"/quick/{sid}/now")):
+            form[f"lik_{r}"] = "very_likely" if r.startswith("D") else "often"
+        self.post(f"/quick/{sid}/now", form)
+        for lang in ("en", "fr"):
+            res = self.page(f"/quick/{sid}/results?lang={lang}")
+            ev = self.evidences(res)
+            self.assertTrue(ev)
+            for text in ev:
+                for w in self.LIK_WORDS + ("You said", "Vous avez répondu"):
+                    self.assertNotIn(w, text)
+
+    def test_with_no_other_answer_the_catalogue_reason_is_the_evidence(self):
         sid = self.start(tools=[], sensitivity="dont_know", downtime="dont_know", values="Taking orders by email")
         self.keep_all(sid)
         form = {"lang": "en", "go": "next"}
@@ -211,7 +239,16 @@ class FindingsTest(ToneBase):
             form[f"lik_{r}"] = "dont_know"
         self.post(f"/quick/{sid}/now", form)
         res = self.page(f"/quick/{sid}/results")
-        self.assertIn("You said “Taking orders by email” matters most.", res)
+        why = {r["why"]["en"] for r in self.cat["risks"]}
+        shown = [t.replace("&#x27;", "'") for t in self.evidences(res)]
+        self.assertTrue(shown)
+        for text in shown:
+            self.assertIn(text, why)
+        q = self.study(sid)["quick"]
+        rows = engine.quick_compute(q, self.cal, self.cat)
+        for lang in ("en", "fr"):
+            for r in rows:
+                self.assertEqual(findings.evidence(r, q, self.cat, lang), r["def"]["why"][lang])
 
     def test_each_line_stays_within_fifteen_words_for_every_risk_and_measure(self):
         cat = self.cat
@@ -244,15 +281,51 @@ class FindingsTest(ToneBase):
             for lang in ("en", "fr"):
                 self.assertTrue(labels.short_action(mid, lang) and labels.effort_line(mid, lang), (mid, lang))
 
-    def test_the_results_open_with_what_is_in_place_then_what_to_do_next(self):
+    def test_the_results_order_and_the_collapsed_sections(self):
         sid = self.walk("en")
         html = self.page(f"/quick/{sid}/results")
-        order = [html.index(x) for x in ("Already in place", "Your top actions", "Where you stand", "Your risks", "Confidence")]
+        marks = ('class="summary"', "Your top actions", "<svg", "Your risks on the maps", '<details class="see-all"><summary>See all your risks (',
+                 '<details class="in-place-box"><summary>Already in place (', "Confidence", "Honesty statement", 'class="closing"')
+        order = [html.index(x) for x in marks]
         self.assertEqual(order, sorted(order))
-        placed = {m for r in engine.quick_compute(self.study(sid)["quick"], self.cal, self.cat) for m in r["in_place"]}
-        self.assertTrue(placed)
-        for m in placed:
-            self.assertIn(f"<li>{labels.short_action(m, 'en')}</li>", html)
+        self.assertEqual(html.count('class="summary"'), 1)
+        self.assertEqual(html.count('class="closing"'), 1)
+        self.assertEqual(re.search(r'class="summary" role="status">([^<]+)<', html).group(1),
+                         re.search(r'class="closing" role="status">([^<]+)<', html).group(1))
+
+    def test_a_measure_is_never_in_place_and_a_next_step_at_once(self):
+        sid = self.walk("en")
+        html = self.page(f"/quick/{sid}/results")
+        q = self.study(sid)["quick"]
+        org = engine.quick_org_measures(q)
+        self.assertTrue(org["in_place"] and org["extra"])
+        self.assertFalse(set(org["in_place"]) & set(org["extra"]))
+        placed_names = {labels.short_action(m, "en") for m in org["in_place"]}
+        box = html.split('<details class="in-place-box">')[1].split("</details>")[0]
+        for m in org["in_place"]:
+            self.assertIn(f"<li>{labels.short_action(m, 'en')}</li>", box)
+        self.assertIn("Already in place (%d)" % len(org["in_place"]), html)
+        actions = html.split('<ol class="actions-list">')[1].split("</ol>")[0]
+        for name in placed_names:
+            self.assertNotIn(name + ":", actions)         # a measure already in place is not offered as a next step
+
+    def test_the_risks_have_plain_numbers_that_match_the_list_next_to_the_maps(self):
+        sid = self.walk("en")
+        html = self.page(f"/quick/{sid}/results")
+        q = self.study(sid)["quick"]
+        rows = engine.quick_compute(q, self.cal, self.cat)
+        key = re.findall(r'<li value="(\d+)">([^<]*)</li>', html)
+        self.assertEqual([int(n) for n, _ in key], list(range(1, len(rows) + 1)))
+        for (n, title), r in zip(key, rows):
+            self.assertEqual(title.replace("&#x27;", "'"), r["def"]["title"]["en"])
+        visible = re.sub(r"<[^>]+>", " ", html.split("<main", 1)[1])
+        self.assertNotRegex(visible, r"\b[DAC]\d\d?\b")                  # no D01 / A02 in what people read
+        maps = re.findall(r"<svg.*?</svg>", html, re.S)
+        self.assertEqual(len(maps), 2)
+        for svg in maps:
+            texts = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
+            self.assertNotRegex(texts, r"\b[DAC]\d\d?\b")
+            self.assertRegex(texts, r"\b1\b")
 
 
 class ClosingLineTest(ToneBase):
@@ -269,11 +342,14 @@ class ClosingLineTest(ToneBase):
         rows, land, m = self.expected(sid)
         self.assertGreater(len(land), 0)
         html = self.page(f"/quick/{sid}/results")
-        line = f"With your {m} planned actions, {len(land)} of your {len(rows)} risks move to Low or Moderate."
-        self.assertIn(f'<p class="closing" role="status">{line}</p>', html)
-        self.assertGreater(html.index('class="closing"'), html.index("Download"))   # the page closes on it
+        verb = "moves" if len(land) == 1 else "move"
+        line = f"With {m} actions, {len(land)} of your {len(rows)} risks {verb} to Low or Moderate."
+        self.assertIn(f'<p class="summary" role="status">{line}</p>', html)                     # at the top
+        self.assertIn(f'<p class="closing" role="status">{line}</p>', html)                     # and at the very end
+        self.assertGreater(html.index('class="closing"'), html.index("Download"))
+        self.assertLess(html.index('class="summary"'), html.index("Your top actions"))
         fr = self.page(f"/quick/{sid}/results?lang=fr")
-        self.assertIn(f"Avec vos {m} actions prévues, {len(land)} de vos {len(rows)} risques passent à Faible ou Modéré.", fr)
+        self.assertIn(f"Avec {m} actions, {len(land)} de vos {len(rows)} risques passent à Faible ou Modéré.", fr)
 
     def test_the_line_follows_the_answers(self):
         sid = self.start()
@@ -291,7 +367,7 @@ class ClosingLineTest(ToneBase):
         line_a = re.search(r'<p class="closing" role="status">([^<]+)</p>', a).group(1)
         line_b = re.search(r'<p class="closing" role="status">([^<]+)</p>', b).group(1)
         self.assertNotEqual(line_a, line_b)
-        self.assertNotIn("planned actions", line_b)
+        self.assertNotIn(" actions", line_b)
 
 
 class ClosingBranchesTest(ToneBase):
@@ -305,15 +381,15 @@ class ClosingBranchesTest(ToneBase):
 
     def test_each_branch_in_both_languages(self):
         rows = [self.row(3, 2, ["a", "b"]), self.row(3, 3, ["a"]), self.row(2, 1, ["c"]), self.row(3, 3)]
-        self.assertEqual(self.line(rows), "With your 3 planned actions, 2 of your 4 risks move to Low or Moderate.")
-        self.assertEqual(self.line(rows, "fr"), "Avec vos 3 actions prévues, 2 de vos 4 risques passent à Faible ou Modéré.")
+        self.assertEqual(self.line(rows), "With 3 actions, 2 of your 4 risks move to Low or Moderate.")
+        self.assertEqual(self.line(rows, "fr"), "Avec 3 actions, 2 de vos 4 risques passent à Faible ou Modéré.")
         one = [self.row(3, 2, ["a"]), self.row(3, 3)]
-        self.assertEqual(self.line(one), "With your planned action, 1 of your 2 risks moves to Low or Moderate.")
-        self.assertEqual(self.line(one, "fr"), "Avec votre action prévue, 1 de vos 2 risques passe à Faible ou Modéré.")
+        self.assertEqual(self.line(one), "With 1 action, 1 of your 2 risks moves to Low or Moderate.")
+        self.assertEqual(self.line(one, "fr"), "Avec 1 action, 1 de vos 2 risques passe à Faible ou Modéré.")
         start = [self.row(3, 3, ["a", "b"]), self.row(3, 3)]            # a plan, no level change yet
-        self.assertEqual(self.line(start), "Your 2 planned actions are a first step on 2 risks.")
-        self.assertEqual(self.line(start, "fr"), "Vos 2 actions prévues sont un premier pas sur 2 risques.")
-        self.assertEqual(self.line([self.row(3, 3, ["a"])]), "Your planned action is a first step on 1 risks.")
+        self.assertEqual(self.line(start), "Your 2 actions are a first step on 2 risks.")
+        self.assertEqual(self.line(start, "fr"), "Vos 2 actions sont un premier pas sur 2 risques.")
+        self.assertEqual(self.line([self.row(3, 3, ["a"])]), "Your action is a first step on 1 risks.")
         now = [self.row(1, 1), self.row(3, 3)]                          # no plan, one risk already low
         self.assertEqual(self.line(now), "1 of your 2 risks is already at Low or Moderate.")
         self.assertEqual(self.line(now, "fr"), "1 de vos 2 risques est déjà à Faible ou Modéré.")
@@ -328,10 +404,10 @@ class ClosingBranchesTest(ToneBase):
         cal4 = copy.deepcopy(self.cal)
         cal4["levels"].append({"name": "Très haut", "name_en": "Very high", "rank": 4, "colour": "8E1B10"})
         rows = [self.row(4, 3, ["a"]), self.row(4, 4)]                  # a step down that still ends at the top of the old scale
-        self.assertEqual(findings.closing(rows, cal4, "en"), "With your planned action, 1 of your 2 risks improves by a level.")
-        self.assertEqual(findings.closing(rows, cal4, "fr"), "Avec votre action prévue, 1 de vos 2 risques gagne un niveau.")
+        self.assertEqual(findings.closing(rows, cal4, "en"), "With 1 action, 1 of your 2 risks improves by a level.")
+        self.assertEqual(findings.closing(rows, cal4, "fr"), "Avec 1 action, 1 de vos 2 risques gagne un niveau.")
         rows = [self.row(4, 3, ["a", "b"]), self.row(4, 3)]
-        self.assertEqual(findings.closing(rows, cal4, "en"), "With your 2 planned actions, 2 of your 2 risks improve by a level.")
+        self.assertEqual(findings.closing(rows, cal4, "en"), "With 2 actions, 2 of your 2 risks improve by a level.")
 
     def test_no_branch_names_a_level_the_rows_do_not_show(self):
         for rows in ([self.row(3, 2, ["a"])], [self.row(2, 1)], [self.row(3, 3)]):
@@ -355,7 +431,8 @@ class EvidenceBranchesTest(ToneBase):
         for b in re.findall(r'<div class="finding">(.*?)</div>', res, re.S):
             for text in re.findall(r"</b> ([^<]*)</p>", b):
                 self.assertLessEqual(findings.wc(text), 15, text)
-        self.assertIn('class="rid">C1</span>', res)
+        n_kept = len([e for e in self.study(sid)["quick"]["risks"] if e["decision"] == "keep"])
+        self.assertIn(f'class="rid">{n_kept}</span>', res)        # the risk added by the person has the last plain number
 
 
 @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl is not installed")
