@@ -150,6 +150,8 @@ the route answers 404.
 
 | Event | Fields |
 |---|---|
+| `visit` | `source`: `linkedin`, `x`, `github`, `cplt`, `search`, `other` or `direct` (the kind of site in the Referer; the address itself is never kept). Written when a new visitor opens the start page; link previews, crawlers and scripts (by user agent, never stored) are not counted |
+| `joined` | `source` (carried from the start page in a hidden field), when a workspace is created with the invite code |
 | `study_started` | `tools` (tool ids), `sensitivity`, `downtime` (answer words, `dont_know` or `unanswered`) |
 | `step_reached` | `step` (`about`, `risks`, `now`, `results`; each counted once per study, when it is first reached) |
 | `risk_discarded` | `risk` (a catalogue id, when a ticked risk is unticked) |
@@ -160,7 +162,8 @@ the route answers 404.
 
 `stats.clean` builds each line from this list, so a line holds no workspace id or hash, no study id, no IP address, no
 browser name, no time finer than the day, no typed text and no email. Writing a count never stops a page. Read the counts
-with `cd app && python3 -m atelier_app.stats <data_dir> [--month YYYY-MM]`: it prints studies started, studies that reached
+with `cd app && python3 -m atelier_app.stats <data_dir> [--month YYYY-MM] [--since YYYY-MM-DD]`: it prints start-page visits and
+invite codes entered by source, studies started, studies that reached
 each step, the most discarded risks, the most chosen measures, downloads and shares (all months without `--month`). Local
 mode writes no counts.
 

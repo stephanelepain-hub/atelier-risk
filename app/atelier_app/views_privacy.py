@@ -16,8 +16,9 @@ T = {
             ("What we keep",
              "The answers you type, in a private space linked to one cookie in your browser. Atelier asks for no "
              "account and no name. An email address is asked only if you choose to send us your study (see below). In the text boxes, describe your work in general terms and "
-             "leave out names and confidential details. We also keep anonymous counts, such as how many studies reach the "
-             "results or which measures people choose. They have no identifier and none of your text, and we keep "
+             "leave out names and confidential details. We also keep anonymous counts, such as how many people open the "
+             "start page and the kind of site they came from (LinkedIn, X, GitHub, a search engine), how many studies reach the "
+             "results or which measures people choose. They have no identifier, no IP address and none of your text, and we keep "
              "them to improve Atelier (legal basis: GDPR article 6(1)(f))."),
             ("For how long",
              "Your private space is deleted 30 days after your last visit, or at once with Delete my data. "
@@ -62,8 +63,9 @@ T = {
              "Les réponses que vous saisissez, dans un espace privé lié à un cookie de votre navigateur. Atelier "
              "fonctionne sans compte et sans nom. Une adresse e-mail est demandée uniquement si vous choisissez de nous envoyer votre étude (voir plus bas). Dans les zones de texte, décrivez votre "
              "activité en termes généraux, sans noms ni détails confidentiels. Nous gardons aussi des comptages anonymes, "
-             "par exemple combien d'études arrivent aux résultats ou quelles mesures les personnes choisissent. Ils "
-             "sont anonymes, sans identifiant et sans aucun de vos textes, et nous les gardons pour améliorer Atelier "
+             "par exemple combien de personnes ouvrent la page d'accueil et le type de site d'où elles viennent (LinkedIn, X, "
+             "GitHub, un moteur de recherche), combien d'études arrivent aux résultats ou quelles mesures les personnes choisissent. Ils "
+             "sont anonymes, sans identifiant, sans adresse IP et sans aucun de vos textes, et nous les gardons pour améliorer Atelier "
              "(base légale : article 6(1)(f) du RGPD)."),
             ("Combien de temps",
              "Votre espace privé est effacé 30 jours après votre dernière visite, ou tout de suite avec Effacer mes "

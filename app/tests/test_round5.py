@@ -440,6 +440,8 @@ class StatsTest(Cleanup, unittest.TestCase):
         self.c.post_csrf(f"/quick/{sid}/share", share_form(), page="/")
         self.c.post_csrf("/forget", {}, page="/")
         lines = stat_lines(self.app)
+        self.assertEqual([(d["event"], d.get("source")) for d in lines[:1]], [("joined", "other")])   # no Referer: other
+        lines = [d for d in lines if d["event"] not in ("visit", "joined")]
         events = [d["event"] for d in lines]
         self.assertEqual(events[:3], ["study_started", "step_reached", "step_reached"])
         for ev in ("risk_discarded", "risk_added", "measures", "download", "shared", "forget"):
@@ -652,3 +654,66 @@ class FooterTest(Cleanup, unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VisitCountsTest(unittest.TestCase):
+    """Start-page visits and invite codes entered, counted with only the kind of site the visitor came from."""
+
+    def test_source_words(self):
+        from atelier_app import stats
+        cases = {"https://www.linkedin.com/feed/": "linkedin", "https://lnkd.in/abc": "linkedin", "https://t.co/xyz": "x",
+                 "https://x.com/someone": "x", "https://github.com/stephanelepain-hub/atelier-risk": "github",
+                 "https://cplt.tech/atelier": "cplt", "https://www.google.fr/": "search", "https://duckduckgo.com/": "search",
+                 "https://example.org/page": "other", "": "direct", "https://atelier.cplt.online/join": "direct",
+                 "not a url": "direct"}
+        for ref, want in cases.items():
+            self.assertEqual(stats.source_of(ref, "atelier.cplt.online"), want, ref)
+
+    def test_bots_are_not_counted(self):
+        from atelier_app import stats
+        for ua in ("LinkedInBot/1.0", "Twitterbot/1.0", "facebookexternalhit/1.1", "curl/8.0", "python-requests/2", "",
+                   "Mozilla/5.0 (compatible; Googlebot/2.1)", "HeadlessChrome/120"):
+            self.assertTrue(stats.is_bot(ua), ua)
+        self.assertFalse(stats.is_bot("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/157.0 Safari/537.36"))
+
+    def test_lines_hold_only_the_source_word(self):
+        from atelier_app import stats
+        line = stats.clean("visit", {"source": "linkedin", "referer": "https://www.linkedin.com/x", "ip": "1.2.3.4"}, "2026-11-13")
+        self.assertEqual(line, {"day": "2026-11-13", "event": "visit", "source": "linkedin"})
+        self.assertEqual(stats.clean("joined", {"source": "<script>"}, "2026-11-13")["source"], "other")
+
+    def test_summary_and_since(self):
+        import io, contextlib, json, tempfile, pathlib
+        from atelier_app import stats
+        with tempfile.TemporaryDirectory() as d:
+            p = pathlib.Path(d) / "stats"; p.mkdir()
+            rows = [{"day": "2026-11-10", "event": "visit", "source": "x"},
+                    {"day": "2026-11-12", "event": "visit", "source": "linkedin"},
+                    {"day": "2026-11-12", "event": "visit", "source": "linkedin"},
+                    {"day": "2026-11-12", "event": "joined", "source": "linkedin"}]
+            (p / "2026-11.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(stats.main([d, "--since", "2026-11-11"]), 0)
+            txt = out.getvalue()
+            self.assertIn("Visits to the start page: 2 (from: linkedin 2)", txt)
+            self.assertIn("Invite code entered: 1 (from: linkedin 1)", txt)
+            self.assertEqual(stats.main([d, "--since", "13/11"]), 2)
+
+
+class VisitFlowTest(Cleanup, unittest.TestCase):
+    BROWSER = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/157.0 Safari/537.36"
+
+    def test_a_visit_from_linkedin_and_the_join_carry_the_source_and_nothing_else(self):
+        app = self.make()
+        c = Client(app)
+        c.get("/join", headers={"User-Agent": "LinkedInBot/1.0", "Referer": "https://www.linkedin.com/"})   # link preview
+        page = c.text(c.get("/join", headers={"User-Agent": self.BROWSER, "Referer": "https://www.linkedin.com/feed/update/1"}))
+        self.assertIn('name="src" value="linkedin"', page)
+        r = c.post("/join", {"pre": PRE_RE.search(page).group(1), "src": "linkedin"})
+        self.assertEqual(r.status, 303)
+        got = [(d["event"], d.get("source")) for d in stat_lines(app) if d["event"] in ("visit", "joined")]
+        self.assertEqual(got, [("visit", "linkedin"), ("joined", "linkedin")])
+        raw = "".join(p.read_text() for p in (pathlib.Path(app.data_dir) / "stats").glob("*.jsonl"))
+        self.assertNotIn("linkedin.com", raw)
+        self.assertNotIn("Mozilla", raw)

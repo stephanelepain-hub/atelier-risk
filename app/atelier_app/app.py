@@ -244,7 +244,12 @@ class App(ExpertRoutes, QuickRoutes):
         if self.workspaces.full():
             return self._remember(req, Response(views_public.full_page(lang), 503, headers=[("Retry-After", "3600")]), lang)
         pre = auth.secrets.token_urlsafe(24)
-        resp = Response(views_public.join_page(pre, lang, self.invite_code is not None, message_key), status)
+        src = req.field("src") if req.field("src") in stats.SOURCES else ""
+        if req.method == "GET" and not message_key:      # a new visitor on the start page (not a retry), bots left out
+            src = stats.source_of(req.headers.get("referer", ""), req.headers.get("host", "").split(":")[0])
+            if not stats.is_bot(req.headers.get("user-agent", "")):
+                self.stats.record("visit", source=src)
+        resp = Response(views_public.join_page(pre, lang, self.invite_code is not None, message_key, src), status)
         resp.header("Set-Cookie", f"{auth.PRE_COOKIE}={pre}; HttpOnly; Secure; SameSite=Strict; Path=/join")
         return self._remember(req, resp, lang)
 
@@ -265,6 +270,7 @@ class App(ExpertRoutes, QuickRoutes):
             wid = self.workspaces.create()
         except workspaces.WorkspacesFull:
             return self.join_form(req)    # shows the "full for now" page
+        self.stats.record("joined", source=req.field("src") if req.field("src") in stats.SOURCES else "other")
         resp = redirect("/")
         resp.header("Set-Cookie", workspaces.cookie_header(wid))
         resp.header("Set-Cookie", f"{auth.PRE_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/join; Max-Age=0")

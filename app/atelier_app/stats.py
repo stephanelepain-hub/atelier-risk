@@ -29,8 +29,36 @@ SENSITIVITY = ("internal", "confidential", "critical", "dont_know", "unanswered"
 DOWNTIME = ("hours", "day", "days", "week", "dont_know", "unanswered")
 MEASURE_ANSWERS = ("in", "extra", "none")
 DOWNLOADS = ("xlsx", "study", "maps")
-EVENTS = ("study_started", "step_reached", "risk_discarded", "risk_added", "measures", "download", "shared", "forget")
+SOURCES = ("linkedin", "x", "github", "cplt", "search", "other", "direct")
+SOURCE_HOSTS = (("linkedin", ("linkedin.com", "lnkd.in")), ("x", ("t.co", "x.com", "twitter.com")),
+                ("github", ("github.com",)), ("cplt", ("cplt.tech", "cplt.online")),
+                ("search", ("google.", "bing.com", "duckduckgo.com", "qwant.com", "ecosia.org", "yahoo.")))
+BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|curl|wget|python|httpx|go-http|headless|"
+                    r"monitor|uptime|scan", re.I)
+
+
+def source_of(referer, own_host=""):
+    """The kind of site a visitor came from, as one word of SOURCES. Only the word is kept, never the address."""
+    try:
+        import urllib.parse
+        host = (urllib.parse.urlsplit(referer or "").hostname or "").lower()
+    except ValueError:
+        return "other"
+    if not host or (own_host and host == own_host.lower()):
+        return "direct"
+    for word, hosts in SOURCE_HOSTS:
+        if any(host == h or host.endswith("." + h) or (h.endswith(".") and h in host) for h in hosts):
+            return word
+    return "other"
+
+
+def is_bot(user_agent):
+    """True for link previews, crawlers and scripts: they are not counted. The browser name is never kept."""
+    return not user_agent or bool(BOT_RE.search(user_agent))
+EVENTS = ("visit", "joined", "study_started", "step_reached", "risk_discarded", "risk_added", "measures", "download", "shared", "forget")
 FIELDS = {   # event: the only fields its line may carry besides day and event
+    "visit": ("source",),
+    "joined": ("source",),
     "study_started": ("tools", "sensitivity", "downtime"),
     "step_reached": ("step",),
     "risk_discarded": ("risk",),
@@ -54,7 +82,9 @@ def clean(event, fields, today=None):
         return None
     line = {"day": today or datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d"), "event": event}
     f = fields or {}
-    if event == "study_started":
+    if event in ("visit", "joined"):
+        line["source"] = f.get("source") if f.get("source") in SOURCES else "other"
+    elif event == "study_started":
         tools = sorted({t for t in (f.get("tools") or []) if _id(t)})
         sens = f.get("sensitivity") if f.get("sensitivity") in SENSITIVITY else "unanswered"
         down = f.get("downtime") if f.get("downtime") in DOWNTIME else "unanswered"
@@ -151,7 +181,11 @@ def summary(lines, top=10):
     chosen = collections.Counter()
     chosen.update(planned)
     chosen.update(placed)
-    return {"started": ev["study_started"],
+    by_src = lambda e: {k: sum(1 for d in lines if d["event"] == e and d.get("source") == k) for k in SOURCES}  # noqa: E731
+    days = sorted({d.get("day") for d in lines if d.get("day")})
+    return {"visits": ev["visit"], "visits_by_source": by_src("visit"), "joined": ev["joined"],
+            "joined_by_source": by_src("joined"), "first_day": days[0] if days else "", "last_day": days[-1] if days else "",
+            "started": ev["study_started"],
             "reached": {s: steps[s] for s in STEPS},
             "discarded": discarded.most_common(top),
             "measures": [(m, n, planned[m], placed[m]) for m, n in chosen.most_common(top)],
@@ -160,7 +194,11 @@ def summary(lines, top=10):
 
 
 def render(s, label, skipped=0, files=0):
-    out = [f"Atelier anonymous counts: {label} ({files} file{'' if files == 1 else 's'} read)", f"Studies started: {s['started']}",
+    src = lambda d: ", ".join(f"{k} {v}" for k, v in d.items() if v) or "none"  # noqa: E731
+    out = [f"Atelier anonymous counts: {label} ({files} file{'' if files == 1 else 's'} read)",
+           f"Visits to the start page: {s['visits']} (from: {src(s['visits_by_source'])})",
+           f"Invite code entered: {s['joined']} (from: {src(s['joined_by_source'])})",
+           f"Studies started: {s['started']}",
            "Reached: " + ", ".join(f"{k} {v}" for k, v in s["reached"].items()),
            "Top discarded risks: " + (", ".join(f"{r} ({n})" for r, n in s["discarded"]) or "none yet"),
            "Most chosen measures: " + (", ".join(f"{m} ({n}: {p} planned, {i} in place)" for m, n, p, i in s["measures"]) or "none yet"),
@@ -176,7 +214,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="python3 -m atelier_app.stats", description="Print the anonymous counts of a public Atelier instance.")
     ap.add_argument("data_dir")
     ap.add_argument("--month", help="YYYY-MM (default: every month)")
+    ap.add_argument("--since", help="YYYY-MM-DD: only days from this one on (e.g. the last 7 days)")
     a = ap.parse_args(argv)
+    if a.since and not DAY_RE.fullmatch(a.since):
+        print("--since must look like 2026-11-13", file=sys.stderr)
+        return 2
     if a.month and not MONTH_RE.fullmatch(a.month):
         print("--month must look like 2026-11", file=sys.stderr)
         return 2
@@ -189,7 +231,10 @@ def main(argv=None):
     except OSError as e:
         print(f"cannot read the counts: {e}", file=sys.stderr)
         return 1
-    print(render(summary(lines), a.month or "all months", skipped, files))
+    if a.since:
+        lines = [d for d in lines if str(d.get("day", "")) >= a.since]
+    label = (a.month or "all months") + (f", from {a.since}" if a.since else "")
+    print(render(summary(lines), label, skipped, files))
     return 0
 
 

@@ -62,7 +62,7 @@ def t(lang, key):
     return T.get(lang, T["en"])[key]
 
 
-def join_page(pre, lang, need_code, message_key=""):
+def join_page(pre, lang, need_code, message_key="", src=""):
     """The one short screen a visitor sees first. `message_key` names a kind note shown above the form."""
     note = f'<p class="error" role="alert">{esc(t(lang, message_key))}</p>' if message_key else ""
     code = (f'<label>{esc(t(lang, "code"))} <input type="text" name="code" autocomplete="off" required '
@@ -74,6 +74,7 @@ def join_page(pre, lang, need_code, message_key=""):
 {note}
 <form method="post" action="/join">
 <input type="hidden" name="pre" value="{esc(pre)}">
+<input type="hidden" name="src" value="{esc(src)}">
 {code}
 <button class="primary big">{esc(t(lang, "start"))}</button>
 </form>
