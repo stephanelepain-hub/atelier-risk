@@ -208,8 +208,11 @@ class ShareTest(Cleanup, unittest.TestCase):
     def test_cplt_services_link_is_plain_and_localised(self):
         en = self.c.text(self.c.get(f"/quick/{self.sid}/results?lang=en"))
         fr = self.c.text(self.c.get(f"/quick/{self.sid}/results?lang=fr"))
-        self.assertIn('Atelier is free. If you want help putting these actions in place, <a href="https://cplt.tech/services">see what I do at CPLT</a>.', en)
-        self.assertIn('Atelier est gratuit. Pour de l’aide sur ces actions, <a href="https://cplt.tech/fr">voyez ce que je fais chez CPLT</a>.', fr)
+        self.assertIn('Atelier is free, made by CPLT. CPLT builds AI for small businesses: you decide where your data goes, and a person approves every result. <a href="https://cplt.tech/proof">See how CPLT works</a>.', en)
+        self.assertIn('Atelier est gratuit, proposé par CPLT. CPLT conçoit de l’IA pour les petites entreprises : vous décidez où vont vos données, et une personne valide chaque résultat. <a href="https://cplt.tech/fr">Voyez comment travaille CPLT</a>.', fr)
+        for page in (en, fr):      # the free tool never promises cyber work for hire
+            self.assertNotIn("putting these actions in place", page)
+            self.assertNotIn("aide sur ces actions", page)
         self.assertNotIn('https://cplt.tech/fr/services', fr)
 
     def test_the_card_is_the_last_block_of_the_results_page_with_an_unticked_consent_box(self):

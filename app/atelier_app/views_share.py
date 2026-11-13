@@ -9,9 +9,9 @@ T = {
     "en": {
         "card_h": "Want a deeper look?",
         "card_p": "Send your study to CPLT. We reply by email with a fuller strategy.",
-        "service_intro": "Atelier is free. If you want help putting these actions in place, ",
-        "service_link": "see what I do at CPLT",
-        "service_url": "https://cplt.tech/services",
+        "service_intro": "Atelier is free, made by CPLT. CPLT builds AI for small businesses: you decide where your data goes, and a person approves every result. ",
+        "service_link": "See how CPLT works",
+        "service_url": "https://cplt.tech/proof",
         "email": "Your email address",
         "message": "A message (optional, up to 500 characters)",
         "consent": "I agree to send my answers, including the text I typed, to CPLT, who keeps them for 12 months to reply to me.",
@@ -33,8 +33,8 @@ T = {
     "fr": {
         "card_h": "Envie d'aller plus loin ?",
         "card_p": "Envoyez votre étude à CPLT. Nous répondons par e-mail avec une stratégie plus complète.",
-        "service_intro": "Atelier est gratuit. Pour de l’aide sur ces actions, ",
-        "service_link": "voyez ce que je fais chez CPLT",
+        "service_intro": "Atelier est gratuit, proposé par CPLT. CPLT conçoit de l’IA pour les petites entreprises : vous décidez où vont vos données, et une personne valide chaque résultat. ",
+        "service_link": "Voyez comment travaille CPLT",
         "service_url": "https://cplt.tech/fr",
         "email": "Votre adresse e-mail",
         "message": "Un message (facultatif, 500 caractères au plus)",
